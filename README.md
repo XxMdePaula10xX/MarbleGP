@@ -113,6 +113,19 @@ ultrapassagens por alguns segundos) e **Pista Suja** (menos aderência e mais
 risco de erro temporariamente), sorteados ao longo da prova, além dos alertas de
 desgaste/energia/pit e dos avisos de mudança de clima — tudo no log do HUD.
 
+✅ **Overhaul visual e de usabilidade**: circuito de verdade gerado por código
+(grama, asfalto, zebras vermelho/branco, linha de chegada quadriculada, setas de
+sentido, dashes centrais, placa do circuito) e **pit lane** com boxes coloridos
+por equipe e placas PIT IN/OUT. Bolinhas **2x maiores** com sombra, material
+glossy, etiqueta com a sigla (CM1/CM2…), **rastro** de velocidade, **brilho** de
+modo (Push/Save) e overlay de **PIT com barra de progresso**. Câmera com 4 modos
+(geral / bolinha 1 / bolinha 2 / líder), zoom mais próximo e movimento suave.
+HUD repaginado: top bar central, timing tower com glow do jogador e faixa da
+equipe, **cards** com barras de desgaste/energia, seletores de **modo/pneu** e
+estados de botão (PIT → QUEUED/IN PIT), **log colorido com fade** e **minimapa**.
+Largada com contagem grande, vencedor destacado e tela de resultado com pneu
+final e realce do campeão.
+
 ### Dados gerados (PRD 42)
 - **4 equipes**: Red Comet Racing, Blue Orbit GP, Emerald Rollers, Shadow Marble Team.
 - **8 bolinhas** (2 por equipe), com atributos e personalidades distintas.

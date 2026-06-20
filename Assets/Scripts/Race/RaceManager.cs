@@ -23,7 +23,16 @@ namespace MarbleGP.Race
         public RaceState State { get; private set; } = RaceState.PreRace;
         public TrackManager Track { get; private set; }
         public IReadOnlyList<MarbleController> Field => _field;
+        public MarbleController Leader => _field.Count > 0 ? _field[0] : null;
         public RaceConfig Config { get; private set; }
+
+        /// <summary>Controllers das bolinhas do jogador (para camera/HUD).</summary>
+        public List<MarbleController> PlayerMarbles()
+        {
+            var list = new List<MarbleController>();
+            foreach (var c in _field) if (c.Runtime.isPlayer) list.Add(c);
+            return list;
+        }
         public int TotalLaps { get; private set; }
         public RaceResult Result { get; private set; }
 
@@ -73,7 +82,7 @@ namespace MarbleGP.Race
             TotalLaps = config.laps;
 
             BuildGround();
-            Track = TrackBuilder.Build(config.track, config.MarbleCount, transform);
+            Track = TrackBuilder.Build(config.track, config.MarbleCount, BuildTeamColors(config), transform);
 
             // Clima dinamico (PRD 19): comeca do config ou sorteia pela chance de chuva.
             Weather start = config.weather != Weather.Dry
@@ -98,6 +107,20 @@ namespace MarbleGP.Race
             State = RaceState.Countdown;
             _countdownTimer = 4f; // 3..2..1..GO
             _lastCountValue = -1;
+        }
+
+        /// <summary>Cores das equipes (por bolinha) para colorir os pit boxes.</summary>
+        private List<Color> BuildTeamColors(RaceConfig config)
+        {
+            var colors = new List<Color>();
+            var profile = GameManager.Instance != null ? GameManager.Instance.Profile : null;
+            foreach (var e in config.entries)
+            {
+                if (e.isPlayerControlled && profile != null) { colors.Add(profile.PrimaryColor); continue; }
+                var team = database.GetTeam(e.driver.teamId);
+                colors.Add(team != null ? team.primaryColor : Color.gray);
+            }
+            return colors;
         }
 
         private void BuildGround()
@@ -236,7 +259,10 @@ namespace MarbleGP.Race
                     // Voltas (PRD 9.3 / 26).
                     bool lapDone = _positionSystem.UpdateLap(ctrl, TotalLaps);
                     if (lapDone && m.pitRequested)
+                    {
                         _pitManager.BeginEntry(ctrl);
+                        Log($"🔧 {m.DisplayName} entrou no pit.");
+                    }
                 }
 
                 // Cronometro por bolinha.
@@ -248,8 +274,43 @@ namespace MarbleGP.Race
             }
 
             _positionSystem.UpdatePositions(_field);
+            DetectOvertakes(dt);
 
             if (AllFinished()) FinishRace();
+        }
+
+        private readonly Dictionary<MarbleController, int> _lastPos = new();
+        private readonly Dictionary<MarbleController, float> _otCooldown = new();
+
+        /// <summary>Loga ultrapassagens (PRD 20: "X ultrapassou Y"), com cooldown anti-spam.</summary>
+        private void DetectOvertakes(float dt)
+        {
+            if (_raceClock < 3f) { foreach (var c in _field) _lastPos[c] = c.Runtime.position; return; }
+
+            for (int i = 0; i < _field.Count; i++)
+            {
+                var c = _field[i];
+                var m = c.Runtime;
+                int newPos = i + 1;
+                if (_lastPos.TryGetValue(c, out int prev) && newPos == prev - 1 &&
+                    m.state == MarbleRaceState.Racing)
+                {
+                    float cd = _otCooldown.TryGetValue(c, out var t) ? t : 0f;
+                    if (cd <= 0f && i + 1 < _field.Count)
+                    {
+                        var behind = _field[i + 1].Runtime;
+                        if (behind.state == MarbleRaceState.Racing)
+                        {
+                            Log($"🔼 {m.DisplayName} ultrapassou {behind.DisplayName}.");
+                            _otCooldown[c] = 2.5f;
+                        }
+                    }
+                }
+                _lastPos[c] = newPos;
+            }
+
+            var keys = new List<MarbleController>(_otCooldown.Keys);
+            foreach (var k in keys) _otCooldown[k] = Mathf.Max(0f, _otCooldown[k] - dt);
         }
 
         private bool AllFinished()
@@ -313,12 +374,21 @@ namespace MarbleGP.Race
                     overtakes = m.overtakes,
                     finalWear = m.wear,
                     finalEnergy = m.energy,
+                    finalTyre = m.grip != null ? m.grip.DisplayLetter : "M",
                     points = _bal.PointsForPosition(i + 1),
                     isPlayer = m.isPlayer,
                     fastestLap = ordered[i] == fastest
                 });
             }
 
+            // Destaca o vencedor na pista (PRD 15: chegada).
+            if (ordered.Count > 0)
+            {
+                var winnerVisual = ordered[0].GetComponent<MarbleVisual>();
+                if (winnerVisual != null) winnerVisual.SetWinner();
+            }
+
+            Log($"🏁 {ordered[0].Runtime.DisplayName} venceu em {Config.track.trackName}!");
             Log("🏆 Corrida encerrada!");
             OnRaceFinished?.Invoke(Result);
         }

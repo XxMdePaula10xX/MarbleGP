@@ -257,6 +257,10 @@ namespace MarbleGP.Bootstrap
             race.StartRace(config);
 
             _camera.FrameTrack(race.Track);
+            var players = race.PlayerMarbles();
+            Transform p1 = players.Count > 0 ? players[0].transform : null;
+            Transform p2 = players.Count > 1 ? players[1].transform : null;
+            _camera.SetSubjects(p1, p2, () => race.Leader != null ? race.Leader.transform : null);
 
             var hudGo = new GameObject("RaceHUD");
             hudGo.transform.SetParent(_raceRoot.transform, false);
@@ -280,22 +284,39 @@ namespace MarbleGP.Bootstrap
         {
             var canvas = NewCanvas("Results");
             UIFactory.Label(canvas.transform, $"Resultado - {result.trackName}", 40, TextAnchor.MiddleCenter,
-                new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.97f), Color.white);
+                new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
 
-            var sb = new StringBuilder();
-            sb.AppendLine($"{"Pos",-4}{"Bolinha",-14}{"Equipe",-20}{"Tempo",-9}{"Pits",-6}{"MelhorV",-9}{"Pts",-4}");
-            foreach (var e in result.entries)
-            {
-                string player = e.isPlayer ? "►" : " ";
-                sb.AppendLine($"{player}{e.position,-3}{Trim(e.marbleName, 13),-14}{Trim(e.teamName, 19),-20}" +
-                              $"{e.totalTime,7:0.0}  {e.pitStops,-6}{(e.bestLapTime > 0 ? e.bestLapTime.ToString("0.00") : "-"),-9}{e.points,-4}");
-            }
+            // Faixa do vencedor.
+            var winner = result.entries.Count > 0 ? result.entries[0] : null;
+            if (winner != null)
+                UIFactory.Label(canvas.transform, $"🏆 Vencedor: {winner.marbleName} ({winner.teamName})", 26,
+                    TextAnchor.MiddleCenter, new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.9f),
+                    new Color(1f, 0.88f, 0.35f));
 
-            var panel = UIFactory.Panel(canvas.transform, new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.86f),
+            var panel = UIFactory.Panel(canvas.transform, new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.83f),
                 Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
-            var t = UIFactory.Label(panel, sb.ToString(), 20, TextAnchor.UpperLeft,
-                new Vector2(0.02f, 0f), new Vector2(1f, 0.98f), Color.white);
-            t.font = UIFactory.DefaultFont;
+
+            // Cabecalho.
+            UIFactory.Label(panel, $"{"Pos",-5}{"Bolinha",-15}{"Equipe",-20}{"Tempo",-9}{"Pneu",-6}{"Pits",-6}{"MelhorV",-9}{"Pts",-4}",
+                19, TextAnchor.UpperLeft, new Vector2(0.02f, 0.9f), new Vector2(0.99f, 0.99f),
+                new Color(0.7f, 0.8f, 1f));
+
+            // Uma linha por bolinha (jogador destacado em amarelo).
+            int rows = result.entries.Count;
+            for (int i = 0; i < rows; i++)
+            {
+                var e = result.entries[i];
+                string player = e.isPlayer ? "►" : " ";
+                string line = $"{player}{e.position,-4}{Trim(e.marbleName, 14),-15}{Trim(e.teamName, 19),-20}" +
+                              $"{e.totalTime,7:0.0}  {e.finalTyre,-6}{e.pitStops,-6}" +
+                              $"{(e.bestLapTime > 0 ? e.bestLapTime.ToString("0.00") : "-"),-9}{e.points,-4}";
+                float yMax = 0.88f - i * (0.86f / Mathf.Max(1, rows));
+                float yMin = yMax - (0.86f / Mathf.Max(1, rows));
+                Color rowColor = e.position == 1 ? new Color(1f, 0.88f, 0.35f)
+                               : e.isPlayer ? new Color(1f, 0.95f, 0.6f) : Color.white;
+                UIFactory.Label(panel, line, 18, TextAnchor.MiddleLeft,
+                    new Vector2(0.02f, yMin), new Vector2(0.99f, yMax), rowColor);
+            }
 
             var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
                 new Vector2(0.2f, 0.08f), new Vector2(0.45f, 0.16f), Vector2.zero, Vector2.zero);

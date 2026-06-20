@@ -12,14 +12,16 @@ namespace MarbleGP.Race
     /// </summary>
     public static class MarbleFactory
     {
-        public const float Radius = 0.5f;
+        // Maior e mais visivel (PRD 3): ~2x o tamanho anterior.
+        public const float Radius = 1.0f;
 
         public static MarbleController Spawn(MarbleRuntime runtime, Vector3 pos,
             TrackManager track, GameBalance bal, Transform parent)
         {
             var go = new GameObject($"Marble_{runtime.DisplayName}");
             if (parent != null) go.transform.SetParent(parent, false);
-            go.transform.position = pos;
+            // Apoia a bolinha sobre o solo (y = raio).
+            go.transform.position = new Vector3(pos.x, Radius, pos.z);
 
             // Corpo fisico (esfera) - colisor separado do visual para a rolagem.
             var rb = go.AddComponent<Rigidbody>();
@@ -52,6 +54,11 @@ namespace MarbleGP.Race
 
             var ctrl = go.AddComponent<MarbleController>();
             ctrl.Configure(runtime, track, bal, visual.transform, Radius);
+
+            // Camada visual (sombra, etiqueta, rastro, brilho, pit overlay).
+            var vis = go.AddComponent<MarbleVisual>();
+            vis.Configure(runtime, Radius, visual.transform, primary);
+
             return ctrl;
         }
     }

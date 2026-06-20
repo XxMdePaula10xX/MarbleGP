@@ -1,50 +1,63 @@
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using MarbleGP.AI;
 using MarbleGP.Core;
 using MarbleGP.Race;
 using MarbleGP.Systems;
+using MarbleGP.Track;
 using MarbleGP.CameraSystem;
 
 namespace MarbleGP.UI
 {
     /// <summary>
-    /// HUD da corrida construido por codigo (PRD 23.5). O ranking ao vivo segue
-    /// o layout de "timing tower" pedido na referencia: posicao, chip/cor da
-    /// equipe (logo placeholder), sigla de 3 letras do piloto, gap para o lider
-    /// e indicador do anel (estilo pneu), com setas de variacao de posicao.
+    /// HUD da corrida (PRD 23.5) com visual polido: top bar central, timing
+    /// tower com destaque do jogador, cards da equipe com barras de
+    /// desgaste/energia e seletores de modo/pneu, log de eventos colorido com
+    /// fade e minimapa. Consome apenas a API publica do RaceManager (PRD 39.14).
     /// </summary>
     public class RaceHUD : MonoBehaviour
     {
         private RaceManager _race;
         private CameraController _camera;
 
-        private Text _topText;
-        private Text _countdownText;
-        private Text _logText;
-        private readonly List<string> _log = new();
+        private Text _topCircuit, _topLap, _topWeather, _countdownText, _camLabel;
+        private RectTransform _safetyBadge;
 
-        // --- Timing tower ---
+        // ---- Timing tower ----
         private class RankingRow
         {
-            public Image bg;
-            public Text pos;
-            public Text arrow;
-            public Image chip;
-            public Text number;
-            public Text code;
-            public Text gap;
-            public Text grip;
+            public Image bg, accent, chip;
+            public Outline glow;
+            public Text pos, arrow, number, code, gap, grip;
         }
         private readonly List<RankingRow> _rows = new();
         private readonly Dictionary<MarbleRuntime, int> _posSnapshot = new();
         private float _snapshotTimer;
 
-        // --- Painel da equipe do jogador ---
-        private class PlayerPanel { public MarbleController ctrl; public Text info; public GripType nextGrip; }
-        private readonly List<PlayerPanel> _panels = new();
+        // ---- Cards da equipe ----
+        private class PlayerCard
+        {
+            public MarbleController ctrl;
+            public GripType nextGrip;
+            public Text title, tyre, mode, status, wearLabel, energyLabel, pitLabel;
+            public RectTransform wearFill, energyFill;
+            public Button pitBtn;
+            public GameObject modeSelector, tyreSelector;
+        }
+        private readonly List<PlayerCard> _cards = new();
+
+        // ---- Log ----
+        private struct LogItem { public string msg; public Color color; public float age; }
+        private readonly List<LogItem> _logItems = new();
+        private Text[] _logRows;
+        private const int LogRows = 5;
+        private const float LogFadeStart = 4.5f, LogFadeEnd = 7f;
+
+        // ---- Minimap ----
+        private Vector2 _mapMin, _mapMax;
+        private RectTransform _mapContainer;
+        private readonly List<(RectTransform rt, MarbleController ctrl)> _mapDots = new();
 
         public void Bind(RaceManager race, CameraController cam)
         {
@@ -58,238 +71,343 @@ namespace MarbleGP.UI
             _race.OnRaceFinished += OnFinished;
         }
 
+        // ================= BUILD =================
+
         private void BuildUI()
         {
             var canvas = UIFactory.CreateCanvas("RaceHUD");
             canvas.transform.SetParent(transform, false);
-            Color panelBg = new Color(0f, 0f, 0f, 0.55f);
 
-            // Topo (PRD 23.5).
-            var top = UIFactory.Panel(canvas.transform, new Vector2(0f, 0.94f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, panelBg);
-            _topText = UIFactory.Label(top, "", 26, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, Color.white);
-
+            BuildTopBar(canvas.transform);
             BuildTimingTower(canvas.transform);
+            BuildLog(canvas.transform);
+            BuildMinimap(canvas.transform);
+            BuildPlayerCards(canvas.transform);
 
-            // Inferior: log de eventos.
-            var bottom = UIFactory.Panel(canvas.transform, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.13f),
-                Vector2.zero, Vector2.zero, panelBg);
-            _logText = UIFactory.Label(bottom, "", 18, TextAnchor.LowerLeft,
-                new Vector2(0.02f, 0f), new Vector2(1f, 1f), Color.white);
-
-            // Centro: contagem regressiva.
-            _countdownText = UIFactory.Label(canvas.transform, "", 120, TextAnchor.MiddleCenter,
-                new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), Color.yellow);
-
-            // Botao de camera.
-            var camBtn = UIFactory.Button(canvas.transform, "Camera", new Color(0.2f, 0.4f, 0.8f, 0.9f),
-                new Vector2(0.78f, 0.94f), new Vector2(1f, 1f), new Vector2(6, 4), new Vector2(-6, -4));
-            camBtn.onClick.AddListener(() =>
-            {
-                var firstPlayer = FindFirstPlayer();
-                _camera.ToggleMode(firstPlayer != null ? firstPlayer.transform : null);
-            });
-
-            BuildPlayerPanels(canvas.transform);
+            _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
+                new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));
+            _countdownText.fontStyle = FontStyle.Bold;
         }
 
-        // ---- Timing tower (referencia do usuario) ------------------------
+        private void BuildTopBar(Transform canvas)
+        {
+            var bar = UIFactory.Panel(canvas, new Vector2(0.24f, 0.93f), new Vector2(0.78f, 1f),
+                Vector2.zero, Vector2.zero, new Color(0.04f, 0.05f, 0.08f, 0.82f));
+
+            _topCircuit = UIFactory.Label(bar, "", 24, TextAnchor.MiddleLeft,
+                new Vector2(0.03f, 0f), new Vector2(0.42f, 1f), Color.white);
+            _topCircuit.fontStyle = FontStyle.Bold;
+
+            _topLap = UIFactory.Label(bar, "", 26, TextAnchor.MiddleCenter,
+                new Vector2(0.42f, 0f), new Vector2(0.62f, 1f), new Color(1f, 0.95f, 0.6f));
+            _topLap.fontStyle = FontStyle.Bold;
+
+            _topWeather = UIFactory.Label(bar, "", 22, TextAnchor.MiddleRight,
+                new Vector2(0.62f, 0f), new Vector2(0.97f, 1f), new Color(0.7f, 0.85f, 1f));
+
+            // Badge de safety marble (escondido por padrao).
+            _safetyBadge = UIFactory.Panel(canvas, new Vector2(0.4f, 0.87f), new Vector2(0.6f, 0.92f),
+                Vector2.zero, Vector2.zero, new Color(0.85f, 0.55f, 0.1f, 0.95f));
+            var sbText = UIFactory.Label(_safetyBadge, "SAFETY MARBLE", 22, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, Color.white);
+            sbText.fontStyle = FontStyle.Bold;
+            _safetyBadge.gameObject.SetActive(false);
+
+            // Botao de camera (canto sup. direito).
+            var cam = UIFactory.Button(canvas, "Cam: Geral", new Color(0.2f, 0.45f, 0.85f, 0.95f),
+                new Vector2(0.79f, 0.94f), new Vector2(0.995f, 0.99f), Vector2.zero, Vector2.zero);
+            _camLabel = cam.GetComponentInChildren<Text>();
+            cam.onClick.AddListener(() => { _camera.Cycle(); _camLabel.text = _camera.CurrentLabel; });
+        }
+
+        // ---- Timing tower ----
 
         private void BuildTimingTower(Transform canvas)
         {
             int count = _race.Field.Count;
+            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.232f, 0.99f),
+                Vector2.zero, Vector2.zero, new Color(0.04f, 0.04f, 0.06f, 0.88f));
 
-            // Container a esquerda.
-            var container = UIFactory.Panel(canvas, new Vector2(0.005f, 0.13f), new Vector2(0.235f, 0.93f),
-                Vector2.zero, Vector2.zero, new Color(0.03f, 0.03f, 0.05f, 0.85f));
-
-            // Cabecalho "LAP x/y" fixo no topo do container.
-            const float headerH = 44f;
+            const float headerH = 48f;
             var header = UIFactory.Panel(container, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, new Color(0.10f, 0.10f, 0.14f, 1f));
+                Vector2.zero, Vector2.zero, new Color(0.12f, 0.13f, 0.18f, 1f));
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
-            _topLap = UIFactory.Label(header, "LAP 1", 24, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, Color.white);
+            var htxt = UIFactory.Label(header, "TIMING", 22, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, new Color(0.8f, 0.85f, 1f));
+            htxt.fontStyle = FontStyle.Bold;
 
-            float rowH = Mathf.Clamp(900f / Mathf.Max(1, count), 28f, 60f);
-
+            float rowH = Mathf.Clamp(880f / Mathf.Max(1, count), 30f, 58f);
             for (int i = 0; i < count; i++)
-            {
-                var row = CreateRow(container, i, rowH, headerH);
-                _rows.Add(row);
-            }
+                _rows.Add(CreateRow(container, i, rowH, headerH));
         }
-
-        private Text _topLap;
 
         private RankingRow CreateRow(RectTransform container, int index, float rowH, float topOffset)
         {
             var rowGo = new GameObject($"Row{index}", typeof(Image));
             rowGo.transform.SetParent(container, false);
             var bg = rowGo.GetComponent<Image>();
-            bg.color = (index % 2 == 0)
-                ? new Color(0.10f, 0.10f, 0.13f, 0.95f)
-                : new Color(0.07f, 0.07f, 0.10f, 0.95f);
-
+            bg.color = (index % 2 == 0) ? new Color(0.11f, 0.11f, 0.15f, 0.96f)
+                                        : new Color(0.08f, 0.08f, 0.12f, 0.96f);
             var rt = rowGo.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
-            rt.sizeDelta = new Vector2(0f, rowH - 2f);
+            rt.sizeDelta = new Vector2(-4f, rowH - 3f);
             rt.anchoredPosition = new Vector2(0f, -(topOffset + index * rowH));
 
             var row = new RankingRow { bg = bg };
 
-            // Posicao.
+            // Glow (Outline) usado para destacar o jogador.
+            row.glow = rowGo.AddComponent<Outline>();
+            row.glow.effectColor = new Color(1f, 0.85f, 0.2f, 0f);
+            row.glow.effectDistance = new Vector2(2.5f, 2.5f);
+
+            // Faixa de cor da equipe (esquerda).
+            var accentRt = UIFactory.Panel(rowGo.transform, new Vector2(0f, 0f), new Vector2(0.03f, 1f),
+                Vector2.zero, Vector2.zero, Color.gray);
+            row.accent = accentRt.GetComponent<Image>();
+
             row.pos = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.01f, 0f), new Vector2(0.15f, 1f), Color.white);
-            // Seta de variacao.
+                new Vector2(0.04f, 0f), new Vector2(0.17f, 1f), Color.white);
+            row.pos.fontStyle = FontStyle.Bold;
+
             row.arrow = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleCenter,
-                new Vector2(0.15f, 0f), new Vector2(0.22f, 1f), Color.white);
+                new Vector2(0.17f, 0f), new Vector2(0.23f, 1f), Color.white);
 
-            // Chip/cor da equipe (logo placeholder) com numero.
-            var chipGo = new GameObject("Chip", typeof(Image));
-            chipGo.transform.SetParent(rowGo.transform, false);
-            row.chip = chipGo.GetComponent<Image>();
-            var chipRt = chipGo.GetComponent<RectTransform>();
-            chipRt.anchorMin = new Vector2(0.23f, 0.18f);
-            chipRt.anchorMax = new Vector2(0.31f, 0.82f);
-            chipRt.offsetMin = Vector2.zero; chipRt.offsetMax = Vector2.zero;
-            row.number = UIFactory.Label(chipGo.transform, "", 16, TextAnchor.MiddleCenter,
+            var chipRt = UIFactory.Panel(rowGo.transform, new Vector2(0.24f, 0.16f), new Vector2(0.32f, 0.84f),
+                Vector2.zero, Vector2.zero, Color.gray);
+            row.chip = chipRt.GetComponent<Image>();
+            row.number = UIFactory.Label(chipRt, "", 16, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Color.white);
+            row.number.fontStyle = FontStyle.Bold;
 
-            // Sigla de 3 letras.
             row.code = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleLeft,
-                new Vector2(0.34f, 0f), new Vector2(0.6f, 1f), Color.white);
+                new Vector2(0.35f, 0f), new Vector2(0.58f, 1f), Color.white);
+            row.code.fontStyle = FontStyle.Bold;
 
-            // Gap para o lider.
-            row.gap = UIFactory.Label(rowGo.transform, "", 20, TextAnchor.MiddleRight,
+            row.gap = UIFactory.Label(rowGo.transform, "", 19, TextAnchor.MiddleRight,
                 new Vector2(0.55f, 0f), new Vector2(0.88f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
-            // Indicador do anel (estilo pneu).
             row.grip = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
                 new Vector2(0.88f, 0f), new Vector2(0.99f, 1f), Color.white);
+            row.grip.fontStyle = FontStyle.Bold;
 
             return row;
         }
 
-        private void UpdateTimingTower()
+        // ---- Log ----
+
+        private void BuildLog(Transform canvas)
         {
-            var field = _race.Field;
-
-            // Atualiza snapshot de posicoes a cada 1.5s para as setas.
-            _snapshotTimer -= Time.deltaTime;
-            bool refreshSnapshot = _snapshotTimer <= 0f;
-            if (refreshSnapshot) _snapshotTimer = 1.5f;
-
-            for (int i = 0; i < _rows.Count && i < field.Count; i++)
+            var panel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.135f),
+                Vector2.zero, Vector2.zero, new Color(0.03f, 0.03f, 0.05f, 0.7f));
+            _logRows = new Text[LogRows];
+            for (int i = 0; i < LogRows; i++)
             {
-                var m = field[i].Runtime;
-                var row = _rows[i];
-
-                row.pos.text = (i + 1).ToString();
-                row.code.text = m.driver != null ? m.driver.shortCode : "MAR";
-                row.chip.color = m.TeamPrimary;
-                row.number.text = m.driver != null ? m.driver.number.ToString() : "";
-                row.number.color = m.TeamSecondary;
-
-                // Gap.
-                row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";
-
-                // Indicador de anel.
-                row.grip.text = m.grip != null ? m.grip.DisplayLetter : "?";
-                row.grip.color = m.grip != null ? m.grip.DisplayColor : Color.gray;
-
-                // Seta de variacao de posicao.
-                int prev = _posSnapshot.TryGetValue(m, out var p) ? p : (i + 1);
-                if (i + 1 < prev) { row.arrow.text = "▲"; row.arrow.color = new Color(0.3f, 0.9f, 0.4f); }
-                else if (i + 1 > prev) { row.arrow.text = "▼"; row.arrow.color = new Color(0.9f, 0.3f, 0.3f); }
-                else { row.arrow.text = ""; }
-                if (refreshSnapshot) _posSnapshot[m] = i + 1;
-
-                // Destaca a linha do jogador.
-                if (m.isPlayer)
-                    row.bg.color = new Color(0.18f, 0.16f, 0.05f, 0.95f);
+                float yMin = 0.02f + i * 0.19f;
+                _logRows[i] = UIFactory.Label(panel, "", 18, TextAnchor.LowerLeft,
+                    new Vector2(0.02f, yMin), new Vector2(0.99f, yMin + 0.19f), Color.white);
             }
         }
 
-        // ---- Painel da equipe do jogador ---------------------------------
+        // ---- Minimap ----
 
-        private void BuildPlayerPanels(Transform canvas)
+        private void BuildMinimap(Transform canvas)
+        {
+            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.135f),
+                Vector2.zero, Vector2.zero, new Color(0.05f, 0.07f, 0.05f, 0.85f));
+
+            var lane = _race.Track != null ? _race.Track.IdealLine : null;
+            if (lane == null) return;
+
+            Vector3 min = lane.Points[0], max = lane.Points[0];
+            foreach (var p in lane.Points) { min = Vector3.Min(min, p); max = Vector3.Max(max, p); }
+            Vector2 margin = new Vector2((max.x - min.x) * 0.08f + 1f, (max.z - min.z) * 0.08f + 1f);
+            _mapMin = new Vector2(min.x - margin.x, min.z - margin.y);
+            _mapMax = new Vector2(max.x + margin.x, max.z + margin.y);
+
+            // Tracado da pista (pontos cinza).
+            for (int i = 0; i < lane.Points.Length; i += 2)
+            {
+                var d = Dot(_mapContainer, new Color(0.5f, 0.55f, 0.5f), 5f);
+                PlaceNorm(d, Norm(lane.Points[i]));
+            }
+            // Linha de chegada.
+            var sf = Dot(_mapContainer, Color.white, 8f);
+            PlaceNorm(sf, Norm(lane.Points[0]));
+
+            // Pontos das bolinhas.
+            foreach (var c in _race.Field)
+            {
+                float size = c.Runtime.isPlayer ? 12f : 8f;
+                var dot = Dot(_mapContainer, c.Runtime.MarbleColor, size);
+                if (c.Runtime.isPlayer)
+                {
+                    var o = dot.gameObject.AddComponent<Outline>();
+                    o.effectColor = Color.white; o.effectDistance = new Vector2(1.5f, 1.5f);
+                }
+                _mapDots.Add((dot.rectTransform, c));
+            }
+        }
+
+        private Vector2 Norm(Vector3 world)
+            => new Vector2(Mathf.InverseLerp(_mapMin.x, _mapMax.x, world.x),
+                           Mathf.InverseLerp(_mapMin.y, _mapMax.y, world.z));
+
+        private static Image Dot(Transform parent, Color color, float sizePx)
+        {
+            var go = new GameObject("Dot", typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            img.rectTransform.sizeDelta = new Vector2(sizePx, sizePx);
+            return img;
+        }
+
+        private static void PlaceNorm(Image img, Vector2 n) => PlaceNorm(img.rectTransform, n);
+        private static void PlaceNorm(RectTransform rt, Vector2 n)
+        {
+            rt.anchorMin = rt.anchorMax = n;
+            rt.anchoredPosition = Vector2.zero;
+        }
+
+        // ---- Cards da equipe ----
+
+        private void BuildPlayerCards(Transform canvas)
         {
             var players = new List<MarbleController>();
-            foreach (var c in _race.Field)
-                if (c.Runtime.isPlayer) players.Add(c);
+            foreach (var c in _race.Field) if (c.Runtime.isPlayer) players.Add(c);
 
-            float top = 0.94f;
-            float panelH = 0.2f;
+            float top = 0.99f, h = 0.29f, gap = 0.01f;
             for (int i = 0; i < players.Count; i++)
             {
-                var ctrl = players[i];
-                float yMax = top - i * (panelH + 0.01f);
-                float yMin = yMax - panelH;
-                var panel = UIFactory.Panel(canvas, new Vector2(0.78f, yMin), new Vector2(1f, yMax),
-                    new Vector2(4, 0), new Vector2(-4, 0), new Color(0.05f, 0.05f, 0.08f, 0.8f));
-
-                var info = UIFactory.Label(panel, "", 17, TextAnchor.UpperLeft,
-                    new Vector2(0.05f, 0.42f), new Vector2(1f, 1f), Color.white);
-                var pp = new PlayerPanel { ctrl = ctrl, info = info, nextGrip = ctrl.Runtime.grip.gripId };
-                _panels.Add(pp);
-
-                var captured = ctrl;
-                var capturedPanel = pp;
-
-                // PIT: usa o anel selecionado para a proxima parada (PRD 18 / 19).
-                var pit = UIFactory.Button(panel, "PIT", new Color(0.8f, 0.3f, 0.2f),
-                    new Vector2(0.04f, 0.05f), new Vector2(0.34f, 0.38f), Vector2.zero, Vector2.zero);
-                pit.onClick.AddListener(() =>
-                    _race.RequestPit(captured, capturedPanel.nextGrip, true, 60f));
-
-                // MODE: cicla Normal/Push/Save (PRD 17).
-                var mode = UIFactory.Button(panel, "MODE", new Color(0.2f, 0.5f, 0.3f),
-                    new Vector2(0.36f, 0.05f), new Vector2(0.66f, 0.38f), Vector2.zero, Vector2.zero);
-                mode.onClick.AddListener(() => CycleMode(captured));
-
-                // TYRE: escolhe o anel da proxima parada (importante com clima).
-                var tyre = UIFactory.Button(panel, "TYRE", new Color(0.35f, 0.35f, 0.6f),
-                    new Vector2(0.68f, 0.05f), new Vector2(0.96f, 0.38f), Vector2.zero, Vector2.zero);
-                tyre.onClick.AddListener(() => CycleNextGrip(capturedPanel));
+                float yMax = top - i * (h + gap);
+                BuildCard(canvas, players[i], yMax - h, yMax);
             }
         }
 
-        private void CycleNextGrip(PlayerPanel pp)
+        private void BuildCard(Transform canvas, MarbleController ctrl, float yMin, float yMax)
         {
-            switch (pp.nextGrip)
-            {
-                case GripType.Soft: pp.nextGrip = GripType.Medium; break;
-                case GripType.Medium: pp.nextGrip = GripType.Hard; break;
-                case GripType.Hard: pp.nextGrip = GripType.Intermediate; break;
-                case GripType.Intermediate: pp.nextGrip = GripType.Rain; break;
-                default: pp.nextGrip = GripType.Soft; break;
-            }
+            var panel = UIFactory.Panel(canvas, new Vector2(0.785f, yMin), new Vector2(0.995f, yMax),
+                Vector2.zero, Vector2.zero, new Color(0.07f, 0.08f, 0.12f, 0.92f));
+            // Faixa superior com a cor da equipe.
+            var headRt = UIFactory.Panel(panel, new Vector2(0f, 0.86f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, ctrl.Runtime.TeamPrimary);
+
+            var card = new PlayerCard { ctrl = ctrl, nextGrip = ctrl.Runtime.grip.gripId };
+
+            card.title = UIFactory.Label(headRt, "", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0f), new Vector2(1f, 1f), Color.white);
+            card.title.fontStyle = FontStyle.Bold;
+
+            card.tyre = UIFactory.Label(panel, "", 18, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.68f), new Vector2(0.55f, 0.84f), new Color(0.9f, 0.9f, 1f));
+            card.mode = UIFactory.Label(panel, "", 18, TextAnchor.MiddleRight,
+                new Vector2(0.5f, 0.68f), new Vector2(0.96f, 0.84f), new Color(0.9f, 1f, 0.9f));
+
+            // Barras.
+            card.wearLabel = UIFactory.Label(panel, "Wear", 15, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.52f), new Vector2(0.3f, 0.66f), Color.white);
+            card.wearFill = BuildBar(panel, 0.52f, 0.66f, new Color(0.9f, 0.35f, 0.3f));
+
+            card.energyLabel = UIFactory.Label(panel, "Energy", 15, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.36f), new Vector2(0.3f, 0.50f), Color.white);
+            card.energyFill = BuildBar(panel, 0.36f, 0.50f, new Color(0.3f, 0.8f, 0.95f));
+
+            card.status = UIFactory.Label(panel, "", 16, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.34f), new Color(0.85f, 0.85f, 0.9f));
+
+            // Botoes.
+            card.pitBtn = UIFactory.Button(panel, "PIT", new Color(0.85f, 0.35f, 0.2f),
+                new Vector2(0.04f, 0.03f), new Vector2(0.34f, 0.2f), Vector2.zero, Vector2.zero);
+            card.pitLabel = card.pitBtn.GetComponentInChildren<Text>();
+            var capturedCard = card;
+            card.pitBtn.onClick.AddListener(() =>
+                _race.RequestPit(capturedCard.ctrl, capturedCard.nextGrip, true, 60f));
+
+            var modeBtn = UIFactory.Button(panel, "MODE", new Color(0.2f, 0.55f, 0.85f),
+                new Vector2(0.36f, 0.03f), new Vector2(0.66f, 0.2f), Vector2.zero, Vector2.zero);
+            modeBtn.onClick.AddListener(() => ToggleSelector(capturedCard, true));
+
+            var tyreBtn = UIFactory.Button(panel, "TYRE", new Color(0.55f, 0.35f, 0.8f),
+                new Vector2(0.68f, 0.03f), new Vector2(0.96f, 0.2f), Vector2.zero, Vector2.zero);
+            tyreBtn.onClick.AddListener(() => ToggleSelector(capturedCard, false));
+
+            BuildModeSelector(panel, card);
+            BuildTyreSelector(panel, card);
+
+            _cards.Add(card);
         }
 
-        private void CycleMode(MarbleController ctrl)
+        private RectTransform BuildBar(Transform parent, float yMin, float yMax, Color fillColor)
         {
-            RaceMode next;
-            switch (ctrl.Runtime.mode)
-            {
-                case RaceMode.Normal: next = RaceMode.Push; break;
-                case RaceMode.Push: next = RaceMode.Save; break;
-                default: next = RaceMode.Normal; break;
-            }
-            _race.SetMode(ctrl, next);
+            var bg = UIFactory.Panel(parent, new Vector2(0.3f, yMin), new Vector2(0.96f, yMax),
+                Vector2.zero, Vector2.zero, new Color(0.15f, 0.15f, 0.18f, 1f));
+            var fill = UIFactory.Panel(bg, new Vector2(0f, 0f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, fillColor);
+            return fill;
         }
 
-        private MarbleController FindFirstPlayer()
+        private void BuildModeSelector(RectTransform card, PlayerCard pc)
         {
-            foreach (var c in _race.Field)
-                if (c.Runtime.isPlayer) return c;
-            return _race.Field.Count > 0 ? _race.Field[0] : null;
+            var sel = UIFactory.Panel(card, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.62f),
+                Vector2.zero, Vector2.zero, new Color(0.02f, 0.02f, 0.04f, 0.97f));
+            pc.modeSelector = sel.gameObject;
+            UIFactory.Label(sel, "Modo", 16, TextAnchor.UpperCenter,
+                new Vector2(0f, 0.78f), new Vector2(1f, 0.98f), Color.white);
+            AddSelOption(sel, "Normal", 0, 3, () => ApplyMode(pc, RaceMode.Normal), new Color(0.3f, 0.5f, 0.7f));
+            AddSelOption(sel, "Push", 1, 3, () => ApplyMode(pc, RaceMode.Push), new Color(0.85f, 0.45f, 0.2f));
+            AddSelOption(sel, "Save", 2, 3, () => ApplyMode(pc, RaceMode.Save), new Color(0.25f, 0.7f, 0.45f));
+            sel.gameObject.SetActive(false);
         }
+
+        private void BuildTyreSelector(RectTransform card, PlayerCard pc)
+        {
+            var sel = UIFactory.Panel(card, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.62f),
+                Vector2.zero, Vector2.zero, new Color(0.02f, 0.02f, 0.04f, 0.97f));
+            pc.tyreSelector = sel.gameObject;
+            UIFactory.Label(sel, "Pneu p/ proximo pit", 15, TextAnchor.UpperCenter,
+                new Vector2(0f, 0.78f), new Vector2(1f, 0.98f), Color.white);
+            AddSelOption(sel, "S", 0, 5, () => ApplyTyre(pc, GripType.Soft), new Color(0.9f, 0.2f, 0.2f));
+            AddSelOption(sel, "M", 1, 5, () => ApplyTyre(pc, GripType.Medium), new Color(0.95f, 0.8f, 0.2f));
+            AddSelOption(sel, "H", 2, 5, () => ApplyTyre(pc, GripType.Hard), new Color(0.9f, 0.9f, 0.9f));
+            AddSelOption(sel, "I", 3, 5, () => ApplyTyre(pc, GripType.Intermediate), new Color(0.3f, 0.8f, 0.35f));
+            AddSelOption(sel, "W", 4, 5, () => ApplyTyre(pc, GripType.Rain), new Color(0.3f, 0.55f, 0.95f));
+            sel.gameObject.SetActive(false);
+        }
+
+        private void AddSelOption(RectTransform parent, string label, int col, int cols,
+            UnityEngine.Events.UnityAction onClick, Color color)
+        {
+            float w = 0.96f / cols;
+            float xMin = 0.02f + col * w;
+            var btn = UIFactory.Button(parent, label, color,
+                new Vector2(xMin, 0.1f), new Vector2(xMin + w - 0.01f, 0.72f), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(onClick);
+        }
+
+        private void ToggleSelector(PlayerCard pc, bool modeSel)
+        {
+            if (pc.modeSelector != null) pc.modeSelector.SetActive(modeSel && !pc.modeSelector.activeSelf);
+            if (pc.tyreSelector != null) pc.tyreSelector.SetActive(!modeSel && !pc.tyreSelector.activeSelf);
+        }
+
+        private void ApplyMode(PlayerCard pc, RaceMode m)
+        {
+            _race.SetMode(pc.ctrl, m);
+            if (pc.modeSelector != null) pc.modeSelector.SetActive(false);
+        }
+
+        private void ApplyTyre(PlayerCard pc, GripType g)
+        {
+            pc.nextGrip = g;
+            PushLog($"🔧 {pc.ctrl.Runtime.DisplayName}: pneu p/ pit -> {g}.");
+            if (pc.tyreSelector != null) pc.tyreSelector.SetActive(false);
+        }
+
+        // ================= UPDATE =================
 
         private void Update()
         {
@@ -298,30 +416,172 @@ namespace MarbleGP.UI
             int leaderLap = 1;
             if (_race.Field.Count > 0)
                 leaderLap = Mathf.Clamp(_race.Field[0].Runtime.completedLaps + 1, 1, _race.TotalLaps);
-            string banner = _race.SafetyMarbleActive ? "   |   🚨 SAFETY MARBLE" : "";
-            _topText.text = $"{_race.Config.track.trackName}   |   Clima: {_race.WeatherLabelCurrent()}{banner}";
-            if (_topLap != null) _topLap.text = $"LAP {leaderLap}/{_race.TotalLaps}";
+            _topCircuit.text = _race.Config.track.trackName;
+            _topLap.text = $"VOLTA {leaderLap}/{_race.TotalLaps}";
+            _topWeather.text = $"Clima: {_race.WeatherLabelCurrent()}";
+            _safetyBadge.gameObject.SetActive(_race.SafetyMarbleActive);
 
             UpdateTimingTower();
+            UpdateCards();
+            UpdateLog();
+            UpdateMinimap();
+        }
 
-            foreach (var p in _panels)
+        private void UpdateTimingTower()
+        {
+            var field = _race.Field;
+            _snapshotTimer -= Time.deltaTime;
+            bool refresh = _snapshotTimer <= 0f;
+            if (refresh) _snapshotTimer = 1.5f;
+
+            for (int i = 0; i < _rows.Count && i < field.Count; i++)
             {
-                var m = p.ctrl.Runtime;
-                p.info.text =
-                    $"{m.DisplayName}  P{m.position}\n" +
-                    $"Anel: {m.grip.gripId}  Modo: {m.mode}\n" +
-                    $"Desgaste: {m.wear:0}%  Energia: {m.energy:0}\n" +
-                    $"Estado: {m.state}   Pit p/: {p.nextGrip}";
+                var m = field[i].Runtime;
+                var row = _rows[i];
+
+                row.pos.text = (i + 1).ToString();
+                row.code.text = m.driver != null ? m.driver.shortCode : "MAR";
+                row.accent.color = m.TeamPrimary;
+                row.chip.color = m.TeamPrimary;
+                row.number.text = m.driver != null ? m.driver.number.ToString() : "";
+                row.number.color = m.TeamSecondary;
+                row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";
+                row.grip.text = m.grip != null ? m.grip.DisplayLetter : "?";
+                row.grip.color = m.grip != null ? m.grip.DisplayColor : Color.gray;
+
+                int prev = _posSnapshot.TryGetValue(m, out var p) ? p : (i + 1);
+                if (i + 1 < prev) { row.arrow.text = "▲"; row.arrow.color = new Color(0.3f, 0.9f, 0.4f); }
+                else if (i + 1 > prev) { row.arrow.text = "▼"; row.arrow.color = new Color(0.9f, 0.3f, 0.3f); }
+                else row.arrow.text = "";
+                if (refresh) _posSnapshot[m] = i + 1;
+
+                // Destaque do jogador: fundo + glow dourado.
+                if (m.isPlayer)
+                {
+                    row.bg.color = new Color(0.2f, 0.17f, 0.05f, 0.96f);
+                    row.glow.effectColor = new Color(1f, 0.85f, 0.2f, 0.9f);
+                }
+                else
+                {
+                    row.bg.color = (i % 2 == 0) ? new Color(0.11f, 0.11f, 0.15f, 0.96f)
+                                                : new Color(0.08f, 0.08f, 0.12f, 0.96f);
+                    row.glow.effectColor = new Color(0f, 0f, 0f, 0f);
+                }
             }
         }
+
+        private void UpdateCards()
+        {
+            foreach (var card in _cards)
+            {
+                var m = card.ctrl.Runtime;
+                card.title.text = $"{m.DisplayName}   P{m.position}";
+                card.tyre.text = $"Pneu: {m.grip.gripId}";
+                card.mode.text = $"Modo: {m.mode}";
+
+                SetBar(card.wearFill, m.wear / 100f);
+                card.wearFill.GetComponent<Image>().color = m.wear > 70f
+                    ? new Color(1f, 0.4f, 0.3f) : new Color(0.85f, 0.55f, 0.3f);
+                card.wearLabel.text = $"Wear {m.wear:0}%";
+
+                SetBar(card.energyFill, m.energy / Mathf.Max(1f, m.MaxEnergy));
+                card.energyFill.GetComponent<Image>().color = m.energy < 20f
+                    ? new Color(1f, 0.85f, 0.25f) : new Color(0.3f, 0.8f, 0.95f);
+                card.energyLabel.text = $"Energy {m.energy:0}";
+
+                // Status + alertas.
+                string alert = "";
+                if (m.wear > 70f) alert = "  ⚠ desgaste";
+                else if (m.energy < 20f) alert = "  ⚠ energia";
+                card.status.text = $"{StatusText(m.state)}{alert}   |   Pit p/: {card.nextGrip}";
+
+                // Estado do botao PIT.
+                bool pitting = m.state == MarbleRaceState.EnteringPit
+                            || m.state == MarbleRaceState.InPit
+                            || m.state == MarbleRaceState.ExitingPit;
+                if (pitting) { card.pitLabel.text = "IN PIT"; card.pitBtn.interactable = false; }
+                else if (m.pitRequested) { card.pitLabel.text = "QUEUED"; card.pitBtn.interactable = false; }
+                else { card.pitLabel.text = "PIT"; card.pitBtn.interactable = m.state == MarbleRaceState.Racing; }
+            }
+        }
+
+        private static void SetBar(RectTransform fill, float t)
+        {
+            t = Mathf.Clamp01(t);
+            fill.anchorMin = new Vector2(0f, 0f);
+            fill.anchorMax = new Vector2(t, 1f);
+            fill.offsetMin = Vector2.zero;
+            fill.offsetMax = Vector2.zero;
+        }
+
+        private static string StatusText(MarbleRaceState s)
+        {
+            switch (s)
+            {
+                case MarbleRaceState.OnGrid: return "No grid";
+                case MarbleRaceState.Racing: return "Em pista";
+                case MarbleRaceState.EnteringPit: return "Entrando no pit";
+                case MarbleRaceState.InPit: return "No pit";
+                case MarbleRaceState.ExitingPit: return "Saindo do pit";
+                case MarbleRaceState.Finished: return "Terminou";
+                default: return s.ToString();
+            }
+        }
+
+        private void UpdateMinimap()
+        {
+            foreach (var (rt, c) in _mapDots)
+                PlaceNorm(rt, Norm(c.transform.position));
+        }
+
+        // ---- Log com cores + fade ----
 
         private void OnCountdown(int v) => _countdownText.text = v <= 0 ? "GO!" : v.ToString();
 
         private void PushLog(string msg)
         {
-            _log.Add(msg);
-            if (_log.Count > 5) _log.RemoveAt(0);
-            _logText.text = string.Join("\n", _log);
+            _logItems.Add(new LogItem { msg = msg, color = ClassifyLog(msg), age = 0f });
+            if (_logItems.Count > LogRows + 3) _logItems.RemoveAt(0);
+        }
+
+        private void UpdateLog()
+        {
+            for (int i = _logItems.Count - 1; i >= 0; i--)
+            {
+                var it = _logItems[i];
+                it.age += Time.deltaTime;
+                _logItems[i] = it;
+                if (it.age > LogFadeEnd) _logItems.RemoveAt(i);
+            }
+
+            // Mostra os ultimos N de baixo para cima.
+            int shown = Mathf.Min(LogRows, _logItems.Count);
+            for (int r = 0; r < LogRows; r++)
+            {
+                var row = _logRows[r];
+                int idx = _logItems.Count - shown + r;
+                if (idx < 0 || idx >= _logItems.Count) { row.text = ""; continue; }
+                var it = _logItems[idx];
+                float alpha = it.age < LogFadeStart ? 1f
+                    : Mathf.InverseLerp(LogFadeEnd, LogFadeStart, it.age);
+                var c = it.color; c.a = Mathf.Clamp01(alpha);
+                row.text = it.msg;
+                row.color = c;
+            }
+        }
+
+        private static Color ClassifyLog(string msg)
+        {
+            if (msg.Contains("ultrapassou")) return new Color(0.4f, 0.95f, 0.55f);
+            if (msg.Contains("Safety Marble na")) return new Color(1f, 0.45f, 0.3f);
+            if (msg.Contains("recolhido") || msg.Contains("limpa")) return new Color(0.5f, 0.95f, 0.6f);
+            if (msg.Contains("venceu") || msg.Contains("🏆") || msg.Contains("🏁")) return new Color(1f, 0.9f, 0.4f);
+            if (msg.Contains("pit") || msg.Contains("Pit") || msg.Contains("🔧") || msg.Contains("📞"))
+                return new Color(1f, 0.65f, 0.25f);
+            if (msg.Contains("Clima") || msg.Contains("🌦")) return new Color(0.55f, 0.8f, 1f);
+            if (msg.Contains("modo") || msg.Contains("⚙")) return new Color(0.55f, 0.75f, 1f);
+            if (msg.Contains("⚠") || msg.Contains("suja")) return new Color(1f, 0.85f, 0.3f);
+            return Color.white;
         }
 
         private void OnFinished(RaceResult result) => _countdownText.text = "FIM";

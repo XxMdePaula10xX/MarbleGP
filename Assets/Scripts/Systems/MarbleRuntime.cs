@@ -44,6 +44,7 @@ namespace MarbleGP.Systems
         // Pit
         public bool pitRequested = false;  // jogador/IA pediu pit
         public float pitTimer = 0f;        // tempo restante de servico
+        public float pitTotalTime = 1f;    // tempo total do servico (barra de progresso)
         public GripType pitTargetGrip = GripType.Medium; // anel a montar no pit
         public bool pitChangeTires = true;               // trocar anel?
         public float pitRefillAmount = 60f;              // energia a recarregar

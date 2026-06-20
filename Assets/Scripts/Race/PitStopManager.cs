@@ -143,6 +143,7 @@ namespace MarbleGP.Race
 
             // Tempo total do pit (PRD 18.3 / 41).
             m.pitTimer = RaceFormulas.PitTime(m, _bal, m.pitChangeTires, refilled);
+            m.pitTotalTime = Mathf.Max(0.1f, m.pitTimer);
         }
 
         private static float Flat(Vector3 a, Vector3 b)

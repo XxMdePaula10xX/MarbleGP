@@ -17,6 +17,7 @@ namespace MarbleGP.Race
         public int overtakes;
         public float finalWear;
         public float finalEnergy;
+        public string finalTyre = "M";
         public int points;
         public bool isPlayer;
         public bool fastestLap;
