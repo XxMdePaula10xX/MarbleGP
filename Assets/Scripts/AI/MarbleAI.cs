@@ -45,7 +45,8 @@ namespace MarbleGP.AI
 
             // 2) Ajuste de velocidade antes de curvas (PRD 13.4).
             float curvature = _track.CurvatureAhead(_ctrl.transform.position, 2);
-            float controlFactor = _m.driver.ControlMultiplier * _m.grip.gripMultiplier * _m.surface.controlModifier;
+            float controlFactor = _m.driver.ControlMultiplier * _m.grip.gripMultiplier
+                                * _m.surface.controlModifier * _m.upgControlFactor;
             float cornerSpeed = Mathf.Lerp(maxSpeed, maxSpeed * 0.45f, curvature / Mathf.Max(0.5f, controlFactor));
 
             // 3) Disputa: detectar bolinha a frente e decidir linha (PRD 13.5).

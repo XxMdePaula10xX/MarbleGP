@@ -93,6 +93,14 @@ cor de cada bolinha (paleta). As customizações são salvas no perfil e aplicad
 em runtime (corpo da bolinha, faixa, chip do ranking e nome no resultado) sem
 mutar os ScriptableObjects base.
 
+✅ **Upgrades de Equipe** (PRD 30): moeda de créditos ganha por corrida no
+campeonato e 7 upgrades melhoráveis (Pit Crew, Energy Core Lab, Grip Research,
+Surface Lab, Strategy Center, Marble Material, AI Coaching), cada um com 5
+níveis. Os efeitos (tempo de pit, consumo, desgaste, velocidade, controle e
+chance de erro) são aplicados às bolinhas do jogador em corrida via as fórmulas
+do PRD 41. Tela de Upgrades no hub do campeonato, com custos e saldo, persistida
+em JSON junto da temporada.
+
 ### Dados gerados (PRD 42)
 - **4 equipes**: Red Comet Racing, Blue Orbit GP, Emerald Rollers, Shadow Marble Team.
 - **8 bolinhas** (2 por equipe), com atributos e personalidades distintas.
@@ -103,10 +111,10 @@ mutar os ScriptableObjects base.
 
 ## Próximas fases (Fase 6–7 do PRD) — ainda não implementadas
 Expansão do campeonato para 12 equipes / 24 bolinhas / 15 pistas finalizadas,
-upgrades de equipe (PRD 30), clima dinâmico, eventos avançados (safety marble),
-mais superfícies/anéis, áudio e efeitos visuais, build mobile (Android/iOS).
-A arquitetura já está preparada para esses pontos (o campeonato MVP roda com as
-4 equipes / 8 bolinhas / 3 pistas já existentes).
+clima dinâmico (PRD 19) + anéis Intermediate/Rain, eventos avançados de corrida
+(safety marble, pista suja — PRD 20), áudio e efeitos visuais (PRD 32), build
+mobile (Android/iOS). A arquitetura já está preparada para esses pontos (o
+campeonato MVP roda com as 4 equipes / 8 bolinhas / 3 pistas já existentes).
 
 ## Limitações conhecidas (MVP)
 - Visual com primitivas/placeholder (sem assets externos), conforme PRD 39.8/9.

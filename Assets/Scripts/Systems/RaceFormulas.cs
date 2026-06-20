@@ -25,7 +25,7 @@ namespace MarbleGP.Systems
             float energy = EnergySpeedPenalty(m.energy, bal);
             float trackCond = 1f; // MVP: seco/neutro
 
-            return baseSpeed * driver * grip * surface * mode * wear * energy * trackCond;
+            return baseSpeed * driver * grip * surface * mode * wear * energy * trackCond * m.upgSpeedFactor;
         }
 
         /// <summary>Penalidade multiplicativa de velocidade por desgaste (PRD 14 / 28).</summary>
@@ -54,7 +54,7 @@ namespace MarbleGP.Systems
             float surface = m.surface.wearModifier;
             // Bom tireManagement REDUZ desgaste => dividimos pelo multiplicador.
             float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.TireMgmtMultiplier);
-            return baseWear * mode * surface * trackAbrasion * driverMgmt;
+            return baseWear * mode * surface * trackAbrasion * driverMgmt * m.upgWearFactor;
         }
 
         /// <summary>Consumo de energia por volta (PRD 41 - EnergyConsumption).</summary>
@@ -69,7 +69,7 @@ namespace MarbleGP.Systems
             }
             float surface = m.surface.energyModifier;
             float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.EnergyMgmtMultiplier);
-            return baseConsumption * surface * driverMgmt;
+            return baseConsumption * surface * driverMgmt * m.upgEnergyFactor;
         }
 
         /// <summary>Chance de erro por avaliacao (PRD 41 - ErrorChance), em 0..1.</summary>
@@ -96,6 +96,7 @@ namespace MarbleGP.Systems
             if (m.driver.personality == Personality.RiskTaker) chance *= 1.2f;
             if (m.driver.personality == Personality.Smooth) chance *= 0.85f;
 
+            chance *= m.upgErrorFactor; // upgrades StrategyCenter / AICoaching (PRD 30)
             return Mathf.Clamp01(chance);
         }
 
@@ -108,7 +109,8 @@ namespace MarbleGP.Systems
             float driverBonus = (m.driver.pitSkill / 100f) * 0.5f;
             float randomError = Random.Range(0f, bal.maxRandomPitError);
 
-            float time = bal.basePitTime + tireTime + refillTime + randomError - teamBonus - driverBonus;
+            float time = bal.basePitTime + tireTime + refillTime + randomError
+                       - teamBonus - driverBonus - m.upgPitReduction; // PitCrew (PRD 30)
             return Mathf.Max(1.0f, time);
         }
     }

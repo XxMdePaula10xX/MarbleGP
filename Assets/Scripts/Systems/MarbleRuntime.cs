@@ -48,6 +48,15 @@ namespace MarbleGP.Systems
         public bool pitChangeTires = true;               // trocar anel?
         public float pitRefillAmount = 60f;              // energia a recarregar
 
+        // Efeitos dos upgrades de equipe (PRD 30); neutros por padrao.
+        // Aplicados pelo RaceManager apenas as bolinhas do jogador.
+        public float upgPitReduction = 0f;
+        public float upgEnergyFactor = 1f;
+        public float upgWearFactor = 1f;
+        public float upgSpeedFactor = 1f;
+        public float upgControlFactor = 1f;
+        public float upgErrorFactor = 1f;
+
         // Referencia ao balance para conveniencia (setada pelo RaceManager).
         public GameBalance GameBalanceRef;
 

@@ -95,6 +95,11 @@ namespace MarbleGP.Race
             var profile = GameManager.Instance != null ? GameManager.Instance.Profile : null;
             int playerMarbleIndex = 0;
 
+            // Efeitos dos upgrades de equipe (PRD 30), se houver temporada ativa.
+            var champ = GameManager.Instance != null ? GameManager.Instance.Championship : null;
+            var upgrades = (champ != null && champ.HasActiveSeason)
+                ? champ.Effects() : TeamUpgradeEffects.Neutral;
+
             for (int i = 0; i < config.entries.Count; i++)
             {
                 var strat = config.entries[i];
@@ -122,6 +127,13 @@ namespace MarbleGP.Race
                     runtime.teamSecondaryOverride = profile.SecondaryColor;
                     runtime.marbleColorOverride = profile.GetMarbleColor(playerMarbleIndex);
                     playerMarbleIndex++;
+
+                    runtime.upgPitReduction = upgrades.pitTimeReduction;
+                    runtime.upgEnergyFactor = upgrades.energyFactor;
+                    runtime.upgWearFactor = upgrades.wearFactor;
+                    runtime.upgSpeedFactor = upgrades.speedFactor;
+                    runtime.upgControlFactor = upgrades.controlFactor;
+                    runtime.upgErrorFactor = upgrades.errorFactor;
                 }
 
                 Vector3 grid = i < Track.GridPositions.Count

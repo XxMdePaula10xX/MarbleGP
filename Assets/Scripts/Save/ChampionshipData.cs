@@ -1,7 +1,16 @@
 using System.Collections.Generic;
+using MarbleGP.Core;
 
 namespace MarbleGP.Save
 {
+    /// <summary>Nivel de um upgrade da equipe (PRD 30).</summary>
+    [System.Serializable]
+    public class UpgradeState
+    {
+        public UpgradeType type;
+        public int level;
+    }
+
     /// <summary>Classificacao de uma bolinha/piloto na temporada (PRD 29.2).</summary>
     [System.Serializable]
     public class DriverStanding
@@ -45,6 +54,11 @@ namespace MarbleGP.Save
         public string playerTeamId;
         public int currentRound = 0;
         public bool active = false;
+
+        /// <summary>Creditos da equipe para comprar upgrades (PRD 30).</summary>
+        public int credits = 0;
+        /// <summary>Niveis dos upgrades da equipe do jogador (PRD 30).</summary>
+        public List<UpgradeState> upgrades = new List<UpgradeState>();
 
         public List<string> calendarTrackIds = new List<string>();
         public List<DriverStanding> driverStandings = new List<DriverStanding>();

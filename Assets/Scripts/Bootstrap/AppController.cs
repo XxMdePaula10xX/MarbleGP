@@ -367,13 +367,25 @@ namespace MarbleGP.Bootstrap
                     new Color(0.8f, 0.9f, 1f));
             }
 
+            // Creditos da equipe (PRD 30).
+            UIFactory.Label(canvas.transform, $"Creditos: {champ.Credits}", 22, TextAnchor.MiddleRight,
+                new Vector2(0.6f, 0.9f), new Vector2(0.94f, 0.96f), new Color(0.4f, 0.95f, 0.5f));
+
             BuildStandings(canvas.transform, champ);
 
             // Botoes.
+            var menuBtn = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
+                new Vector2(0.05f, 0.04f), new Vector2(0.27f, 0.12f), Vector2.zero, Vector2.zero);
+            menuBtn.onClick.AddListener(ShowMainMenu);
+
+            var upgBtn = UIFactory.Button(canvas.transform, "Upgrades", new Color(0.45f, 0.35f, 0.7f),
+                new Vector2(0.3f, 0.04f), new Vector2(0.52f, 0.12f), Vector2.zero, Vector2.zero);
+            upgBtn.onClick.AddListener(ShowUpgrades);
+
             if (!champ.IsSeasonOver)
             {
                 var raceBtn = UIFactory.Button(canvas.transform, "Correr Etapa", new Color(0.85f, 0.4f, 0.2f),
-                    new Vector2(0.55f, 0.04f), new Vector2(0.8f, 0.12f), Vector2.zero, Vector2.zero);
+                    new Vector2(0.6f, 0.04f), new Vector2(0.85f, 0.12f), Vector2.zero, Vector2.zero);
                 raceBtn.onClick.AddListener(() =>
                 {
                     var config = champ.BuildRoundRace();
@@ -383,7 +395,7 @@ namespace MarbleGP.Bootstrap
             else
             {
                 var newSeason = UIFactory.Button(canvas.transform, "Nova Temporada", new Color(0.2f, 0.6f, 0.3f),
-                    new Vector2(0.55f, 0.04f), new Vector2(0.8f, 0.12f), Vector2.zero, Vector2.zero);
+                    new Vector2(0.6f, 0.04f), new Vector2(0.85f, 0.12f), Vector2.zero, Vector2.zero);
                 newSeason.onClick.AddListener(() =>
                 {
                     string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
@@ -391,10 +403,60 @@ namespace MarbleGP.Bootstrap
                     ShowChampionshipHub();
                 });
             }
+        }
 
-            var menuBtn = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
-                new Vector2(0.2f, 0.04f), new Vector2(0.45f, 0.12f), Vector2.zero, Vector2.zero);
-            menuBtn.onClick.AddListener(ShowMainMenu);
+        // ---- Tela: Upgrades de equipe (PRD 30) --------------------------
+
+        private void ShowUpgrades()
+        {
+            EnsureChampionship();
+            var champ = _gm.Championship;
+            var canvas = NewCanvas("Upgrades");
+
+            UIFactory.Label(canvas.transform, "UPGRADES DA EQUIPE", 40, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
+            UIFactory.Label(canvas.transform, $"Creditos: {champ.Credits}", 24, TextAnchor.MiddleRight,
+                new Vector2(0.5f, 0.9f), new Vector2(0.94f, 0.97f), new Color(0.4f, 0.95f, 0.5f));
+
+            var types = (UpgradeType[])System.Enum.GetValues(typeof(UpgradeType));
+            for (int i = 0; i < types.Length; i++)
+                BuildUpgradeRow(canvas.transform, champ, types[i], i);
+
+            BackButton(canvas.transform, ShowChampionshipHub);
+        }
+
+        private void BuildUpgradeRow(Transform canvas, ChampionshipManager champ, UpgradeType type, int index)
+        {
+            float yMax = 0.86f - index * 0.11f;
+            var panel = UIFactory.Panel(canvas, new Vector2(0.08f, yMax - 0.1f), new Vector2(0.92f, yMax),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.55f));
+
+            int level = champ.GetLevel(type);
+
+            UIFactory.Label(panel,
+                $"{ChampionshipManager.UpgradeName(type)}   Nivel {level}/{ChampionshipManager.MaxUpgradeLevel}", 22,
+                TextAnchor.MiddleLeft, new Vector2(0.02f, 0.5f), new Vector2(0.7f, 1f), Color.white);
+            UIFactory.Label(panel, ChampionshipManager.UpgradeDesc(type), 16,
+                TextAnchor.MiddleLeft, new Vector2(0.02f, 0f), new Vector2(0.7f, 0.5f),
+                new Color(0.8f, 0.85f, 0.95f));
+
+            if (champ.IsMaxed(type))
+            {
+                UIFactory.Label(panel, "MAX", 24, TextAnchor.MiddleCenter,
+                    new Vector2(0.72f, 0f), new Vector2(0.98f, 1f), new Color(0.5f, 0.9f, 0.6f));
+            }
+            else
+            {
+                int cost = champ.UpgradeCost(type);
+                bool can = champ.CanUpgrade(type);
+                var btn = UIFactory.Button(panel,
+                    $"Melhorar ({cost})",
+                    can ? new Color(0.2f, 0.6f, 0.3f) : new Color(0.3f, 0.3f, 0.35f),
+                    new Vector2(0.72f, 0.2f), new Vector2(0.98f, 0.8f), Vector2.zero, Vector2.zero);
+                btn.interactable = can;
+                var captured = type;
+                btn.onClick.AddListener(() => { if (champ.BuyUpgrade(captured)) ShowUpgrades(); });
+            }
         }
 
         private void BuildStandings(Transform canvas, ChampionshipManager champ)

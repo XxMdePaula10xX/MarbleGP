@@ -130,4 +130,16 @@ namespace MarbleGP.Core
         Outside,
         Pit
     }
+
+    /// <summary>Tipos de upgrade da equipe (PRD 30).</summary>
+    public enum UpgradeType
+    {
+        PitCrew,        // reduz tempo de pit stop
+        EnergyCoreLab,  // melhora consumo de energia
+        GripResearch,   // reduz desgaste dos aneis
+        SurfaceLab,     // melhora controle (handling de superficie)
+        StrategyCenter, // reduz erros / melhora previsoes
+        MarbleMaterial, // aumenta velocidade
+        AICoaching      // reduz erros (consistencia sob pressao)
+    }
 }
