@@ -164,8 +164,10 @@ namespace MarbleGP.Track
             {
                 int a = i * 2, b = i * 2 + 1;
                 int c = ((i + 1) % n) * 2, d = ((i + 1) % n) * 2 + 1;
-                tris.Add(a); tris.Add(c); tris.Add(b);
-                tris.Add(b); tris.Add(c); tris.Add(d);
+                // Winding com a face para CIMA (+Y), senao a camera top-down
+                // descarta os triangulos por back-face culling (pista invisivel).
+                tris.Add(a); tris.Add(b); tris.Add(c);
+                tris.Add(b); tris.Add(d); tris.Add(c);
             }
 
             var mesh = new Mesh { name = name };

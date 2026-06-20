@@ -71,6 +71,7 @@ namespace MarbleGP.Track
             var mat = new Material(UnlitShader);
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            MakeDoubleSided(mat);
             return mat;
         }
 
@@ -83,7 +84,16 @@ namespace MarbleGP.Track
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
+            MakeDoubleSided(mat);
             return mat;
+        }
+
+        /// <summary>Desativa o back-face culling quando o shader permite (URP _Cull),
+        /// garantindo que superficies planas aparecam mesmo com winding invertido.</summary>
+        private static void MakeDoubleSided(Material mat)
+        {
+            if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f); // 0 = Off
+            mat.doubleSidedGI = true;
         }
     }
 }

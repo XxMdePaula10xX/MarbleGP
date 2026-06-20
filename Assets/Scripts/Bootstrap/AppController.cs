@@ -84,7 +84,25 @@ namespace MarbleGP.Bootstrap
             ClearMenuUI();
             var canvas = UIFactory.CreateCanvas(name);
             _uiRoot = canvas.gameObject;
+            // Fundo da tela (imagem opcional em Resources/Backgrounds/<key> + fallback escuro).
+            UIFactory.Background(canvas.transform, BackgroundKey(name), new Color(0.06f, 0.07f, 0.11f, 1f));
             return canvas;
+        }
+
+        private static string BackgroundKey(string canvasName)
+        {
+            switch (canvasName)
+            {
+                case "ProfileScreen":
+                case "MainMenu": return "menu";
+                case "TrackSelect": return "trackselect";
+                case "Strategy": return "strategy";
+                case "Results": return "results";
+                case "Championship":
+                case "Upgrades": return "championship";
+                case "Garage": return "garage";
+                default: return "menu";
+            }
         }
 
         // ---- Tela: Perfil (PRD 7.1 / 23.1) ------------------------------
@@ -120,10 +138,13 @@ namespace MarbleGP.Bootstrap
         private void ShowMainMenu()
         {
             var canvas = NewCanvas("MainMenu");
-            UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 54, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.82f), new Vector2(0.9f, 0.95f), Color.white);
-            UIFactory.Label(canvas.transform, $"Equipe: {_gm.Profile.teamName}", 24, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.76f), new Vector2(0.9f, 0.82f), new Color(0.8f, 0.8f, 1f));
+            var title = UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 66, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.96f), Color.white);
+            title.fontStyle = FontStyle.Bold;
+            UIFactory.Label(canvas.transform, "STRATEGY RACING CHAMPIONSHIP", 24, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.79f), new Vector2(0.95f, 0.84f), new Color(0.55f, 0.8f, 1f));
+            UIFactory.Label(canvas.transform, $"Equipe: {_gm.Profile.teamName}", 22, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.73f), new Vector2(0.9f, 0.78f), new Color(0.85f, 0.85f, 0.95f));
 
             MenuButton(canvas.transform, "Corrida Rapida", 0, () => ShowTrackSelect());
             MenuButton(canvas.transform, "Campeonato", 1, () => ShowChampionshipHub());
