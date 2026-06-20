@@ -14,7 +14,7 @@ namespace MarbleGP.Systems
         /// Velocidade alvo final de uma bolinha (PRD 41 - FinalSpeed).
         /// FinalSpeed = BaseSpeed * DriverSpeed * Grip * Surface * Mode * Wear * Energy * TrackCond
         /// </summary>
-        public static float FinalSpeed(MarbleRuntime m, GameBalance bal, Weather weather)
+        public static float FinalSpeed(MarbleRuntime m, GameBalance bal, Weather weather, float trackCond = 1f)
         {
             float baseSpeed = bal.baseSpeed;
             float driver = m.driver.SpeedMultiplier;
@@ -23,7 +23,6 @@ namespace MarbleGP.Systems
             float mode = bal.GetMode(m.mode).speed;
             float wear = WearSpeedPenalty(m.wear, bal);
             float energy = EnergySpeedPenalty(m.energy, bal);
-            float trackCond = 1f; // MVP: seco/neutro
 
             return baseSpeed * driver * grip * surface * mode * wear * energy * trackCond * m.upgSpeedFactor;
         }
@@ -73,7 +72,7 @@ namespace MarbleGP.Systems
         }
 
         /// <summary>Chance de erro por avaliacao (PRD 41 - ErrorChance), em 0..1.</summary>
-        public static float ErrorChance(MarbleRuntime m, GameBalance bal, Weather weather)
+        public static float ErrorChance(MarbleRuntime m, GameBalance bal, Weather weather, float trackErrorAdd = 0f)
         {
             float wearPenalty = 0f;
             if (m.wear > bal.wearCriticalThreshold) wearPenalty = 0.08f;
@@ -81,14 +80,24 @@ namespace MarbleGP.Systems
 
             float aggressionPenalty = (m.driver.aggression / 100f) * 0.03f;
             float modeMod = bal.GetMode(m.mode).errorMod;
+
+            bool wet = weather == Weather.Damp || weather == Weather.LightRain || weather == Weather.HeavyRain;
             float weatherPenalty = (weather == Weather.HeavyRain) ? 0.06f
-                                 : (weather == Weather.LightRain) ? 0.03f : 0f;
+                                 : (weather == Weather.LightRain) ? 0.03f
+                                 : (weather == Weather.Damp) ? 0.015f : 0f;
+
+            // Pneu seco (slick) em pista molhada aumenta muito o risco (PRD 19).
+            bool slick = m.grip.gripId == GripType.Soft || m.grip.gripId == GripType.Medium || m.grip.gripId == GripType.Hard;
+            float wrongTyrePenalty = (wet && slick) ? 0.06f : 0f;
+            // Habilidade em pista molhada reduz erro no molhado (PRD 12 WetSkill).
+            float wetSkillBonus = wet ? (m.driver.wetSkill / 100f) * 0.05f : 0f;
 
             float controlBonus = (m.driver.control / 100f) * 0.04f;
             float consistencyBonus = (m.driver.consistency / 100f) * 0.04f;
 
             float chance = bal.baseErrorChance + wearPenalty + aggressionPenalty
-                         + modeMod * 0.1f + weatherPenalty - controlBonus - consistencyBonus;
+                         + modeMod * 0.1f + weatherPenalty + wrongTyrePenalty + trackErrorAdd
+                         - controlBonus - consistencyBonus - wetSkillBonus;
 
             // Veterano erra menos sob pressao; Rookie erra mais (PRD 12).
             if (m.driver.personality == Personality.Veteran) chance *= 0.7f;

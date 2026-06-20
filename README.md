@@ -101,6 +101,18 @@ chance de erro) são aplicados às bolinhas do jogador em corrida via as fórmul
 do PRD 41. Tela de Upgrades no hub do campeonato, com custos e saldo, persistida
 em JSON junto da temporada.
 
+✅ **Clima dinâmico** (PRD 19): o tempo evolui durante a corrida
+(Seco↔Nublado↔Úmido↔Chuva leve↔Chuva forte) guiado pela chance de chuva da
+pista, afetando ao vivo a performance dos anéis, o desgaste e a chance de erro
+(com `WetSkill` ajudando no molhado e penalidade por usar pneu seco na chuva).
+Anéis **Intermediate** e **Rain** disponíveis; previsão exibida na estratégia e
+clima ao vivo no HUD. Botão **TYRE** no painel permite trocar o composto no pit.
+
+✅ **Eventos de corrida** (PRD 20): **Safety Marble** (neutraliza velocidade e
+ultrapassagens por alguns segundos) e **Pista Suja** (menos aderência e mais
+risco de erro temporariamente), sorteados ao longo da prova, além dos alertas de
+desgaste/energia/pit e dos avisos de mudança de clima — tudo no log do HUD.
+
 ### Dados gerados (PRD 42)
 - **4 equipes**: Red Comet Racing, Blue Orbit GP, Emerald Rollers, Shadow Marble Team.
 - **8 bolinhas** (2 por equipe), com atributos e personalidades distintas.
@@ -111,10 +123,10 @@ em JSON junto da temporada.
 
 ## Próximas fases (Fase 6–7 do PRD) — ainda não implementadas
 Expansão do campeonato para 12 equipes / 24 bolinhas / 15 pistas finalizadas,
-clima dinâmico (PRD 19) + anéis Intermediate/Rain, eventos avançados de corrida
-(safety marble, pista suja — PRD 20), áudio e efeitos visuais (PRD 32), build
-mobile (Android/iOS). A arquitetura já está preparada para esses pontos (o
-campeonato MVP roda com as 4 equipes / 8 bolinhas / 3 pistas já existentes).
+áudio e efeitos visuais (PRD 32 — Push glow, trail, alertas piscando), eventos
+extras (pit lento, undercut de rival), e build mobile (Android/iOS). A
+arquitetura já está preparada para esses pontos (o campeonato MVP roda com as
+4 equipes / 8 bolinhas / 3 pistas já existentes).
 
 ## Limitações conhecidas (MVP)
 - Visual com primitivas/placeholder (sem assets externos), conforme PRD 39.8/9.

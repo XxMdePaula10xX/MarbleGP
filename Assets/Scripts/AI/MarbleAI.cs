@@ -18,17 +18,17 @@ namespace MarbleGP.AI
         private readonly MarbleRuntime _m;
         private readonly TrackManager _track;
         private readonly GameBalance _bal;
-        private readonly Weather _weather;
+        private readonly IRaceConditions _cond;
 
         private float _errorRecoverTimer;
 
-        public MarbleAI(MarbleController ctrl, TrackManager track, GameBalance bal, Weather weather)
+        public MarbleAI(MarbleController ctrl, TrackManager track, GameBalance bal, IRaceConditions cond)
         {
             _ctrl = ctrl;
             _m = ctrl.Runtime;
             _track = track;
             _bal = bal;
-            _weather = weather;
+            _cond = cond;
         }
 
         /// <summary>Decisao de IA por passo (PRD 13.4). neighbors = todos os controllers.</summary>
@@ -40,8 +40,11 @@ namespace MarbleGP.AI
                 return;
             }
 
+            // Condicoes vivas (clima dinamico + eventos, PRD 19/20).
+            Weather weather = _cond.CurrentWeather;
+
             // 1) Velocidade-base teorica (formulas do PRD 41).
-            float maxSpeed = RaceFormulas.FinalSpeed(_m, _bal, _weather);
+            float maxSpeed = RaceFormulas.FinalSpeed(_m, _bal, weather, _cond.TrackSpeedMod);
 
             // 2) Ajuste de velocidade antes de curvas (PRD 13.4).
             float curvature = _track.CurvatureAhead(_ctrl.transform.position, 2);
@@ -67,7 +70,7 @@ namespace MarbleGP.AI
                 _errorRecoverTimer -= dt;
                 cornerSpeed *= 0.7f; // perdendo tempo apos erro
             }
-            else if (Random.value < RaceFormulas.ErrorChance(_m, _bal, _weather) * dt)
+            else if (Random.value < RaceFormulas.ErrorChance(_m, _bal, weather, _cond.TrackErrorAdd) * dt)
             {
                 _errorRecoverTimer = Random.Range(0.3f, 0.9f); // abre a curva / perde velocidade
                 line = RacingLine.Outside;

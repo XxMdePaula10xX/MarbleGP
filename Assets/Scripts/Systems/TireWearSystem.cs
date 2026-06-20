@@ -15,21 +15,19 @@ namespace MarbleGP.Systems
         private readonly GameBalance bal;
         private readonly float trackLength;
         private readonly float trackAbrasion;
-        private readonly Weather weather;
 
         /// <summary>Disparado uma vez quando o desgaste cruza o limiar de aviso (PRD 20 MVP).</summary>
         public event Action<MarbleRuntime> OnHighWearAlert;
 
-        public TireWearSystem(GameBalance balance, TrackDataSO track, Weather weather)
+        public TireWearSystem(GameBalance balance, TrackDataSO track)
         {
             bal = balance;
             trackLength = Mathf.Max(1f, track.trackLength);
             trackAbrasion = track.abrasionLevel;
-            this.weather = weather;
         }
 
-        /// <summary>Aplica desgaste para a distancia percorrida neste frame.</summary>
-        public void Apply(MarbleRuntime m, float distanceTraveled)
+        /// <summary>Aplica desgaste para a distancia percorrida neste frame (clima vivo).</summary>
+        public void Apply(MarbleRuntime m, float distanceTraveled, Weather weather)
         {
             if (m.state == MarbleRaceState.InPit) return;
 

@@ -62,6 +62,10 @@ namespace MarbleGP.EditorTools
                 "Equilibrado entre velocidade e durabilidade."));
             list.Add(MakeGrip(GripType.Hard, "Hard Grip", 0.94f, 0.95f, 7f, 0.7f, 1.0f,
                 "Mais lento, mas dura muito mais."));
+            list.Add(MakeGrip(GripType.Intermediate, "Intermediate Grip", 0.98f, 1.00f, 12f, 1.0f, 0.92f,
+                "Para pista umida. Ruim no seco e na chuva muito forte."));
+            list.Add(MakeGrip(GripType.Rain, "Rain Grip", 0.95f, 1.05f, 10f, 1.08f, 0.85f,
+                "Para chuva forte. Lento e desgasta muito no seco."));
             return list;
         }
 
@@ -182,11 +186,11 @@ namespace MarbleGP.EditorTools
         {
             var list = new List<TrackDataSO>();
 
-            list.Add(MakeTrack("marble_park", "Marble Park", Difficulty.Easy, 5, 1.0f, 0.5f, 8f, false,
+            list.Add(MakeTrack("marble_park", "Marble Park", Difficulty.Easy, 5, 1.0f, 0.5f, 0.10f, 8f, false,
                 "Circuito inicial, equilibrado.", OvalPoints()));
-            list.Add(MakeTrack("neon_harbor", "Neon Harbor", Difficulty.Medium, 6, 1.1f, 0.8f, 8f, false,
+            list.Add(MakeTrack("neon_harbor", "Neon Harbor", Difficulty.Medium, 6, 1.1f, 0.8f, 0.35f, 8f, false,
                 "Urbano costeiro, retas longas e curvas de 90 graus.", HarborPoints()));
-            list.Add(MakeTrack("spiral_canyon", "Spiral Canyon", Difficulty.Hard, 5, 1.4f, 0.4f, 7f, false,
+            list.Add(MakeTrack("spiral_canyon", "Spiral Canyon", Difficulty.Hard, 5, 1.4f, 0.4f, 0.25f, 7f, false,
                 "Muitas curvas, desgaste alto.", SpiralPoints()));
 
             // Placeholders bloqueados do campeonato completo (PRD 21.2).
@@ -199,7 +203,7 @@ namespace MarbleGP.EditorTools
             foreach (var entry in locked)
             {
                 var parts = entry.Split(':');
-                var t = MakeTrack(parts[0], parts[1], Difficulty.Medium, 5, 1.0f, 0.5f, 8f, true,
+                var t = MakeTrack(parts[0], parts[1], Difficulty.Medium, 5, 1.0f, 0.5f, 0.2f, 8f, true,
                     "Placeholder do campeonato completo.", OvalPoints());
                 list.Add(t);
             }
@@ -207,12 +211,12 @@ namespace MarbleGP.EditorTools
         }
 
         private static TrackDataSO MakeTrack(string id, string name, Difficulty diff, int laps,
-            float abrasion, float overtake, float width, bool locked, string desc, List<Vector2> points)
+            float abrasion, float overtake, float rainChance, float width, bool locked, string desc, List<Vector2> points)
         {
             var so = CreateOrLoad<TrackDataSO>($"{Root}/Tracks/Track_{id}.asset");
             so.trackId = id; so.trackName = name; so.difficulty = diff;
             so.recommendedLaps = laps; so.abrasionLevel = abrasion; so.overtakeLevel = overtake;
-            so.rainChance = 0f; so.pitLaneTimeLoss = 4f; so.trackLocked = locked;
+            so.rainChance = rainChance; so.pitLaneTimeLoss = 4f; so.trackLocked = locked;
             so.description = desc; so.controlPoints = points; so.trackWidth = width;
             so.checkpointEvery = 4;
             so.trackLength = Perimeter(points);

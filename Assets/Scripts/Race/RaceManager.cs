@@ -15,7 +15,7 @@ namespace MarbleGP.Race
     /// controla voltas/posicoes/pit e gera o resultado final.
     /// Toda a logica de corrida fica separada da UI (PRD 39.14).
     /// </summary>
-    public class RaceManager : MonoBehaviour
+    public class RaceManager : MonoBehaviour, IRaceConditions
     {
         [Header("Dados")]
         [SerializeField] private GameDatabase database;
@@ -37,15 +37,27 @@ namespace MarbleGP.Race
         private readonly Dictionary<MarbleController, MarbleAI> _ais = new();
 
         private GameBalance _bal;
-        private Weather _weather;
         private TireWearSystem _tireSystem;
         private EnergySystem _energySystem;
         private RacePositionSystem _positionSystem;
         private PitStopManager _pitManager;
+        private WeatherSystem _weatherSystem;
+        private RaceEventSystem _eventSystem;
+
+        // Eventos de corrida ativos (PRD 20).
+        private bool _safetyActive;
+        private float _safetyTimer;
+        private float _dirtyTimer;
 
         private float _countdownTimer;
         private int _lastCountValue = -1;
         private float _raceClock;
+
+        // ---- IRaceConditions (clima dinamico + eventos) ------------------
+        public Weather CurrentWeather => _weatherSystem != null ? _weatherSystem.Current : Weather.Dry;
+        public float TrackSpeedMod => _dirtyTimer > 0f ? 0.95f : 1f;
+        public float TrackErrorAdd => _dirtyTimer > 0f ? 0.04f : 0f;
+        public bool SafetyMarbleActive => _safetyActive;
 
         private void Awake()
         {
@@ -58,14 +70,21 @@ namespace MarbleGP.Race
         {
             Config = config;
             _bal = database.balance;
-            _weather = config.weather;
             TotalLaps = config.laps;
 
             BuildGround();
             Track = TrackBuilder.Build(config.track, config.MarbleCount, transform);
 
+            // Clima dinamico (PRD 19): comeca do config ou sorteia pela chance de chuva.
+            Weather start = config.weather != Weather.Dry
+                ? config.weather
+                : WeatherSystem.InitialFor(config.track.rainChance);
+            _weatherSystem = new WeatherSystem(start, config.track.rainChance);
+            _weatherSystem.OnChanged += w => Log($"🌦 Clima mudou: {WeatherLabel(w)}");
+            _eventSystem = new RaceEventSystem();
+
             // Sistemas (PRD 24.2).
-            _tireSystem = new TireWearSystem(_bal, config.track, _weather);
+            _tireSystem = new TireWearSystem(_bal, config.track);
             _energySystem = new EnergySystem(_bal, config.track);
             _positionSystem = new RacePositionSystem(Track, _bal.baseSpeed);
             _pitManager = new PitStopManager(Track, _bal, database, _tireSystem, _energySystem);
@@ -147,7 +166,7 @@ namespace MarbleGP.Race
                 if (fwd.sqrMagnitude > 0.01f) ctrl.transform.rotation = Quaternion.LookRotation(fwd);
 
                 _field.Add(ctrl);
-                _ais[ctrl] = new MarbleAI(ctrl, Track, _bal, _weather);
+                _ais[ctrl] = new MarbleAI(ctrl, Track, _bal, this);
                 _positionSystem.Register(runtime);
             }
         }
@@ -179,7 +198,10 @@ namespace MarbleGP.Race
             float dt = Time.fixedDeltaTime;
             _raceClock += dt;
 
+            UpdateConditions(dt);
             _pitManager.Tick(dt);
+
+            float safetySpeed = _bal.baseSpeed * 0.5f;
 
             foreach (var ctrl in _field)
             {
@@ -196,11 +218,19 @@ namespace MarbleGP.Race
                 else
                 {
                     _ais[ctrl].Think(_field, dt);
+
+                    // Safety Marble: neutraliza velocidade e ultrapassagens (PRD 20).
+                    if (_safetyActive)
+                    {
+                        ctrl.DesiredSpeed = Mathf.Min(ctrl.DesiredSpeed, safetySpeed);
+                        ctrl.Line = RacingLine.Ideal;
+                    }
+
                     ctrl.PhysicsStep(dt);
                     ctrl.HandleStuckRecovery(dt);
 
-                    // Desgaste e energia acoplados a distancia percorrida (PRD 14/15).
-                    _tireSystem.Apply(m, ctrl.DistanceLastStep);
+                    // Desgaste (clima vivo) e energia acoplados a distancia (PRD 14/15/19).
+                    _tireSystem.Apply(m, ctrl.DistanceLastStep, CurrentWeather);
                     _energySystem.Apply(m, ctrl.DistanceLastStep);
 
                     // Voltas (PRD 9.3 / 26).
@@ -292,6 +322,59 @@ namespace MarbleGP.Race
             Log("🏆 Corrida encerrada!");
             OnRaceFinished?.Invoke(Result);
         }
+
+        // ---- Clima dinamico + eventos de corrida (PRD 19 / 20) -----------
+
+        private void UpdateConditions(float dt)
+        {
+            _weatherSystem.Tick(dt);
+
+            // Contagem de eventos ativos.
+            if (_safetyTimer > 0f)
+            {
+                _safetyTimer -= dt;
+                if (_safetyTimer <= 0f)
+                {
+                    _safetyActive = false;
+                    Log("🟢 Safety Marble recolhido. Corrida liberada!");
+                }
+            }
+            if (_dirtyTimer > 0f)
+            {
+                _dirtyTimer -= dt;
+                if (_dirtyTimer <= 0f) Log("✨ Pista limpa novamente.");
+            }
+
+            // Sorteio de novos eventos (apenas se nenhum em andamento).
+            if (_safetyActive || _dirtyTimer > 0f) return;
+            switch (_eventSystem.Tick(dt))
+            {
+                case RaceEventKind.SafetyMarble:
+                    _safetyActive = true;
+                    _safetyTimer = 8f;
+                    Log("🚨 Safety Marble na pista! Velocidade neutralizada.");
+                    break;
+                case RaceEventKind.DirtyTrack:
+                    _dirtyTimer = 10f;
+                    Log("⚠ Pista suja! Menos aderencia e mais risco de erro.");
+                    break;
+            }
+        }
+
+        private static string WeatherLabel(Weather w)
+        {
+            switch (w)
+            {
+                case Weather.Dry: return "Seco";
+                case Weather.Cloudy: return "Nublado";
+                case Weather.Damp: return "Umido";
+                case Weather.LightRain: return "Chuva leve";
+                case Weather.HeavyRain: return "Chuva forte";
+                default: return w.ToString();
+            }
+        }
+
+        public string WeatherLabelCurrent() => WeatherLabel(CurrentWeather);
 
         private void Log(string msg)
         {

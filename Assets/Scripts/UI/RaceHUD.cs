@@ -43,7 +43,7 @@ namespace MarbleGP.UI
         private float _snapshotTimer;
 
         // --- Painel da equipe do jogador ---
-        private class PlayerPanel { public MarbleController ctrl; public Text info; }
+        private class PlayerPanel { public MarbleController ctrl; public Text info; public GripType nextGrip; }
         private readonly List<PlayerPanel> _panels = new();
 
         public void Bind(RaceManager race, CameraController cam)
@@ -234,19 +234,41 @@ namespace MarbleGP.UI
                 var panel = UIFactory.Panel(canvas, new Vector2(0.78f, yMin), new Vector2(1f, yMax),
                     new Vector2(4, 0), new Vector2(-4, 0), new Color(0.05f, 0.05f, 0.08f, 0.8f));
 
-                var info = UIFactory.Label(panel, "", 18, TextAnchor.UpperLeft,
-                    new Vector2(0.05f, 0.45f), new Vector2(1f, 1f), Color.white);
-                _panels.Add(new PlayerPanel { ctrl = ctrl, info = info });
+                var info = UIFactory.Label(panel, "", 17, TextAnchor.UpperLeft,
+                    new Vector2(0.05f, 0.42f), new Vector2(1f, 1f), Color.white);
+                var pp = new PlayerPanel { ctrl = ctrl, info = info, nextGrip = ctrl.Runtime.grip.gripId };
+                _panels.Add(pp);
 
-                var pit = UIFactory.Button(panel, "PIT", new Color(0.8f, 0.3f, 0.2f),
-                    new Vector2(0.05f, 0.05f), new Vector2(0.45f, 0.4f), Vector2.zero, Vector2.zero);
                 var captured = ctrl;
-                pit.onClick.AddListener(() =>
-                    _race.RequestPit(captured, captured.Runtime.grip.gripId, true, 60f));
+                var capturedPanel = pp;
 
+                // PIT: usa o anel selecionado para a proxima parada (PRD 18 / 19).
+                var pit = UIFactory.Button(panel, "PIT", new Color(0.8f, 0.3f, 0.2f),
+                    new Vector2(0.04f, 0.05f), new Vector2(0.34f, 0.38f), Vector2.zero, Vector2.zero);
+                pit.onClick.AddListener(() =>
+                    _race.RequestPit(captured, capturedPanel.nextGrip, true, 60f));
+
+                // MODE: cicla Normal/Push/Save (PRD 17).
                 var mode = UIFactory.Button(panel, "MODE", new Color(0.2f, 0.5f, 0.3f),
-                    new Vector2(0.5f, 0.05f), new Vector2(0.95f, 0.4f), Vector2.zero, Vector2.zero);
+                    new Vector2(0.36f, 0.05f), new Vector2(0.66f, 0.38f), Vector2.zero, Vector2.zero);
                 mode.onClick.AddListener(() => CycleMode(captured));
+
+                // TYRE: escolhe o anel da proxima parada (importante com clima).
+                var tyre = UIFactory.Button(panel, "TYRE", new Color(0.35f, 0.35f, 0.6f),
+                    new Vector2(0.68f, 0.05f), new Vector2(0.96f, 0.38f), Vector2.zero, Vector2.zero);
+                tyre.onClick.AddListener(() => CycleNextGrip(capturedPanel));
+            }
+        }
+
+        private void CycleNextGrip(PlayerPanel pp)
+        {
+            switch (pp.nextGrip)
+            {
+                case GripType.Soft: pp.nextGrip = GripType.Medium; break;
+                case GripType.Medium: pp.nextGrip = GripType.Hard; break;
+                case GripType.Hard: pp.nextGrip = GripType.Intermediate; break;
+                case GripType.Intermediate: pp.nextGrip = GripType.Rain; break;
+                default: pp.nextGrip = GripType.Soft; break;
             }
         }
 
@@ -276,7 +298,8 @@ namespace MarbleGP.UI
             int leaderLap = 1;
             if (_race.Field.Count > 0)
                 leaderLap = Mathf.Clamp(_race.Field[0].Runtime.completedLaps + 1, 1, _race.TotalLaps);
-            _topText.text = $"{_race.Config.track.trackName}   |   Clima: {_race.Config.weather}";
+            string banner = _race.SafetyMarbleActive ? "   |   🚨 SAFETY MARBLE" : "";
+            _topText.text = $"{_race.Config.track.trackName}   |   Clima: {_race.WeatherLabelCurrent()}{banner}";
             if (_topLap != null) _topLap.text = $"LAP {leaderLap}/{_race.TotalLaps}";
 
             UpdateTimingTower();
@@ -288,7 +311,7 @@ namespace MarbleGP.UI
                     $"{m.DisplayName}  P{m.position}\n" +
                     $"Anel: {m.grip.gripId}  Modo: {m.mode}\n" +
                     $"Desgaste: {m.wear:0}%  Energia: {m.energy:0}\n" +
-                    $"Estado: {m.state}";
+                    $"Estado: {m.state}   Pit p/: {p.nextGrip}";
             }
         }
 
