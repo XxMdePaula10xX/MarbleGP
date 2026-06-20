@@ -1,0 +1,327 @@
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using MarbleGP.Core;
+using MarbleGP.Data;
+using MarbleGP.Race;
+using MarbleGP.UI;
+using MarbleGP.CameraSystem;
+using MarbleGP.Save;
+
+namespace MarbleGP.Bootstrap
+{
+    /// <summary>
+    /// Orquestrador de TODO o fluxo do jogo numa unica cena (PRD 35), evitando
+    /// depender de varias cenas .unity feitas a mao. Implementa, via UI
+    /// procedural, as telas do MVP: Perfil -> Menu -> Selecao de Pista ->
+    /// Estrategia -> Corrida (RaceManager + HUD) -> Resultado.
+    /// Basta colocar este componente num GameObject vazio da cena.
+    /// </summary>
+    public class AppController : MonoBehaviour
+    {
+        private GameManager _gm;
+        private CameraController _camera;
+        private GameObject _uiRoot;       // canvas atual de menu
+        private GameObject _raceRoot;     // objetos da corrida (destruidos ao sair)
+
+        // Selecoes correntes do fluxo.
+        private TrackDataSO _selectedTrack;
+        private GripType _grip = GripType.Medium;
+        private RaceMode _mode = RaceMode.Normal;
+        private float _startEnergy = 70f;
+
+        private void Start()
+        {
+            EnsureCoreSystems();
+
+            if (_gm.Database == null)
+            {
+                ShowFatal("GameDatabase nao encontrado.\nRode Tools > Marble GP > Gerar Dados do MVP.");
+                return;
+            }
+
+            if (!_gm.Profile.created) ShowProfileScreen();
+            else ShowMainMenu();
+        }
+
+        // ---- Infra ------------------------------------------------------
+
+        private void EnsureCoreSystems()
+        {
+            if (EventSystem.current == null)
+            {
+                var es = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+                DontDestroyOnLoad(es);
+            }
+
+            _gm = GameManager.Instance;
+            if (_gm == null)
+            {
+                var go = new GameObject("GameManager");
+                _gm = go.AddComponent<GameManager>();
+            }
+
+            if (Camera.main == null)
+            {
+                var camGo = new GameObject("MainCamera", typeof(Camera));
+                camGo.tag = "MainCamera";
+            }
+            _camera = Camera.main.GetComponent<CameraController>();
+            if (_camera == null) _camera = Camera.main.gameObject.AddComponent<CameraController>();
+            Camera.main.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
+        }
+
+        private void ClearMenuUI()
+        {
+            if (_uiRoot != null) Destroy(_uiRoot);
+        }
+
+        private Canvas NewCanvas(string name)
+        {
+            ClearMenuUI();
+            var canvas = UIFactory.CreateCanvas(name);
+            _uiRoot = canvas.gameObject;
+            return canvas;
+        }
+
+        // ---- Tela: Perfil (PRD 7.1 / 23.1) ------------------------------
+
+        private void ShowProfileScreen()
+        {
+            var canvas = NewCanvas("ProfileScreen");
+            UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 54, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.8f), new Vector2(0.9f, 0.95f), Color.white);
+            UIFactory.Label(canvas.transform, "Criar Perfil", 30, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.8f), new Color(0.8f, 0.8f, 1f));
+
+            var nameField = InputField(canvas.transform, "Nome do jogador",
+                new Vector2(0.3f, 0.6f), new Vector2(0.7f, 0.68f));
+            var teamField = InputField(canvas.transform, "Nome da equipe",
+                new Vector2(0.3f, 0.5f), new Vector2(0.7f, 0.58f));
+
+            var go = UIFactory.Button(canvas.transform, "Continuar", new Color(0.2f, 0.6f, 0.3f),
+                new Vector2(0.4f, 0.35f), new Vector2(0.6f, 0.43f), Vector2.zero, Vector2.zero);
+            go.onClick.AddListener(() =>
+            {
+                var p = _gm.Profile;
+                p.playerName = string.IsNullOrWhiteSpace(nameField.text) ? "Player" : nameField.text;
+                p.teamName = string.IsNullOrWhiteSpace(teamField.text) ? "My Team" : teamField.text;
+                p.created = true;
+                _gm.SaveProfile();
+                ShowMainMenu();
+            });
+        }
+
+        // ---- Tela: Menu principal (PRD 7.2 / 23.2) ----------------------
+
+        private void ShowMainMenu()
+        {
+            var canvas = NewCanvas("MainMenu");
+            UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 54, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.82f), new Vector2(0.9f, 0.95f), Color.white);
+            UIFactory.Label(canvas.transform, $"Equipe: {_gm.Profile.teamName}", 24, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.76f), new Vector2(0.9f, 0.82f), new Color(0.8f, 0.8f, 1f));
+
+            MenuButton(canvas.transform, "Corrida Rapida", 0, () => ShowTrackSelect());
+            MenuButton(canvas.transform, "Campeonato (em desenvolvimento)", 1, null, disabled: true);
+            MenuButton(canvas.transform, "Garagem (em desenvolvimento)", 2, null, disabled: true);
+            MenuButton(canvas.transform, "Sair", 3, () =>
+            {
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
+            });
+        }
+
+        private void MenuButton(Transform parent, string label, int index, UnityEngine.Events.UnityAction onClick, bool disabled = false)
+        {
+            float yMax = 0.66f - index * 0.1f;
+            var color = disabled ? new Color(0.3f, 0.3f, 0.3f, 0.6f) : new Color(0.2f, 0.4f, 0.7f, 0.95f);
+            var btn = UIFactory.Button(parent, label, color,
+                new Vector2(0.32f, yMax - 0.08f), new Vector2(0.68f, yMax), Vector2.zero, Vector2.zero);
+            btn.interactable = !disabled;
+            if (onClick != null) btn.onClick.AddListener(onClick);
+        }
+
+        // ---- Tela: Selecao de pista (PRD 7.3 / 23.3) --------------------
+
+        private void ShowTrackSelect()
+        {
+            var canvas = NewCanvas("TrackSelect");
+            UIFactory.Label(canvas.transform, "Escolha o Circuito", 40, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.85f), new Vector2(0.9f, 0.95f), Color.white);
+
+            var tracks = _gm.Database.tracks;
+            int row = 0;
+            foreach (var t in tracks)
+            {
+                bool locked = t.trackLocked;
+                float yMax = 0.78f - row * 0.11f;
+                string label = locked
+                    ? $"{t.trackName} (bloqueado)"
+                    : $"{t.trackName}  -  {t.difficulty}, {t.recommendedLaps} voltas";
+                var btn = UIFactory.Button(canvas.transform, label,
+                    locked ? new Color(0.3f, 0.3f, 0.3f, 0.6f) : new Color(0.25f, 0.45f, 0.6f, 0.95f),
+                    new Vector2(0.2f, yMax - 0.09f), new Vector2(0.8f, yMax), Vector2.zero, Vector2.zero);
+                btn.interactable = !locked;
+                var captured = t;
+                if (!locked) btn.onClick.AddListener(() => { _selectedTrack = captured; ShowStrategy(); });
+                row++;
+            }
+
+            BackButton(canvas.transform, ShowMainMenu);
+        }
+
+        // ---- Tela: Estrategia pre-corrida (PRD 7.3 / 23.4) --------------
+
+        private void ShowStrategy()
+        {
+            var canvas = NewCanvas("Strategy");
+            UIFactory.Label(canvas.transform, $"Estrategia - {_selectedTrack.trackName}", 36, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.86f), new Vector2(0.9f, 0.95f), Color.white);
+
+            UIFactory.Label(canvas.transform, "Anel de aderencia:", 24, TextAnchor.MiddleLeft,
+                new Vector2(0.2f, 0.72f), new Vector2(0.5f, 0.78f), Color.white);
+            GripButton(canvas.transform, GripType.Soft, "Soft", 0);
+            GripButton(canvas.transform, GripType.Medium, "Medium", 1);
+            GripButton(canvas.transform, GripType.Hard, "Hard", 2);
+
+            UIFactory.Label(canvas.transform, "Modo inicial:", 24, TextAnchor.MiddleLeft,
+                new Vector2(0.2f, 0.56f), new Vector2(0.5f, 0.62f), Color.white);
+            ModeButton(canvas.transform, RaceMode.Save, "Save", 0);
+            ModeButton(canvas.transform, RaceMode.Normal, "Normal", 1);
+            ModeButton(canvas.transform, RaceMode.Push, "Push", 2);
+
+            UIFactory.Label(canvas.transform, "Carga de energia: Media (70)", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.2f, 0.42f), new Vector2(0.8f, 0.48f), new Color(0.8f, 0.9f, 1f));
+
+            var start = UIFactory.Button(canvas.transform, "INICIAR CORRIDA", new Color(0.85f, 0.4f, 0.2f),
+                new Vector2(0.35f, 0.2f), new Vector2(0.65f, 0.3f), Vector2.zero, Vector2.zero);
+            start.onClick.AddListener(StartRace);
+
+            BackButton(canvas.transform, ShowTrackSelect);
+        }
+
+        private void GripButton(Transform parent, GripType g, string label, int col)
+        {
+            float xMin = 0.5f + col * 0.16f;
+            var btn = UIFactory.Button(parent, label,
+                _grip == g ? new Color(0.9f, 0.6f, 0.2f) : new Color(0.3f, 0.3f, 0.4f),
+                new Vector2(xMin, 0.71f), new Vector2(xMin + 0.14f, 0.79f), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(() => { _grip = g; ShowStrategy(); });
+        }
+
+        private void ModeButton(Transform parent, RaceMode m, string label, int col)
+        {
+            float xMin = 0.5f + col * 0.16f;
+            var btn = UIFactory.Button(parent, label,
+                _mode == m ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.3f, 0.3f, 0.4f),
+                new Vector2(xMin, 0.55f), new Vector2(xMin + 0.14f, 0.63f), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(() => { _mode = m; ShowStrategy(); });
+        }
+
+        // ---- Corrida (PRD 8 / 23.5) -------------------------------------
+
+        private void StartRace()
+        {
+            ClearMenuUI();
+
+            string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+            var config = QuickRaceBuilder.Build(_gm.Database, _selectedTrack, playerTeamId,
+                maxMarbles: 8, defaultGrip: _grip, startEnergy: _startEnergy, startMode: _mode);
+            _gm.CurrentRace = config;
+
+            _raceRoot = new GameObject("RaceRoot");
+            var raceGo = new GameObject("RaceManager");
+            raceGo.transform.SetParent(_raceRoot.transform, false);
+            var race = raceGo.AddComponent<RaceManager>();
+            race.StartRace(config);
+
+            _camera.FrameTrack(race.Track);
+
+            var hudGo = new GameObject("RaceHUD");
+            hudGo.transform.SetParent(_raceRoot.transform, false);
+            var hud = hudGo.AddComponent<RaceHUD>();
+            hud.Bind(race, _camera);
+
+            race.OnRaceFinished += result =>
+            {
+                ShowResults(result);
+            };
+        }
+
+        // ---- Tela: Resultado (PRD 23.6) ---------------------------------
+
+        private void ShowResults(RaceResult result)
+        {
+            var canvas = NewCanvas("Results");
+            UIFactory.Label(canvas.transform, $"Resultado - {result.trackName}", 40, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.97f), Color.white);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"{"Pos",-4}{"Bolinha",-14}{"Equipe",-20}{"Tempo",-9}{"Pits",-6}{"MelhorV",-9}{"Pts",-4}");
+            foreach (var e in result.entries)
+            {
+                string player = e.isPlayer ? "►" : " ";
+                sb.AppendLine($"{player}{e.position,-3}{Trim(e.marbleName, 13),-14}{Trim(e.teamName, 19),-20}" +
+                              $"{e.totalTime,7:0.0}  {e.pitStops,-6}{(e.bestLapTime > 0 ? e.bestLapTime.ToString("0.00") : "-"),-9}{e.points,-4}");
+            }
+
+            var panel = UIFactory.Panel(canvas.transform, new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.86f),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
+            var t = UIFactory.Label(panel, sb.ToString(), 20, TextAnchor.UpperLeft,
+                new Vector2(0.02f, 0f), new Vector2(1f, 0.98f), Color.white);
+            t.font = UIFactory.DefaultFont;
+
+            var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
+                new Vector2(0.2f, 0.08f), new Vector2(0.45f, 0.16f), Vector2.zero, Vector2.zero);
+            menu.onClick.AddListener(() => { CleanupRace(); ShowMainMenu(); });
+
+            var again = UIFactory.Button(canvas.transform, "Correr de novo", new Color(0.85f, 0.4f, 0.2f),
+                new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
+            again.onClick.AddListener(() => { CleanupRace(); ShowStrategy(); });
+        }
+
+        private void CleanupRace()
+        {
+            if (_raceRoot != null) Destroy(_raceRoot);
+            _camera.SetOverview();
+        }
+
+        // ---- Helpers de UI ----------------------------------------------
+
+        private void BackButton(Transform parent, UnityEngine.Events.UnityAction onClick)
+        {
+            var btn = UIFactory.Button(parent, "Voltar", new Color(0.4f, 0.4f, 0.4f),
+                new Vector2(0.02f, 0.02f), new Vector2(0.12f, 0.08f), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(onClick);
+        }
+
+        private InputField InputField(Transform parent, string placeholder, Vector2 min, Vector2 max)
+        {
+            var panel = UIFactory.Panel(parent, min, max, Vector2.zero, Vector2.zero, Color.white);
+            var go = panel.gameObject;
+            var input = go.AddComponent<InputField>();
+            var text = UIFactory.Label(panel, "", 24, TextAnchor.MiddleLeft,
+                new Vector2(0.02f, 0f), new Vector2(1f, 1f), Color.black);
+            var ph = UIFactory.Label(panel, placeholder, 24, TextAnchor.MiddleLeft,
+                new Vector2(0.02f, 0f), new Vector2(1f, 1f), new Color(0.5f, 0.5f, 0.5f));
+            input.textComponent = text;
+            input.placeholder = ph;
+            return input;
+        }
+
+        private void ShowFatal(string msg)
+        {
+            var canvas = NewCanvas("Fatal");
+            UIFactory.Label(canvas.transform, msg, 28, TextAnchor.MiddleCenter,
+                new Vector2(0.1f, 0.4f), new Vector2(0.9f, 0.6f), new Color(1f, 0.6f, 0.6f));
+        }
+
+        private static string Trim(string s, int n) => string.IsNullOrEmpty(s) ? "" : (s.Length <= n ? s : s.Substring(0, n));
+    }
+}

@@ -1,0 +1,54 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using MarbleGP.Data;
+using MarbleGP.Save;
+
+namespace MarbleGP.Core
+{
+    /// <summary>
+    /// Estado global e ponto de entrada de sistemas (PRD 24.2).
+    /// Singleton persistente entre cenas. Guarda o GameDatabase, o perfil
+    /// ativo e o RaceConfig corrente que sera consumido pela RaceScene.
+    /// </summary>
+    public class GameManager : MonoBehaviour
+    {
+        public static GameManager Instance { get; private set; }
+
+        [Header("Dados (arraste o GameDatabase gerado pelo Editor)")]
+        [SerializeField] private GameDatabase database;
+
+        public GameDatabase Database => database;
+        public GameBalance Balance => database != null ? database.balance : null;
+
+        public PlayerProfile Profile { get; private set; }
+
+        /// <summary>Config da corrida montada pelos menus, lida pela RaceScene.</summary>
+        public RaceConfig CurrentRace { get; set; }
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+
+            // Carrega o banco por Resources caso nao tenha sido atribuido no Inspector.
+            if (database == null)
+                database = Resources.Load<GameDatabase>("GameDatabase");
+
+            Profile = SaveManager.LoadProfile();
+
+            if (database == null)
+                Debug.LogWarning("[GameManager] GameDatabase nao atribuido. " +
+                    "Rode Tools > Marble GP > Gerar Dados do MVP e arraste o asset, " +
+                    "ou coloque-o em Resources/GameDatabase.");
+        }
+
+        public void SaveProfile() => SaveManager.SaveProfile(Profile);
+
+        public void LoadScene(string sceneName) => SceneManager.LoadScene(sceneName);
+    }
+}
