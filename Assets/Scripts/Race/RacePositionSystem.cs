@@ -16,14 +16,17 @@ namespace MarbleGP.Race
     {
         private readonly TrackManager _track;
         private readonly float _checkpointRadius;
+        private readonly float _refLapTime;
 
         // Estado de validacao por bolinha (PRD 9.3: ordem correta de checkpoints).
         private readonly Dictionary<MarbleRuntime, int> _nextCheckpoint = new();
 
-        public RacePositionSystem(TrackManager track)
+        public RacePositionSystem(TrackManager track, float baseSpeed)
         {
             _track = track;
             _checkpointRadius = Mathf.Max(2.5f, track.Data.trackWidth * 0.8f);
+            // Tempo de volta de referencia para estimar gaps (timing tower).
+            _refLapTime = track.Data.trackLength / Mathf.Max(1f, baseSpeed);
         }
 
         public void Register(MarbleRuntime m) => _nextCheckpoint[m] = 1 % Mathf.Max(1, _track.CheckpointCount);
@@ -92,6 +95,7 @@ namespace MarbleGP.Race
                 return mb.raceProgress.CompareTo(ma.raceProgress);
             });
 
+            var leader = field.Count > 0 ? field[0].Runtime : null;
             for (int i = 0; i < field.Count; i++)
             {
                 int newPos = i + 1;
@@ -99,6 +103,13 @@ namespace MarbleGP.Race
                 // Conta ultrapassagem quando ganha posicao em pista (PRD 8 estatisticas).
                 if (m.position != 0 && newPos < m.position) m.overtakes++;
                 m.position = newPos;
+
+                // Gap para o lider em segundos (timing tower, PRD 23.5).
+                if (leader == null || m == leader) m.gapToLeader = 0f;
+                else if (m.state == MarbleRaceState.Finished && leader.state == MarbleRaceState.Finished)
+                    m.gapToLeader = m.totalTime - leader.totalTime;
+                else
+                    m.gapToLeader = Mathf.Max(0f, (leader.raceProgress - m.raceProgress) * _refLapTime);
             }
         }
     }

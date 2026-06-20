@@ -13,6 +13,8 @@ namespace MarbleGP.Data
     {
         public string driverId = "driver_id";
         public string marbleName = "New Marble";
+        [Tooltip("Sigla de 3 letras exibida no ranking (ex.: CM1).")]
+        public string shortCode = "MAR";
         public int number = 0;
         [Tooltip("teamId da TeamDataSO a que pertence.")]
         public string teamId = "team_id";

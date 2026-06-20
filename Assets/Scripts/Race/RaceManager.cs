@@ -67,7 +67,7 @@ namespace MarbleGP.Race
             // Sistemas (PRD 24.2).
             _tireSystem = new TireWearSystem(_bal, config.track, _weather);
             _energySystem = new EnergySystem(_bal, config.track);
-            _positionSystem = new RacePositionSystem(Track);
+            _positionSystem = new RacePositionSystem(Track, _bal.baseSpeed);
             _pitManager = new PitStopManager(Track, _bal, database, _tireSystem, _energySystem);
 
             _tireSystem.OnHighWearAlert += m => Log($"⚠ {m.DisplayName}: desgaste alto!");

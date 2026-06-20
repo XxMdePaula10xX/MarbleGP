@@ -25,6 +25,12 @@ namespace MarbleGP.Core
         /// <summary>Config da corrida montada pelos menus, lida pela RaceScene.</summary>
         public RaceConfig CurrentRace { get; set; }
 
+        /// <summary>Gerenciador do campeonato em andamento (PRD 29).</summary>
+        public ChampionshipManager Championship { get; set; }
+
+        /// <summary>True quando a corrida atual faz parte do campeonato.</summary>
+        public bool RaceIsChampionship { get; set; }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)

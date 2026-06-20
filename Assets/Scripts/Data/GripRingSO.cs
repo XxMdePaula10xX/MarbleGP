@@ -27,6 +27,40 @@ namespace MarbleGP.Data
 
         [TextArea] public string description;
 
+        /// <summary>Letra exibida no ranking ao vivo (estilo indicador de pneu).</summary>
+        public string DisplayLetter
+        {
+            get
+            {
+                switch (gripId)
+                {
+                    case GripType.Soft: return "S";
+                    case GripType.Medium: return "M";
+                    case GripType.Hard: return "H";
+                    case GripType.Intermediate: return "I";
+                    case GripType.Rain: return "W";
+                    default: return "?";
+                }
+            }
+        }
+
+        /// <summary>Cor do indicador (estilo F1: macio=vermelho, medio=amarelo, duro=branco).</summary>
+        public Color DisplayColor
+        {
+            get
+            {
+                switch (gripId)
+                {
+                    case GripType.Soft: return new Color(0.90f, 0.20f, 0.20f);
+                    case GripType.Medium: return new Color(0.95f, 0.80f, 0.20f);
+                    case GripType.Hard: return new Color(0.92f, 0.92f, 0.92f);
+                    case GripType.Intermediate: return new Color(0.30f, 0.80f, 0.35f);
+                    case GripType.Rain: return new Color(0.30f, 0.55f, 0.95f);
+                    default: return Color.gray;
+                }
+            }
+        }
+
         /// <summary>Desgaste efetivo por volta dado o clima (Rain desgasta muito no seco).</summary>
         public float WearForWeather(Weather weather)
         {

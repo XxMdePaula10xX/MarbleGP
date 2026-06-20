@@ -140,34 +140,34 @@ namespace MarbleGP.EditorTools
         {
             var list = new List<MarbleDriverSO>();
             // Red Comet: velocidade alta, controle/tire menor.
-            list.Add(MakeDriver("comet_one", "Comet One", 1, "red_comet",
+            list.Add(MakeDriver("comet_one", "Comet One", "CM1", 1, "red_comet",
                 88, 82, 60, 78, 60, 62, 45, 55, 55, 50, Personality.Aggressive));
-            list.Add(MakeDriver("comet_two", "Comet Two", 2, "red_comet",
+            list.Add(MakeDriver("comet_two", "Comet Two", "CM2", 2, "red_comet",
                 84, 80, 58, 70, 58, 60, 48, 55, 55, 50, Personality.RiskTaker));
             // Blue Orbit: consistente.
-            list.Add(MakeDriver("orbit_one", "Orbit One", 3, "blue_orbit",
+            list.Add(MakeDriver("orbit_one", "Orbit One", "OB1", 3, "blue_orbit",
                 72, 70, 75, 55, 70, 85, 70, 72, 65, 68, Personality.Balanced));
-            list.Add(MakeDriver("orbit_two", "Orbit Two", 4, "blue_orbit",
+            list.Add(MakeDriver("orbit_two", "Orbit Two", "OB2", 4, "blue_orbit",
                 70, 68, 74, 52, 72, 82, 72, 70, 64, 66, Personality.Veteran));
             // Emerald Rollers: curvas/controle.
-            list.Add(MakeDriver("emerald_one", "Emerald One", 5, "emerald_rollers",
+            list.Add(MakeDriver("emerald_one", "Emerald One", "EM1", 5, "emerald_rollers",
                 70, 68, 88, 58, 66, 70, 68, 64, 60, 72, Personality.Smooth));
-            list.Add(MakeDriver("emerald_two", "Emerald Two", 6, "emerald_rollers",
+            list.Add(MakeDriver("emerald_two", "Emerald Two", "EM2", 6, "emerald_rollers",
                 68, 66, 85, 55, 64, 72, 70, 62, 60, 74, Personality.Conservative));
             // Shadow Marble: pit/estrategia.
-            list.Add(MakeDriver("shadow_one", "Shadow One", 7, "shadow_marble",
+            list.Add(MakeDriver("shadow_one", "Shadow One", "SH1", 7, "shadow_marble",
                 74, 66, 72, 60, 74, 75, 72, 70, 90, 65, Personality.Defensive));
-            list.Add(MakeDriver("shadow_two", "Shadow Two", 8, "shadow_marble",
+            list.Add(MakeDriver("shadow_two", "Shadow Two", "SH2", 8, "shadow_marble",
                 72, 64, 70, 58, 72, 76, 74, 72, 88, 64, Personality.Balanced));
             return list;
         }
 
-        private static MarbleDriverSO MakeDriver(string id, string name, int number, string teamId,
+        private static MarbleDriverSO MakeDriver(string id, string name, string code, int number, string teamId,
             int spd, int acc, int ctrl, int agg, int def, int cons, int tire, int energy, int pit, int wet,
             Personality pers)
         {
             var so = CreateOrLoad<MarbleDriverSO>($"{Root}/Drivers/Driver_{id}.asset");
-            so.driverId = id; so.marbleName = name; so.number = number; so.teamId = teamId;
+            so.driverId = id; so.marbleName = name; so.shortCode = code; so.number = number; so.teamId = teamId;
             so.speed = spd; so.acceleration = acc; so.control = ctrl; so.aggression = agg;
             so.defense = def; so.consistency = cons; so.tireManagement = tire;
             so.energyManagement = energy; so.pitSkill = pit; so.wetSkill = wet;

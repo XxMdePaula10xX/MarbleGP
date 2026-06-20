@@ -29,6 +29,7 @@ namespace MarbleGP.Systems
         public int currentCheckpoint = 0;
         public float raceProgress = 0f;    // calculado pelo RacePositionSystem
         public int position = 0;           // posicao ao vivo (1-based)
+        public float gapToLeader = 0f;     // segundos atras do lider (timing tower)
 
         public MarbleRaceState state = MarbleRaceState.OnGrid;
 

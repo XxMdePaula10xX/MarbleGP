@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -125,7 +126,7 @@ namespace MarbleGP.Bootstrap
                 new Vector2(0.1f, 0.76f), new Vector2(0.9f, 0.82f), new Color(0.8f, 0.8f, 1f));
 
             MenuButton(canvas.transform, "Corrida Rapida", 0, () => ShowTrackSelect());
-            MenuButton(canvas.transform, "Campeonato (em desenvolvimento)", 1, null, disabled: true);
+            MenuButton(canvas.transform, "Campeonato", 1, () => ShowChampionshipHub());
             MenuButton(canvas.transform, "Garagem (em desenvolvimento)", 2, null, disabled: true);
             MenuButton(canvas.transform, "Sair", 3, () =>
             {
@@ -228,12 +229,18 @@ namespace MarbleGP.Bootstrap
 
         private void StartRace()
         {
-            ClearMenuUI();
-
             string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
             var config = QuickRaceBuilder.Build(_gm.Database, _selectedTrack, playerTeamId,
                 maxMarbles: 8, defaultGrip: _grip, startEnergy: _startEnergy, startMode: _mode);
+            RunRace(config, isChampionship: false);
+        }
+
+        /// <summary>Inicia a corrida (compartilhado por Corrida Rapida e Campeonato).</summary>
+        private void RunRace(RaceConfig config, bool isChampionship)
+        {
+            ClearMenuUI();
             _gm.CurrentRace = config;
+            _gm.RaceIsChampionship = isChampionship;
 
             _raceRoot = new GameObject("RaceRoot");
             var raceGo = new GameObject("RaceManager");
@@ -250,13 +257,18 @@ namespace MarbleGP.Bootstrap
 
             race.OnRaceFinished += result =>
             {
-                ShowResults(result);
+                if (isChampionship)
+                {
+                    _gm.Championship?.ApplyResult(result);
+                    ShowResults(result, returnToChampionship: true);
+                }
+                else ShowResults(result, returnToChampionship: false);
             };
         }
 
         // ---- Tela: Resultado (PRD 23.6) ---------------------------------
 
-        private void ShowResults(RaceResult result)
+        private void ShowResults(RaceResult result, bool returnToChampionship)
         {
             var canvas = NewCanvas("Results");
             UIFactory.Label(canvas.transform, $"Resultado - {result.trackName}", 40, TextAnchor.MiddleCenter,
@@ -281,15 +293,131 @@ namespace MarbleGP.Bootstrap
                 new Vector2(0.2f, 0.08f), new Vector2(0.45f, 0.16f), Vector2.zero, Vector2.zero);
             menu.onClick.AddListener(() => { CleanupRace(); ShowMainMenu(); });
 
-            var again = UIFactory.Button(canvas.transform, "Correr de novo", new Color(0.85f, 0.4f, 0.2f),
-                new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
-            again.onClick.AddListener(() => { CleanupRace(); ShowStrategy(); });
+            if (returnToChampionship)
+            {
+                var next = UIFactory.Button(canvas.transform, "Classificacao / Proxima", new Color(0.85f, 0.4f, 0.2f),
+                    new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
+                next.onClick.AddListener(() => { CleanupRace(); ShowChampionshipHub(); });
+            }
+            else
+            {
+                var again = UIFactory.Button(canvas.transform, "Correr de novo", new Color(0.85f, 0.4f, 0.2f),
+                    new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
+                again.onClick.AddListener(() => { CleanupRace(); ShowStrategy(); });
+            }
         }
 
         private void CleanupRace()
         {
             if (_raceRoot != null) Destroy(_raceRoot);
             _camera.SetOverview();
+        }
+
+        // ---- Campeonato (PRD 29) ----------------------------------------
+
+        private void EnsureChampionship()
+        {
+            if (_gm.Championship == null)
+            {
+                _gm.Championship = new ChampionshipManager(_gm.Database);
+                _gm.Championship.LoadSeason(); // tenta retomar temporada salva
+            }
+        }
+
+        private void ShowChampionshipHub()
+        {
+            EnsureChampionship();
+            var champ = _gm.Championship;
+            var canvas = NewCanvas("Championship");
+
+            UIFactory.Label(canvas.transform, "CAMPEONATO", 44, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
+
+            if (!champ.HasActiveSeason)
+            {
+                UIFactory.Label(canvas.transform, "Nenhuma temporada em andamento.", 26, TextAnchor.MiddleCenter,
+                    new Vector2(0.1f, 0.6f), new Vector2(0.9f, 0.7f), new Color(0.8f, 0.8f, 1f));
+                var startBtn = UIFactory.Button(canvas.transform, "Iniciar Temporada", new Color(0.2f, 0.6f, 0.3f),
+                    new Vector2(0.35f, 0.45f), new Vector2(0.65f, 0.55f), Vector2.zero, Vector2.zero);
+                startBtn.onClick.AddListener(() =>
+                {
+                    string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+                    champ.StartNewSeason(playerTeamId);
+                    ShowChampionshipHub();
+                });
+                BackButton(canvas.transform, ShowMainMenu);
+                return;
+            }
+
+            // Cabecalho da etapa.
+            if (champ.IsSeasonOver)
+            {
+                var topDriver = champ.DriverStandingsSorted().FirstOrDefault();
+                string champName = topDriver != null ? champ.DriverName(topDriver.driverId) : "-";
+                UIFactory.Label(canvas.transform, $"Temporada encerrada! Campeao: {champName}", 26,
+                    TextAnchor.MiddleCenter, new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.9f),
+                    new Color(1f, 0.85f, 0.3f));
+            }
+            else
+            {
+                var track = champ.CurrentTrack();
+                UIFactory.Label(canvas.transform,
+                    $"Etapa {champ.CurrentRound + 1}/{champ.TotalRounds}  -  {track.trackName}", 24,
+                    TextAnchor.MiddleCenter, new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.9f),
+                    new Color(0.8f, 0.9f, 1f));
+            }
+
+            BuildStandings(canvas.transform, champ);
+
+            // Botoes.
+            if (!champ.IsSeasonOver)
+            {
+                var raceBtn = UIFactory.Button(canvas.transform, "Correr Etapa", new Color(0.85f, 0.4f, 0.2f),
+                    new Vector2(0.55f, 0.04f), new Vector2(0.8f, 0.12f), Vector2.zero, Vector2.zero);
+                raceBtn.onClick.AddListener(() =>
+                {
+                    var config = champ.BuildRoundRace();
+                    if (config != null) RunRace(config, isChampionship: true);
+                });
+            }
+            else
+            {
+                var newSeason = UIFactory.Button(canvas.transform, "Nova Temporada", new Color(0.2f, 0.6f, 0.3f),
+                    new Vector2(0.55f, 0.04f), new Vector2(0.8f, 0.12f), Vector2.zero, Vector2.zero);
+                newSeason.onClick.AddListener(() =>
+                {
+                    string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+                    champ.StartNewSeason(playerTeamId);
+                    ShowChampionshipHub();
+                });
+            }
+
+            var menuBtn = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
+                new Vector2(0.2f, 0.04f), new Vector2(0.45f, 0.12f), Vector2.zero, Vector2.zero);
+            menuBtn.onClick.AddListener(ShowMainMenu);
+        }
+
+        private void BuildStandings(Transform canvas, ChampionshipManager champ)
+        {
+            // Pilotos (esquerda).
+            var leftPanel = UIFactory.Panel(canvas, new Vector2(0.06f, 0.16f), new Vector2(0.5f, 0.8f),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
+            var sbD = new StringBuilder("PILOTOS\n");
+            int rank = 1;
+            foreach (var d in champ.DriverStandingsSorted())
+                sbD.AppendLine($"{rank++,2}. {champ.DriverCode(d.driverId)}  {Trim(champ.TeamName(d.teamId), 14),-14} {d.points,3} pts  ({d.wins}V)");
+            UIFactory.Label(leftPanel, sbD.ToString(), 19, TextAnchor.UpperLeft,
+                new Vector2(0.04f, 0f), new Vector2(1f, 0.98f), Color.white);
+
+            // Equipes (direita).
+            var rightPanel = UIFactory.Panel(canvas, new Vector2(0.52f, 0.16f), new Vector2(0.94f, 0.8f),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
+            var sbT = new StringBuilder("EQUIPES\n");
+            rank = 1;
+            foreach (var t in champ.TeamStandingsSorted())
+                sbT.AppendLine($"{rank++,2}. {Trim(champ.TeamName(t.teamId), 18),-18} {t.points,3} pts  ({t.wins}V)");
+            UIFactory.Label(rightPanel, sbT.ToString(), 19, TextAnchor.UpperLeft,
+                new Vector2(0.04f, 0f), new Vector2(1f, 0.98f), Color.white);
         }
 
         // ---- Helpers de UI ----------------------------------------------
