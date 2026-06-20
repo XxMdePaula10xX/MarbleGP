@@ -1,3 +1,4 @@
+using UnityEngine;
 using MarbleGP.Core;
 using MarbleGP.Data;
 
@@ -52,7 +53,25 @@ namespace MarbleGP.Systems
 
         public float MaxEnergy => GameBalanceRef != null ? GameBalanceRef.maxEnergy : 100f;
 
+        // Overrides visuais da garagem (PRD 31). Setados pelo RaceManager a
+        // partir do PlayerProfile para as bolinhas do jogador.
+        public Color? teamPrimaryOverride;
+        public Color? teamSecondaryOverride;
+        public Color? marbleColorOverride;
+        public string teamNameOverride;
+
         public string DisplayName => driver != null ? driver.marbleName : "Marble";
         public string TeamName => team != null ? team.teamName : "Team";
+        public string TeamDisplayName =>
+            !string.IsNullOrEmpty(teamNameOverride) ? teamNameOverride : TeamName;
+
+        /// <summary>Cor primaria da equipe (chip do ranking), respeitando override.</summary>
+        public Color TeamPrimary =>
+            teamPrimaryOverride ?? (team != null ? team.primaryColor : Color.gray);
+        /// <summary>Cor secundaria da equipe, respeitando override.</summary>
+        public Color TeamSecondary =>
+            teamSecondaryOverride ?? (team != null ? team.secondaryColor : Color.black);
+        /// <summary>Cor do corpo da bolinha: cor propria customizada ou cor da equipe.</summary>
+        public Color MarbleColor => marbleColorOverride ?? TeamPrimary;
     }
 }

@@ -35,7 +35,7 @@ namespace MarbleGP.Race
             Object.Destroy(visual.GetComponent<Collider>());
             visual.transform.SetParent(go.transform, false);
             visual.transform.localScale = Vector3.one * (Radius * 2f);
-            Color primary = runtime.team != null ? runtime.team.primaryColor : Color.gray;
+            Color primary = runtime.MarbleColor; // respeita customizacao da garagem (PRD 31)
             visual.GetComponent<MeshRenderer>().sharedMaterial =
                 MaterialFactory.Create(primary, smoothness: 0.85f, metallic: 0.2f);
 
@@ -46,7 +46,7 @@ namespace MarbleGP.Race
             band.transform.SetParent(visual.transform, false);
             band.transform.localScale = Vector3.one * 0.45f;
             band.transform.localPosition = new Vector3(0f, 0.62f, 0f);
-            Color secondary = runtime.team != null ? runtime.team.secondaryColor : Color.black;
+            Color secondary = runtime.TeamSecondary;
             band.GetComponent<MeshRenderer>().sharedMaterial =
                 MaterialFactory.Create(secondary, smoothness: 0.6f);
 

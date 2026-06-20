@@ -192,9 +192,9 @@ namespace MarbleGP.UI
 
                 row.pos.text = (i + 1).ToString();
                 row.code.text = m.driver != null ? m.driver.shortCode : "MAR";
-                row.chip.color = m.team != null ? m.team.primaryColor : Color.gray;
+                row.chip.color = m.TeamPrimary;
                 row.number.text = m.driver != null ? m.driver.number.ToString() : "";
-                row.number.color = m.team != null ? m.team.secondaryColor : Color.white;
+                row.number.color = m.TeamSecondary;
 
                 // Gap.
                 row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";

@@ -127,7 +127,7 @@ namespace MarbleGP.Bootstrap
 
             MenuButton(canvas.transform, "Corrida Rapida", 0, () => ShowTrackSelect());
             MenuButton(canvas.transform, "Campeonato", 1, () => ShowChampionshipHub());
-            MenuButton(canvas.transform, "Garagem (em desenvolvimento)", 2, null, disabled: true);
+            MenuButton(canvas.transform, "Garagem", 2, () => ShowGarage());
             MenuButton(canvas.transform, "Sair", 3, () =>
             {
 #if UNITY_EDITOR
@@ -419,6 +419,119 @@ namespace MarbleGP.Bootstrap
             UIFactory.Label(rightPanel, sbT.ToString(), 19, TextAnchor.UpperLeft,
                 new Vector2(0.04f, 0f), new Vector2(1f, 0.98f), Color.white);
         }
+
+        // ---- Garagem (PRD 31) -------------------------------------------
+
+        private static readonly Color[] Palette =
+        {
+            new Color(0.90f, 0.16f, 0.16f), new Color(0.95f, 0.55f, 0.10f),
+            new Color(0.95f, 0.85f, 0.15f), new Color(0.20f, 0.75f, 0.30f),
+            new Color(0.15f, 0.55f, 0.90f), new Color(0.55f, 0.30f, 0.85f),
+            new Color(0.95f, 0.40f, 0.70f), new Color(0.92f, 0.92f, 0.92f),
+            new Color(0.12f, 0.12f, 0.15f)
+        };
+
+        private InputField _garageTeamNameField;
+
+        private void ShowGarage()
+        {
+            var canvas = NewCanvas("Garage");
+            var profile = _gm.Profile;
+
+            UIFactory.Label(canvas.transform, "GARAGEM", 44, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
+
+            // Nome da equipe (PRD 31).
+            UIFactory.Label(canvas.transform, "Nome da equipe:", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0.82f), new Vector2(0.3f, 0.88f), Color.white);
+            _garageTeamNameField = InputField(canvas.transform, profile.teamName,
+                new Vector2(0.3f, 0.82f), new Vector2(0.62f, 0.88f));
+            _garageTeamNameField.text = profile.teamName;
+
+            // Cores da equipe (PRD 31).
+            UIFactory.Label(canvas.transform, "Cor primaria:", 20, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0.74f), new Vector2(0.24f, 0.8f), Color.white);
+            ColorSwatchRow(canvas.transform, new Vector2(0.24f, 0.74f), new Vector2(0.94f, 0.8f),
+                profile.PrimaryColor, c => { ApplyTeamName(); profile.PrimaryColor = c; _gm.SaveProfile(); ShowGarage(); });
+
+            UIFactory.Label(canvas.transform, "Cor secundaria:", 20, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0.67f), new Vector2(0.24f, 0.73f), Color.white);
+            ColorSwatchRow(canvas.transform, new Vector2(0.24f, 0.67f), new Vector2(0.94f, 0.73f),
+                profile.SecondaryColor, c => { ApplyTeamName(); profile.SecondaryColor = c; _gm.SaveProfile(); ShowGarage(); });
+
+            // Bolinhas do jogador (PRD 31).
+            string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+            var drivers = _gm.Database.GetTeamDrivers(playerTeamId);
+            for (int i = 0; i < drivers.Count && i < 2; i++)
+            {
+                float yMax = 0.6f - i * 0.26f;
+                BuildMarbleCard(canvas.transform, drivers[i], i, yMax, profile);
+            }
+
+            // Botoes.
+            var save = UIFactory.Button(canvas.transform, "Salvar e Voltar", new Color(0.2f, 0.6f, 0.3f),
+                new Vector2(0.6f, 0.03f), new Vector2(0.85f, 0.1f), Vector2.zero, Vector2.zero);
+            save.onClick.AddListener(() => { ApplyTeamName(); _gm.SaveProfile(); ShowMainMenu(); });
+            BackButton(canvas.transform, () => { ApplyTeamName(); _gm.SaveProfile(); ShowMainMenu(); });
+        }
+
+        private void ApplyTeamName()
+        {
+            if (_garageTeamNameField != null && !string.IsNullOrWhiteSpace(_garageTeamNameField.text))
+                _gm.Profile.teamName = _garageTeamNameField.text;
+        }
+
+        private void BuildMarbleCard(Transform canvas, Data.MarbleDriverSO driver, int index,
+            float yMax, Save.PlayerProfile profile)
+        {
+            var panel = UIFactory.Panel(canvas, new Vector2(0.06f, yMax - 0.24f), new Vector2(0.94f, yMax),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.55f));
+
+            Color current = profile.GetMarbleColor(index) ?? profile.PrimaryColor;
+
+            // Preview da cor da bolinha.
+            var preview = UIFactory.Panel(panel, new Vector2(0.02f, 0.55f), new Vector2(0.1f, 0.95f),
+                Vector2.zero, Vector2.zero, current);
+
+            UIFactory.Label(panel, $"#{driver.number}  {driver.marbleName}  ({driver.shortCode})", 22,
+                TextAnchor.MiddleLeft, new Vector2(0.12f, 0.6f), new Vector2(0.95f, 0.95f), Color.white);
+
+            UIFactory.Label(panel,
+                $"VEL {driver.speed}  ACE {driver.acceleration}  CTR {driver.control}  " +
+                $"AGR {driver.aggression}  DEF {driver.defense}  CON {driver.consistency}\n" +
+                $"PNE {driver.tireManagement}  ENE {driver.energyManagement}  PIT {driver.pitSkill}  " +
+                $"Personalidade: {driver.personality}", 16,
+                TextAnchor.UpperLeft, new Vector2(0.12f, 0.32f), new Vector2(0.95f, 0.62f),
+                new Color(0.8f, 0.85f, 0.95f));
+
+            int captured = index;
+            ColorSwatchRow(panel, new Vector2(0.12f, 0.05f), new Vector2(0.95f, 0.28f),
+                current, c => { ApplyTeamName(); profile.SetMarbleColor(captured, c); _gm.SaveProfile(); ShowGarage(); });
+        }
+
+        private void ColorSwatchRow(Transform parent, Vector2 min, Vector2 max, Color current,
+            System.Action<Color> onPick)
+        {
+            int n = Palette.Length;
+            float w = (max.x - min.x) / n;
+            for (int i = 0; i < n; i++)
+            {
+                float x0 = min.x + i * w;
+                var col = Palette[i];
+                var btn = UIFactory.Button(parent, "", col,
+                    new Vector2(x0 + 0.004f, min.y), new Vector2(x0 + w - 0.004f, max.y),
+                    Vector2.zero, Vector2.zero);
+                // Marca a cor selecionada com um check.
+                if (ApproxColor(col, current))
+                    UIFactory.Label(btn.transform, "✓", 22, TextAnchor.MiddleCenter,
+                        Vector2.zero, Vector2.one, Color.black);
+                var captured = col;
+                btn.onClick.AddListener(() => onPick(captured));
+            }
+        }
+
+        private static bool ApproxColor(Color a, Color b)
+            => Mathf.Abs(a.r - b.r) < 0.02f && Mathf.Abs(a.g - b.g) < 0.02f && Mathf.Abs(a.b - b.b) < 0.02f;
 
         // ---- Helpers de UI ----------------------------------------------
 

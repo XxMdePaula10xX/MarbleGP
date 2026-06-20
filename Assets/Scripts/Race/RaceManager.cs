@@ -92,6 +92,9 @@ namespace MarbleGP.Race
 
         private void SpawnField(RaceConfig config)
         {
+            var profile = GameManager.Instance != null ? GameManager.Instance.Profile : null;
+            int playerMarbleIndex = 0;
+
             for (int i = 0; i < config.entries.Count; i++)
             {
                 var strat = config.entries[i];
@@ -110,6 +113,16 @@ namespace MarbleGP.Race
                     GameBalanceRef = _bal,
                     state = MarbleRaceState.OnGrid
                 };
+
+                // Aplica customizacoes da garagem nas bolinhas do jogador (PRD 31).
+                if (runtime.isPlayer && profile != null)
+                {
+                    runtime.teamNameOverride = profile.teamName;
+                    runtime.teamPrimaryOverride = profile.PrimaryColor;
+                    runtime.teamSecondaryOverride = profile.SecondaryColor;
+                    runtime.marbleColorOverride = profile.GetMarbleColor(playerMarbleIndex);
+                    playerMarbleIndex++;
+                }
 
                 Vector3 grid = i < Track.GridPositions.Count
                     ? Track.GridPositions[i]
@@ -249,7 +262,7 @@ namespace MarbleGP.Race
                 {
                     position = i + 1,
                     marbleName = m.DisplayName,
-                    teamName = m.TeamName,
+                    teamName = m.TeamDisplayName,
                     teamId = m.team != null ? m.team.teamId : "",
                     driverId = m.driver != null ? m.driver.driverId : "",
                     totalTime = m.totalTime,

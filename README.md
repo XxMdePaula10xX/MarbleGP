@@ -87,6 +87,12 @@ de variação de posição · linha do jogador destacada.
 classificação de pilotos e de equipes, vitórias/pódios, histórico, progressão
 entre etapas e persistência em JSON. Hub com "Correr Etapa" e standings ao vivo.
 
+✅ **Garagem** (PRD 31): exibe as 2 bolinhas do jogador com atributos e
+personalidade, permite editar o nome da equipe, as cores primária/secundária e a
+cor de cada bolinha (paleta). As customizações são salvas no perfil e aplicadas
+em runtime (corpo da bolinha, faixa, chip do ranking e nome no resultado) sem
+mutar os ScriptableObjects base.
+
 ### Dados gerados (PRD 42)
 - **4 equipes**: Red Comet Racing, Blue Orbit GP, Emerald Rollers, Shadow Marble Team.
 - **8 bolinhas** (2 por equipe), com atributos e personalidades distintas.
@@ -97,7 +103,7 @@ entre etapas e persistência em JSON. Hub com "Correr Etapa" e standings ao vivo
 
 ## Próximas fases (Fase 6–7 do PRD) — ainda não implementadas
 Expansão do campeonato para 12 equipes / 24 bolinhas / 15 pistas finalizadas,
-upgrades de equipe, garagem, clima dinâmico, eventos avançados (safety marble),
+upgrades de equipe (PRD 30), clima dinâmico, eventos avançados (safety marble),
 mais superfícies/anéis, áudio e efeitos visuais, build mobile (Android/iOS).
 A arquitetura já está preparada para esses pontos (o campeonato MVP roda com as
 4 equipes / 8 bolinhas / 3 pistas já existentes).
