@@ -49,12 +49,18 @@ namespace MarbleGP.Track
 
             tm.Init(data, new Lane(ideal), new Lane(inside), new Lane(outside), new Lane(pit));
 
+            // Texturas opcionais (Assets/Resources/Textures). Fallback p/ cor solida.
+            Texture2D asphaltTex = Resources.Load<Texture2D>("Textures/asphalt");
+            Texture2D grassTex = Resources.Load<Texture2D>("Textures/grass");
+            Texture2D curbTex = Resources.Load<Texture2D>("Textures/curb");
+
             // --- Cenario / pista ---
-            BuildGround(root.transform);
-            BuildRoadMesh(root.transform, center, normals, halfW, MaterialFactory.Create(Asphalt), "RoadMesh", 0f);
+            BuildGround(root.transform, grassTex);
+            BuildRoadMesh(root.transform, center, normals, halfW,
+                MaterialFactory.CreateTextured(asphaltTex, Asphalt, 1f), "RoadMesh", 0f, 6f);
             BuildRoadMesh(root.transform, pit, normals, 1.8f, MaterialFactory.Create(PitAsphalt), "PitMesh", 0.01f);
             BuildEdgeLines(root.transform, center, normals, halfW);
-            BuildCurbs(root.transform, center, normals, halfW);
+            BuildCurbs(root.transform, center, normals, halfW, curbTex);
             BuildCenterDashes(root.transform, center);
             BuildDirectionArrows(root.transform, center);
             BuildCheckeredLine(root.transform, center[0], normals[0], data.trackWidth);
@@ -129,7 +135,7 @@ namespace MarbleGP.Track
 
         // ---- Cenario -----------------------------------------------------
 
-        private static void BuildGround(Transform parent)
+        private static void BuildGround(Transform parent, Texture2D grassTex)
         {
             // Grande plano de grama sob todo o circuito.
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -138,25 +144,40 @@ namespace MarbleGP.Track
             ground.transform.SetParent(parent, false);
             ground.transform.position = new Vector3(0f, -0.05f, 0f);
             ground.transform.localScale = new Vector3(40f, 1f, 40f); // Plane = 10u -> 400u
-            ground.GetComponent<MeshRenderer>().sharedMaterial = MaterialFactory.Create(Grass);
+            // Tiling 40 => ~10 unidades por tile da textura.
+            ground.GetComponent<MeshRenderer>().sharedMaterial =
+                MaterialFactory.CreateTextured(grassTex, Grass, 40f);
         }
 
         // ---- Mesh de pista -----------------------------------------------
 
         private static void BuildRoadMesh(Transform parent, Vector3[] center, Vector3[] normals,
-            float halfW, Material mat, string name, float y)
+            float halfW, Material mat, string name, float y, float uvTile = 0f)
         {
             int n = center.Length;
             var verts = new Vector3[n * 2];
             var uvs = new Vector2[n * 2];
             Vector3 up = Vector3.up * y;
+            float dist = 0f;
             for (int i = 0; i < n; i++)
             {
+                if (i > 0) dist += Vector3.Distance(center[i - 1], center[i]);
                 verts[i * 2] = center[i] + normals[i] * halfW + up;
                 verts[i * 2 + 1] = center[i] - normals[i] * halfW + up;
-                float u = i / (float)n;
-                uvs[i * 2] = new Vector2(u, 0f);
-                uvs[i * 2 + 1] = new Vector2(u, 1f);
+                if (uvTile > 0f)
+                {
+                    // UVs em escala de mundo: textura repete a cada 'uvTile' unidades.
+                    float u = dist / uvTile;
+                    float vEdge = (2f * halfW) / uvTile;
+                    uvs[i * 2] = new Vector2(u, 0f);
+                    uvs[i * 2 + 1] = new Vector2(u, vEdge);
+                }
+                else
+                {
+                    float u = i / (float)n;
+                    uvs[i * 2] = new Vector2(u, 0f);
+                    uvs[i * 2 + 1] = new Vector2(u, 1f);
+                }
             }
 
             var tris = new List<int>(n * 6);
@@ -201,17 +222,27 @@ namespace MarbleGP.Track
 
         // ---- Zebras (curbs) ----------------------------------------------
 
-        private static void BuildCurbs(Transform parent, Vector3[] center, Vector3[] normals, float halfW)
+        private static void BuildCurbs(Transform parent, Vector3[] center, Vector3[] normals, float halfW, Texture2D curbTex)
         {
             var holder = new GameObject("Curbs");
             holder.transform.SetParent(parent, false);
             Vector3[] right = Offset(center, normals, halfW + 0.35f);
             Vector3[] left = Offset(center, normals, -(halfW + 0.35f));
-            var red = MaterialFactory.CreateUnlit(CurbRed);
-            var white = MaterialFactory.CreateUnlit(CurbWhite);
 
-            CurbStrip(holder.transform, right, red, white);
-            CurbStrip(holder.transform, left, red, white);
+            if (curbTex != null)
+            {
+                // Faixa continua texturizada (zebra repete a cada ~2 unidades).
+                var mat = MaterialFactory.CreateTextured(curbTex, CurbRed, 1f);
+                BuildRoadMesh(holder.transform, right, ComputeNormals(right), 0.5f, mat, "CurbR", 0.06f, 2f);
+                BuildRoadMesh(holder.transform, left, ComputeNormals(left), 0.5f, mat, "CurbL", 0.06f, 2f);
+            }
+            else
+            {
+                var red = MaterialFactory.CreateUnlit(CurbRed);
+                var white = MaterialFactory.CreateUnlit(CurbWhite);
+                CurbStrip(holder.transform, right, red, white);
+                CurbStrip(holder.transform, left, red, white);
+            }
         }
 
         private static void CurbStrip(Transform parent, Vector3[] line, Material red, Material white)

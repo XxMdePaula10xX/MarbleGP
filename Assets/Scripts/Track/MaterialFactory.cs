@@ -95,5 +95,27 @@ namespace MarbleGP.Track
             if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f); // 0 = Off
             mat.doubleSidedGI = true;
         }
+
+        /// <summary>
+        /// Material com textura tileavel (asfalto/grama/zebra). Se a textura for
+        /// null, cai para uma cor solida (fallbackColor). 'tiling' repete a
+        /// textura nas UVs do mesh.
+        /// </summary>
+        public static Material CreateTextured(Texture2D tex, Color fallbackColor, float tiling)
+        {
+            if (tex == null) return Create(fallbackColor);
+
+            var mat = new Material(LitShader);
+            mat.mainTexture = tex;
+            mat.mainTextureScale = new Vector2(tiling, tiling);
+            if (mat.HasProperty("_BaseMap")) { mat.SetTexture("_BaseMap", tex); mat.SetTextureScale("_BaseMap", new Vector2(tiling, tiling)); }
+            if (mat.HasProperty("_MainTex")) { mat.SetTexture("_MainTex", tex); mat.SetTextureScale("_MainTex", new Vector2(tiling, tiling)); }
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.1f);
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.1f);
+            MakeDoubleSided(mat);
+            return mat;
+        }
     }
 }
