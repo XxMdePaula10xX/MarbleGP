@@ -20,11 +20,12 @@ namespace MarbleGP.Systems
             float driver = m.driver.SpeedMultiplier;
             float grip = m.grip.speedMultiplier * m.grip.PerformanceForWeather(weather);
             float surface = m.surface.speedModifier;
-            float mode = bal.GetMode(m.mode).speed;
+            float mode = ModeTuning.Get(m.mode).speed;
             float wear = WearSpeedPenalty(m.wear, bal);
-            float energy = EnergySpeedPenalty(m.energy, bal);
+            float energy = EnergySpeedPenalty(m.energy);
+            float fuel = FuelSpeedPenalty(m.fuel);
 
-            return baseSpeed * driver * grip * surface * mode * wear * energy * trackCond * m.upgSpeedFactor;
+            return baseSpeed * driver * grip * surface * mode * wear * energy * fuel * trackCond * m.upgSpeedFactor;
         }
 
         /// <summary>Penalidade multiplicativa de velocidade por desgaste (PRD 14 / 28).</summary>
@@ -36,39 +37,48 @@ namespace MarbleGP.Systems
             return 1f - t * bal.maxWearSpeedPenalty;
         }
 
-        /// <summary>Penalidade de velocidade por carga de energia (PRD 28).</summary>
-        public static float EnergySpeedPenalty(float energy, GameBalance bal)
+        /// <summary>Penalidade de velocidade por energia BAIXA (bateria, PRD 4.2).</summary>
+        public static float EnergySpeedPenalty(float energy)
         {
-            if (energy > bal.highChargeThreshold) return 1f - bal.penaltyHighCharge;   // -4%
-            if (energy >= bal.midChargeThreshold) return 1f - bal.penaltyMidCharge;    // -2%
-            if (energy < bal.lowChargeThreshold) return 1f - bal.penaltyLowCharge;     // -6%
-            return 1f; // zona 20-50: sem penalidade
+            if (energy > 60f) return 1f;
+            if (energy >= 30f) return 0.98f;
+            if (energy >= 10f) return 0.95f;
+            return 0.90f;
+        }
+
+        /// <summary>Penalidade por combustivel: vazio => modo emergencia 35% (PRD 4.1).</summary>
+        public static float FuelSpeedPenalty(float fuel) => fuel <= 0f ? 0.35f : 1f;
+
+        /// <summary>Consumo de combustivel por volta (PRD 4.1 / 5.1).</summary>
+        public static float FuelUsePerLap(MarbleRuntime m, float baseFuelPerLap)
+        {
+            float mode = ModeTuning.Get(m.mode).fuel;
+            float tyre = m.grip.FuelMult;
+            return baseFuelPerLap * mode * tyre;
+        }
+
+        /// <summary>Variacao de energia por volta (assinada: + regenera / - dreno) (PRD 4.2).</summary>
+        public static float EnergyChangePerLap(MarbleRuntime m)
+        {
+            float delta = ModeTuning.Get(m.mode).energyDelta;
+            if (delta < 0f) // dreno: pneu macio e baixa gestao gastam mais
+            {
+                float tyre = m.grip.EnergyMult;
+                float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.EnergyMgmtMultiplier);
+                delta *= tyre * driverMgmt * m.upgEnergyFactor;
+            }
+            return delta;
         }
 
         /// <summary>Ganho de desgaste por volta (PRD 41 - WearGain).</summary>
         public static float WearGainPerLap(MarbleRuntime m, GameBalance bal, float trackAbrasion, Weather weather)
         {
             float baseWear = m.grip.WearForWeather(weather);
-            float mode = bal.GetMode(m.mode).wear;
+            float mode = ModeTuning.Get(m.mode).wear;
             float surface = m.surface.wearModifier;
             // Bom tireManagement REDUZ desgaste => dividimos pelo multiplicador.
             float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.TireMgmtMultiplier);
             return baseWear * mode * surface * trackAbrasion * driverMgmt * m.upgWearFactor;
-        }
-
-        /// <summary>Consumo de energia por volta (PRD 41 - EnergyConsumption).</summary>
-        public static float EnergyConsumptionPerLap(MarbleRuntime m, GameBalance bal)
-        {
-            float baseConsumption;
-            switch (m.mode)
-            {
-                case RaceMode.Push: baseConsumption = bal.energyConsumptionPush; break;
-                case RaceMode.Save: baseConsumption = bal.energyConsumptionSave; break;
-                default: baseConsumption = bal.energyConsumptionNormal; break;
-            }
-            float surface = m.surface.energyModifier;
-            float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.EnergyMgmtMultiplier);
-            return baseConsumption * surface * driverMgmt * m.upgEnergyFactor;
         }
 
         /// <summary>Chance de erro por avaliacao (PRD 41 - ErrorChance), em 0..1.</summary>
@@ -79,7 +89,6 @@ namespace MarbleGP.Systems
             else if (m.wear > bal.wearHeavyThreshold) wearPenalty = 0.04f;
 
             float aggressionPenalty = (m.driver.aggression / 100f) * 0.03f;
-            float modeMod = bal.GetMode(m.mode).errorMod;
 
             bool wet = weather == Weather.Damp || weather == Weather.LightRain || weather == Weather.HeavyRain;
             float weatherPenalty = (weather == Weather.HeavyRain) ? 0.06f
@@ -96,8 +105,11 @@ namespace MarbleGP.Systems
             float consistencyBonus = (m.driver.consistency / 100f) * 0.04f;
 
             float chance = bal.baseErrorChance + wearPenalty + aggressionPenalty
-                         + modeMod * 0.1f + weatherPenalty + wrongTyrePenalty + trackErrorAdd
+                         + weatherPenalty + wrongTyrePenalty + trackErrorAdd
                          - controlBonus - consistencyBonus - wetSkillBonus;
+
+            // Multiplicador do modo (Save 0.8 / Normal 1.0 / Push 1.2) (PRD 5.2).
+            chance *= ModeTuning.Get(m.mode).errorMult;
 
             // Veterano erra menos sob pressao; Rookie erra mais (PRD 12).
             if (m.driver.personality == Personality.Veteran) chance *= 0.7f;

@@ -48,15 +48,24 @@ namespace MarbleGP.Race
         private GameBalance _bal;
         private TireWearSystem _tireSystem;
         private EnergySystem _energySystem;
+        private FuelSystem _fuelSystem;
         private RacePositionSystem _positionSystem;
         private PitStopManager _pitManager;
         private WeatherSystem _weatherSystem;
         private RaceEventSystem _eventSystem;
+        private AIStrategyManager _aiStrategy;
 
         // Eventos de corrida ativos (PRD 20).
         private bool _safetyActive;
         private float _safetyTimer;
         private float _dirtyTimer;
+        private int _lastSafetyLap = -10;   // cooldown de Safety Marble (PRD 9)
+        private int _lastLeaderLap = 0;
+
+        // Fim de corrida (PRD 2).
+        private bool _winnerDeclared;
+        private float _finishTimer;
+        private const float FinishTimeout = 25f;
 
         private float _countdownTimer;
         private int _lastCountValue = -1;
@@ -95,11 +104,14 @@ namespace MarbleGP.Race
             // Sistemas (PRD 24.2).
             _tireSystem = new TireWearSystem(_bal, config.track);
             _energySystem = new EnergySystem(_bal, config.track);
+            _fuelSystem = new FuelSystem(config.track, TotalLaps);
             _positionSystem = new RacePositionSystem(Track, _bal.baseSpeed);
-            _pitManager = new PitStopManager(Track, _bal, database, _tireSystem, _energySystem);
+            _pitManager = new PitStopManager(Track, _bal, database, _tireSystem, _energySystem, _fuelSystem);
+            _aiStrategy = new AIStrategyManager(database, _fuelSystem, this, TotalLaps);
 
             _tireSystem.OnHighWearAlert += m => Log($"⚠ {m.DisplayName}: desgaste alto!");
             _energySystem.OnLowEnergyAlert += m => Log($"⚠ {m.DisplayName}: energia baixa!");
+            _fuelSystem.OnFuelEmpty += m => Log($"⛽ {m.DisplayName} esta sem combustivel!");
             _pitManager.OnPitCompleted += m => Log($"🔧 {m.DisplayName} saiu do pit com {m.grip.gripId}.");
             _pitManager.OnPitExit += c => _positionSystem.ResyncCheckpoint(c);
 
@@ -155,9 +167,10 @@ namespace MarbleGP.Race
                     grip = database.GetGrip(strat.grip),
                     surface = database.GetSurface(strat.surface),
                     mode = strat.startMode,
-                    energy = strat.startEnergy,
+                    energy = 100f,   // bateria cheia (PRD 4.2)
+                    fuel = 100f,     // tanque cheio (PRD 4.1)
                     pitTargetGrip = strat.grip,
-                    pitRefillAmount = 60f,
+                    pitRefillAmount = 100f,
                     GameBalanceRef = _bal,
                     state = MarbleRaceState.OnGrid
                 };
@@ -241,6 +254,9 @@ namespace MarbleGP.Race
                 }
                 else
                 {
+                    // Estrategia da IA (combustivel/desgaste/clima): pode pedir pit.
+                    _aiStrategy.Evaluate(ctrl);
+
                     _ais[ctrl].Think(_field, dt);
 
                     // Safety Marble: neutraliza velocidade e ultrapassagens (PRD 20).
@@ -253,16 +269,21 @@ namespace MarbleGP.Race
                     ctrl.PhysicsStep(dt);
                     ctrl.HandleStuckRecovery(dt);
 
-                    // Desgaste (clima vivo) e energia acoplados a distancia (PRD 14/15/19).
+                    // Desgaste, energia e combustivel acoplados a distancia (PRD 4/14/15).
                     _tireSystem.Apply(m, ctrl.DistanceLastStep, CurrentWeather);
                     _energySystem.Apply(m, ctrl.DistanceLastStep);
+                    _fuelSystem.Apply(m, ctrl.DistanceLastStep);
 
                     // Voltas (PRD 9.3 / 26).
                     bool lapDone = _positionSystem.UpdateLap(ctrl, TotalLaps);
-                    if (lapDone && m.pitRequested)
+                    if (lapDone)
                     {
-                        _pitManager.BeginEntry(ctrl);
-                        Log($"🔧 {m.DisplayName} entrou no pit.");
+                        _lapChangeTime[ctrl] = _raceClock; // janela anti-falsa-ultrapassagem
+                        if (m.pitRequested)
+                        {
+                            _pitManager.BeginEntry(ctrl);
+                            Log($"🔧 {m.DisplayName} entrou no pit.");
+                        }
                     }
                 }
 
@@ -276,42 +297,144 @@ namespace MarbleGP.Race
 
             _positionSystem.UpdatePositions(_field);
             DetectOvertakes(dt);
-
-            if (AllFinished()) FinishRace();
+            HandleSafetyMarbleRoll();
+            HandleFinish(dt);
         }
 
-        private readonly Dictionary<MarbleController, int> _lastPos = new();
-        private readonly Dictionary<MarbleController, float> _otCooldown = new();
+        // ---- Deteccao robusta de ultrapassagem (PRD 1) -------------------
 
-        /// <summary>Loga ultrapassagens (PRD 20: "X ultrapassou Y"), com cooldown anti-spam.</summary>
+        private readonly Dictionary<MarbleController, int> _otPrevPos = new();
+        private readonly Dictionary<MarbleController, float> _lapChangeTime = new();
+        private readonly Dictionary<string, float> _pairCooldown = new();
+        private float _otSnapTimer = 0.5f;
+
+        /// <summary>
+        /// So registra ultrapassagem quando a troca de posicao PERSISTE entre dois
+        /// snapshots (~0.5s), ambas em Racing, fora da janela de cruzamento de
+        /// volta e com cooldown por par (2s). Evita falsos positivos da reordenacao
+        /// momentanea ao cruzar a linha/atualizar checkpoint (PRD 1).
+        /// </summary>
         private void DetectOvertakes(float dt)
         {
-            if (_raceClock < 3f) { foreach (var c in _field) _lastPos[c] = c.Runtime.position; return; }
-
-            for (int i = 0; i < _field.Count; i++)
+            // Cooldowns por par decrementam todo frame.
+            if (_pairCooldown.Count > 0)
             {
-                var c = _field[i];
-                var m = c.Runtime;
-                int newPos = i + 1;
-                if (_lastPos.TryGetValue(c, out int prev) && newPos == prev - 1 &&
-                    m.state == MarbleRaceState.Racing)
-                {
-                    float cd = _otCooldown.TryGetValue(c, out var t) ? t : 0f;
-                    if (cd <= 0f && i + 1 < _field.Count)
-                    {
-                        var behind = _field[i + 1].Runtime;
-                        if (behind.state == MarbleRaceState.Racing)
-                        {
-                            Log($"🔼 {m.DisplayName} ultrapassou {behind.DisplayName}.");
-                            _otCooldown[c] = 2.5f;
-                        }
-                    }
-                }
-                _lastPos[c] = newPos;
+                var keys = new List<string>(_pairCooldown.Keys);
+                foreach (var k in keys) _pairCooldown[k] = Mathf.Max(0f, _pairCooldown[k] - dt);
             }
 
-            var keys = new List<MarbleController>(_otCooldown.Keys);
-            foreach (var k in keys) _otCooldown[k] = Mathf.Max(0f, _otCooldown[k] - dt);
+            _otSnapTimer -= dt;
+            if (_otSnapTimer > 0f) return;
+            _otSnapTimer = 0.5f;
+
+            if (_raceClock < 3f) { SnapshotPositions(); return; }
+
+            for (int i = 0; i + 1 < _field.Count; i++)
+            {
+                var a = _field[i];      // a frente agora
+                var b = _field[i + 1];  // logo atras agora
+                var mA = a.Runtime; var mB = b.Runtime;
+
+                if (mA.state != MarbleRaceState.Racing || mB.state != MarbleRaceState.Racing) continue;
+                if (!_otPrevPos.TryGetValue(a, out int prevA) || !_otPrevPos.TryGetValue(b, out int prevB)) continue;
+
+                // A estava ATRAS de B no snapshot anterior e agora esta a frente?
+                if (prevA <= prevB) continue;
+                // Ignora churn de cruzamento de volta.
+                if (RecentLap(a) || RecentLap(b)) continue;
+                // Precisa estar realmente a frente (nao empate piscando).
+                if (mA.raceProgress - mB.raceProgress < 0.001f) continue;
+
+                string key = mA.DisplayName + ">" + mB.DisplayName;
+                if (_pairCooldown.TryGetValue(key, out float cd) && cd > 0f) continue;
+
+                Log($"🔼 {mA.DisplayName} ultrapassou {mB.DisplayName}.");
+                _pairCooldown[key] = 2f;
+            }
+
+            SnapshotPositions();
+        }
+
+        private void SnapshotPositions()
+        {
+            foreach (var c in _field) _otPrevPos[c] = c.Runtime.position;
+        }
+
+        private bool RecentLap(MarbleController c)
+            => _lapChangeTime.TryGetValue(c, out float t) && (_raceClock - t) < 0.6f;
+
+        // ---- Fim de corrida + timeout (PRD 2) ----------------------------
+
+        private void HandleFinish(float dt)
+        {
+            if (!_winnerDeclared)
+            {
+                foreach (var c in _field)
+                {
+                    if (c.Runtime.state == MarbleRaceState.Finished)
+                    {
+                        _winnerDeclared = true;
+                        _finishTimer = 0f;
+                        Log($"🏁 {c.Runtime.DisplayName} cruzou a linha em 1o! Bandeirada!");
+                        break;
+                    }
+                }
+            }
+
+            if (!_winnerDeclared) return;
+
+            _finishTimer += dt;
+            if (AllFinished() || _finishTimer >= FinishTimeout)
+            {
+                ClassifyRemaining();
+                FinishRace();
+            }
+        }
+
+        /// <summary>Classifica por progresso quem nao cruzou a linha (timeout).</summary>
+        private void ClassifyRemaining()
+        {
+            foreach (var c in _field)
+            {
+                if (c.Runtime.state != MarbleRaceState.Finished &&
+                    c.Runtime.state != MarbleRaceState.Retired)
+                {
+                    c.Runtime.state = MarbleRaceState.Finished;
+                    c.Freeze();
+                }
+            }
+        }
+
+        // ---- Safety Marble aleatorio por volta (PRD 9) -------------------
+
+        private void HandleSafetyMarbleRoll()
+        {
+            if (_field.Count == 0) return;
+            int leaderLap = _field[0].Runtime.completedLaps;
+            if (leaderLap <= _lastLeaderLap) return;
+            _lastLeaderLap = leaderLap;
+
+            if (_safetyActive) return;
+            if (leaderLap < 1 || leaderLap >= TotalLaps) return;     // nem 1a nem ultima
+            if (leaderLap - _lastSafetyLap < 2) return;              // cooldown 2 voltas
+
+            float chance = 0.08f;
+            if (CurrentWeather == Weather.HeavyRain) chance *= 1.6f;
+            else if (CurrentWeather == Weather.LightRain) chance *= 1.3f;
+            if (Config.track.difficulty == Difficulty.Hard) chance *= 1.3f;
+
+            if (UnityEngine.Random.value < chance)
+            {
+                _lastSafetyLap = leaderLap;
+                StartSafetyMarble(UnityEngine.Random.Range(14f, 22f));
+            }
+        }
+
+        private void StartSafetyMarble(float duration)
+        {
+            _safetyActive = true;
+            _safetyTimer = duration;
+            Log("🚨 Safety Marble na pista! Velocidade neutralizada.");
         }
 
         private bool AllFinished()
@@ -346,13 +469,14 @@ namespace MarbleGP.Race
 
         private void FinishRace()
         {
+            if (State == RaceState.Finished) return; // evita finalizar duas vezes
             State = RaceState.Finished;
             foreach (var c in _field) c.Freeze();
 
+            // Usa a ordem ao vivo (ja classificada por progresso/tempo), correta
+            // tambem para quem foi classificado por timeout (PRD 2).
             var ordered = new List<MarbleController>(_field);
-            ordered.Sort((a, b) => a.Runtime.totalTime.CompareTo(b.Runtime.totalTime));
 
-            // Volta mais rapida da corrida (para flag de estatistica).
             MarbleController fastest = null;
             float best = float.MaxValue;
             foreach (var c in ordered)
@@ -375,7 +499,9 @@ namespace MarbleGP.Race
                     overtakes = m.overtakes,
                     finalWear = m.wear,
                     finalEnergy = m.energy,
+                    finalFuel = m.fuel,
                     finalTyre = m.grip != null ? m.grip.DisplayLetter : "M",
+                    statusText = m.completedLaps >= TotalLaps ? "Finished" : "Classificado",
                     points = _bal.PointsForPosition(i + 1),
                     isPlayer = m.isPlayer,
                     fastestLap = ordered[i] == fastest
@@ -416,19 +542,12 @@ namespace MarbleGP.Race
                 if (_dirtyTimer <= 0f) Log("✨ Pista limpa novamente.");
             }
 
-            // Sorteio de novos eventos (apenas se nenhum em andamento).
+            // Pista suja (time-based). Safety Marble e tratado por volta (HandleSafetyMarbleRoll).
             if (_safetyActive || _dirtyTimer > 0f) return;
-            switch (_eventSystem.Tick(dt))
+            if (_eventSystem.Tick(dt) == RaceEventKind.DirtyTrack)
             {
-                case RaceEventKind.SafetyMarble:
-                    _safetyActive = true;
-                    _safetyTimer = 8f;
-                    Log("🚨 Safety Marble na pista! Velocidade neutralizada.");
-                    break;
-                case RaceEventKind.DirtyTrack:
-                    _dirtyTimer = 10f;
-                    Log("⚠ Pista suja! Menos aderencia e mais risco de erro.");
-                    break;
+                _dirtyTimer = 10f;
+                Log("⚠ Pista suja! Menos aderencia e mais risco de erro.");
             }
         }
 

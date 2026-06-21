@@ -43,8 +43,8 @@ namespace MarbleGP.UI
         {
             public MarbleController ctrl;
             public GripType nextGrip;
-            public Text title, tyre, mode, status, wearLabel, energyLabel, pitLabel;
-            public RectTransform wearFill, energyFill;
+            public Text title, tyre, mode, status, wearLabel, energyLabel, fuelLabel, pitLabel;
+            public RectTransform wearFill, energyFill, fuelFill;
             public Button pitBtn;
             public GameObject modeSelector, tyreSelector;
         }
@@ -333,22 +333,26 @@ namespace MarbleGP.UI
                 new Vector2(0.04f, 0f), new Vector2(1f, 1f), Color.white);
             card.title.fontStyle = FontStyle.Bold;
 
-            card.tyre = UIFactory.Label(panel, "", 18, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.68f), new Vector2(0.55f, 0.84f), new Color(0.9f, 0.9f, 1f));
-            card.mode = UIFactory.Label(panel, "", 18, TextAnchor.MiddleRight,
-                new Vector2(0.5f, 0.68f), new Vector2(0.96f, 0.84f), new Color(0.9f, 1f, 0.9f));
+            card.tyre = UIFactory.Label(panel, "", 16, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.74f), new Vector2(0.55f, 0.85f), new Color(0.9f, 0.9f, 1f));
+            card.mode = UIFactory.Label(panel, "", 16, TextAnchor.MiddleRight,
+                new Vector2(0.5f, 0.74f), new Vector2(0.96f, 0.85f), new Color(0.9f, 1f, 0.9f));
 
-            // Barras.
-            card.wearLabel = UIFactory.Label(panel, "Wear", 15, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.52f), new Vector2(0.3f, 0.66f), Color.white);
-            card.wearFill = BuildBar(panel, 0.52f, 0.66f, new Color(0.9f, 0.35f, 0.3f));
+            // Barras: desgaste, energia e combustivel (PRD 7).
+            card.wearLabel = UIFactory.Label(panel, "Wear", 14, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.61f), new Vector2(0.3f, 0.73f), Color.white);
+            card.wearFill = BuildBar(panel, 0.61f, 0.73f, new Color(0.9f, 0.35f, 0.3f));
 
-            card.energyLabel = UIFactory.Label(panel, "Energy", 15, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.36f), new Vector2(0.3f, 0.50f), Color.white);
-            card.energyFill = BuildBar(panel, 0.36f, 0.50f, new Color(0.3f, 0.8f, 0.95f));
+            card.energyLabel = UIFactory.Label(panel, "Energy", 14, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.48f), new Vector2(0.3f, 0.60f), Color.white);
+            card.energyFill = BuildBar(panel, 0.48f, 0.60f, new Color(0.3f, 0.8f, 0.95f));
 
-            card.status = UIFactory.Label(panel, "", 16, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.34f), new Color(0.85f, 0.85f, 0.9f));
+            card.fuelLabel = UIFactory.Label(panel, "Fuel", 14, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.35f), new Vector2(0.3f, 0.47f), Color.white);
+            card.fuelFill = BuildBar(panel, 0.35f, 0.47f, new Color(0.4f, 0.85f, 0.4f));
+
+            card.status = UIFactory.Label(panel, "", 15, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.33f), new Color(0.85f, 0.85f, 0.9f));
 
             // Botoes.
             card.pitBtn = UIFactory.Button(panel, "PIT", new Color(0.85f, 0.35f, 0.2f),
@@ -522,14 +526,24 @@ namespace MarbleGP.UI
                     ? new Color(1f, 0.4f, 0.3f) : new Color(0.85f, 0.55f, 0.3f);
                 card.wearLabel.text = $"Wear {m.wear:0}%";
 
-                SetBar(card.energyFill, m.energy / Mathf.Max(1f, m.MaxEnergy));
+                SetBar(card.energyFill, m.energy / 100f);
                 card.energyFill.GetComponent<Image>().color = m.energy < 20f
                     ? new Color(1f, 0.85f, 0.25f) : new Color(0.3f, 0.8f, 0.95f);
                 card.energyLabel.text = $"Energy {m.energy:0}";
 
+                // Combustivel: verde > amarelo > vermelho (PRD 7).
+                SetBar(card.fuelFill, m.fuel / 100f);
+                Color fuelColor = m.fuel <= 0f ? new Color(1f, 0.2f, 0.2f)
+                    : m.fuel < 10f ? new Color(1f, 0.35f, 0.25f)
+                    : m.fuel < 25f ? new Color(1f, 0.85f, 0.3f) : new Color(0.4f, 0.85f, 0.4f);
+                card.fuelFill.GetComponent<Image>().color = fuelColor;
+                card.fuelLabel.text = m.FuelEmpty ? "FUEL EMPTY" : $"Fuel {m.fuel:0}";
+                card.fuelLabel.color = m.fuel < 25f ? new Color(1f, 0.8f, 0.3f) : Color.white;
+
                 // Status + alertas.
                 string alert = "";
-                if (m.wear > 70f) alert = "  ⚠ desgaste";
+                if (m.FuelEmpty) alert = "  ⛽ sem combustivel";
+                else if (m.wear > 70f) alert = "  ⚠ desgaste";
                 else if (m.energy < 20f) alert = "  ⚠ energia";
                 card.status.text = $"{StatusText(m.state)}{alert}   |   Pits: {m.pitStops}";
 

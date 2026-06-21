@@ -56,26 +56,29 @@ namespace MarbleGP.EditorTools
         private static List<GripRingSO> CreateGrips()
         {
             var list = new List<GripRingSO>();
-            list.Add(MakeGrip(GripType.Soft, "Soft Grip", 1.08f, 1.10f, 18f, 0.6f, 1.0f,
-                "Muito rapido, desgasta rapido. Ideal para classificacao ou final de corrida."));
-            list.Add(MakeGrip(GripType.Medium, "Medium Grip", 1.00f, 1.00f, 11f, 0.7f, 1.0f,
-                "Equilibrado entre velocidade e durabilidade."));
-            list.Add(MakeGrip(GripType.Hard, "Hard Grip", 0.94f, 0.95f, 7f, 0.7f, 1.0f,
-                "Mais lento, mas dura muito mais."));
-            list.Add(MakeGrip(GripType.Intermediate, "Intermediate Grip", 0.98f, 1.00f, 12f, 1.0f, 0.92f,
+            // id, nome, speed, grip, wear, wet, dry, energyMult, fuelMult, desc (PRD 5.2)
+            list.Add(MakeGrip(GripType.Soft, "Soft Grip", 1.08f, 1.06f, 18f, 0.6f, 1.0f, 1.15f, 1.10f,
+                "Rapido e aderente, mas gasta mais energia/combustivel e desgasta rapido."));
+            list.Add(MakeGrip(GripType.Medium, "Medium Grip", 1.00f, 1.00f, 11f, 0.7f, 1.0f, 1.00f, 1.00f,
+                "Equilibrado em tudo."));
+            list.Add(MakeGrip(GripType.Hard, "Hard Grip", 0.96f, 0.97f, 7f, 0.7f, 1.0f, 0.90f, 0.92f,
+                "Mais lento, porem economico (energia/combustivel) e duravel."));
+            list.Add(MakeGrip(GripType.Intermediate, "Intermediate Grip", 0.98f, 1.00f, 12f, 1.0f, 0.92f, 1.00f, 1.05f,
                 "Para pista umida. Ruim no seco e na chuva muito forte."));
-            list.Add(MakeGrip(GripType.Rain, "Rain Grip", 0.95f, 1.05f, 10f, 1.08f, 0.85f,
-                "Para chuva forte. Lento e desgasta muito no seco."));
+            list.Add(MakeGrip(GripType.Rain, "Rain Grip", 0.95f, 1.05f, 10f, 1.08f, 0.85f, 1.00f, 1.15f,
+                "Para chuva forte. Lento e gasta muito no seco."));
             return list;
         }
 
         private static GripRingSO MakeGrip(GripType id, string name, float spd, float grip,
-            float wear, float wet, float dry, string desc)
+            float wear, float wet, float dry, float energyMult, float fuelMult, string desc)
         {
             var so = CreateOrLoad<GripRingSO>($"{Root}/GripRings/Grip_{id}.asset");
             so.gripId = id; so.compoundName = name;
             so.speedMultiplier = spd; so.gripMultiplier = grip; so.wearRate = wear;
-            so.wetPerformance = wet; so.dryPerformance = dry; so.description = desc;
+            so.wetPerformance = wet; so.dryPerformance = dry;
+            so.energyMultiplier = energyMult; so.fuelMultiplier = fuelMult;
+            so.description = desc;
             EditorUtility.SetDirty(so);
             return so;
         }

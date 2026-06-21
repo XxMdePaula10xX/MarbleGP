@@ -31,7 +31,8 @@ namespace MarbleGP.Bootstrap
         private TrackDataSO _selectedTrack;
         private GripType _grip = GripType.Medium;
         private RaceMode _mode = RaceMode.Normal;
-        private float _startEnergy = 70f;
+        private float _startEnergy = 100f;
+        private int _selectedLaps = 5; // Rapido/Normal/Longo (PRD 3)
 
         private void Start()
         {
@@ -226,14 +227,38 @@ namespace MarbleGP.Bootstrap
             ModeButton(canvas.transform, RaceMode.Normal, "Normal", 1);
             ModeButton(canvas.transform, RaceMode.Push, "Push", 2);
 
-            UIFactory.Label(canvas.transform, "Carga de energia: Media (70)", 22, TextAnchor.MiddleLeft,
-                new Vector2(0.08f, 0.42f), new Vector2(0.8f, 0.48f), new Color(0.8f, 0.9f, 1f));
+            // Duracao da corrida (PRD 3 / 13).
+            UIFactory.Label(canvas.transform, "Duracao:", 24, TextAnchor.MiddleLeft,
+                new Vector2(0.08f, 0.46f), new Vector2(0.4f, 0.52f), Color.white);
+            LapButton(canvas.transform, 5, "Rapido (5)", 0);
+            LapButton(canvas.transform, 12, "Normal (12)", 1);
+            LapButton(canvas.transform, 20, "Longo (20)", 2);
 
-            var start = UIFactory.Button(canvas.transform, "INICIAR CORRIDA", new Color(0.85f, 0.4f, 0.2f),
-                new Vector2(0.35f, 0.2f), new Vector2(0.65f, 0.3f), Vector2.zero, Vector2.zero);
+            // Resumo da estrategia.
+            int stops = _selectedLaps >= 18 ? 2 : 1;
+            string summary =
+                $"Circuito: {_selectedTrack.trackName}    Voltas: {_selectedLaps}    Clima inicial: Seco\n" +
+                $"Pneu: {_grip}    Modo: {_mode}    Combustivel: 100    Energia: 100\n" +
+                $"Paradas previstas: ~{stops}   (combustivel nao chega ao fim sem parar)";
+            var sumPanel = UIFactory.Panel(canvas.transform, new Vector2(0.2f, 0.24f), new Vector2(0.8f, 0.38f),
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.5f));
+            UIFactory.Label(sumPanel, summary, 18, TextAnchor.MiddleCenter,
+                new Vector2(0.03f, 0f), new Vector2(0.97f, 1f), new Color(0.85f, 0.9f, 1f));
+
+            var start = UIFactory.Button(canvas.transform, "INICIAR CORRIDA", new Color(0.9f, 0.45f, 0.15f),
+                new Vector2(0.34f, 0.08f), new Vector2(0.66f, 0.19f), Vector2.zero, Vector2.zero);
             start.onClick.AddListener(StartRace);
 
             BackButton(canvas.transform, ShowTrackSelect);
+        }
+
+        private void LapButton(Transform parent, int laps, string label, int col)
+        {
+            float xMin = 0.42f + col * 0.16f;
+            var btn = UIFactory.Button(parent, label,
+                _selectedLaps == laps ? new Color(0.2f, 0.6f, 0.85f) : new Color(0.3f, 0.3f, 0.4f),
+                new Vector2(xMin, 0.45f), new Vector2(xMin + 0.14f, 0.53f), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(() => { _selectedLaps = laps; ShowStrategy(); });
         }
 
         private void GripButton(Transform parent, GripType g, string label, int col)
@@ -261,6 +286,7 @@ namespace MarbleGP.Bootstrap
             string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
             var config = QuickRaceBuilder.Build(_gm.Database, _selectedTrack, playerTeamId,
                 maxMarbles: 8, defaultGrip: _grip, startEnergy: _startEnergy, startMode: _mode);
+            config.laps = _selectedLaps; // duracao escolhida (PRD 3)
             RunRace(config, isChampionship: false);
         }
 
@@ -318,8 +344,8 @@ namespace MarbleGP.Bootstrap
                 Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
 
             // Cabecalho.
-            UIFactory.Label(panel, $"{"Pos",-5}{"Bolinha",-15}{"Equipe",-20}{"Tempo",-9}{"Pneu",-6}{"Pits",-6}{"MelhorV",-9}{"Pts",-4}",
-                19, TextAnchor.UpperLeft, new Vector2(0.02f, 0.9f), new Vector2(0.99f, 0.99f),
+            UIFactory.Label(panel, $"{"Pos",-4}{"Bolinha",-13}{"Equipe",-17}{"Pneu",-5}{"Pit",-4}{"Comb",-6}{"Ener",-6}{"Status",-12}{"Pts",-4}",
+                17, TextAnchor.UpperLeft, new Vector2(0.02f, 0.9f), new Vector2(0.99f, 0.99f),
                 new Color(0.7f, 0.8f, 1f));
 
             // Uma linha por bolinha (jogador destacado em amarelo).
@@ -328,9 +354,9 @@ namespace MarbleGP.Bootstrap
             {
                 var e = result.entries[i];
                 string player = e.isPlayer ? "►" : " ";
-                string line = $"{player}{e.position,-4}{Trim(e.marbleName, 14),-15}{Trim(e.teamName, 19),-20}" +
-                              $"{e.totalTime,7:0.0}  {e.finalTyre,-6}{e.pitStops,-6}" +
-                              $"{(e.bestLapTime > 0 ? e.bestLapTime.ToString("0.00") : "-"),-9}{e.points,-4}";
+                string line = $"{player}{e.position,-3}{Trim(e.marbleName, 12),-13}{Trim(e.teamName, 16),-17}" +
+                              $"{e.finalTyre,-5}{e.pitStops,-4}{e.finalFuel,4:0}  {e.finalEnergy,4:0}  " +
+                              $"{Trim(e.statusText, 11),-12}{e.points,-4}";
                 float yMax = 0.88f - i * (0.86f / Mathf.Max(1, rows));
                 float yMin = yMax - (0.86f / Mathf.Max(1, rows));
                 Color rowColor = e.position == 1 ? new Color(1f, 0.88f, 0.35f)

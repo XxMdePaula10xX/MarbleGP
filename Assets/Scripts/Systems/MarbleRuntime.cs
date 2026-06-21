@@ -22,8 +22,11 @@ namespace MarbleGP.Systems
 
         // Estado dinamico
         public float wear = 0f;            // 0-100 (PRD 14)
-        public float energy = 70f;         // 0-maxEnergy (PRD 15)
+        public float energy = 100f;        // 0-100 bateria de performance (PRD 4.2)
+        public float fuel = 100f;          // 0-100 autonomia, so volta no pit (PRD 4.1)
         public float damage = 0f;          // 0-100 (reparavel no pit)
+
+        public bool FuelEmpty => fuel <= 0f;
 
         // Progresso de corrida (PRD 26)
         public int completedLaps = 0;

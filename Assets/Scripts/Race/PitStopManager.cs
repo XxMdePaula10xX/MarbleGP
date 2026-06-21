@@ -33,6 +33,7 @@ namespace MarbleGP.Race
         private readonly GameDatabase _db;
         private readonly TireWearSystem _tires;
         private readonly EnergySystem _energy;
+        private readonly FuelSystem _fuel;
 
         private readonly Dictionary<MarbleController, PitJob> _active = new();
         private int _boxCursor;
@@ -43,13 +44,14 @@ namespace MarbleGP.Race
         public event Action<MarbleController> OnPitExit;
 
         public PitStopManager(TrackManager track, GameBalance bal, GameDatabase db,
-            TireWearSystem tires, EnergySystem energy)
+            TireWearSystem tires, EnergySystem energy, FuelSystem fuel)
         {
             _track = track;
             _bal = bal;
             _db = db;
             _tires = tires;
             _energy = energy;
+            _fuel = fuel;
         }
 
         public bool IsPitting(MarbleController ctrl) => _active.ContainsKey(ctrl);
@@ -185,18 +187,20 @@ namespace MarbleGP.Race
         {
             m.state = MarbleRaceState.InPit;
 
-            // Servico 1: troca de anel (PRD 18.2).
+            // Servico 1: troca de anel (reseta desgaste, PRD 18.2 / 8).
             if (m.pitChangeTires)
             {
                 var newGrip = _db.GetGrip(m.pitTargetGrip);
                 if (newGrip != null) _tires.FitNewGrip(m, newGrip);
             }
 
-            // Servico 2: recarga de energia (PRD 18.2).
-            float refilled = _energy.Refill(m, m.pitRefillAmount);
+            // Servico 2: reabastece combustivel e restaura energia para 100 (PRD 8).
+            float energyRefilled = 100f - m.energy;
+            _energy.Refill(m, 100f);
+            _fuel.Refill(m);
 
             // Tempo total do pit (PRD 18.3 / 41).
-            m.pitTimer = RaceFormulas.PitTime(m, _bal, m.pitChangeTires, refilled);
+            m.pitTimer = RaceFormulas.PitTime(m, _bal, m.pitChangeTires, energyRefilled);
             m.pitTotalTime = Mathf.Max(0.1f, m.pitTimer);
         }
 

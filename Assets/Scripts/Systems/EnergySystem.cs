@@ -27,12 +27,13 @@ namespace MarbleGP.Systems
         {
             if (m.state == MarbleRaceState.InPit) return;
 
-            float perLap = RaceFormulas.EnergyConsumptionPerLap(m, bal);
+            // Variacao assinada por volta: Save regenera, Normal/Push drenam (PRD 4.2).
+            float changePerLap = RaceFormulas.EnergyChangePerLap(m);
             float lapFraction = distanceTraveled / trackLength;
             float prev = m.energy;
-            m.energy = Mathf.Clamp(m.energy - perLap * lapFraction, 0f, bal.maxEnergy);
+            m.energy = Mathf.Clamp(m.energy + changePerLap * lapFraction, 0f, 100f);
 
-            if (prev >= bal.lowChargeThreshold && m.energy < bal.lowChargeThreshold)
+            if (prev >= 20f && m.energy < 20f)
                 OnLowEnergyAlert?.Invoke(m);
         }
 

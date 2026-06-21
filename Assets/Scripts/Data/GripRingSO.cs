@@ -25,6 +25,17 @@ namespace MarbleGP.Data
         [Range(0f, 2f)] public float dryPerformance = 1.0f;
         public float optimalTemperature = 25f;
 
+        [Header("Economia (PRD 5): consumo de energia e combustivel")]
+        [Tooltip("Multiplicador de consumo de energia (Soft gasta mais).")]
+        public float energyMultiplier = 1.0f;
+        [Tooltip("Multiplicador de consumo de combustivel.")]
+        public float fuelMultiplier = 1.0f;
+
+        /// <summary>Multiplicador de energia seguro (fallback 1 se asset antigo).</summary>
+        public float EnergyMult => energyMultiplier <= 0f ? 1f : energyMultiplier;
+        /// <summary>Multiplicador de combustivel seguro (fallback 1 se asset antigo).</summary>
+        public float FuelMult => fuelMultiplier <= 0f ? 1f : fuelMultiplier;
+
         [TextArea] public string description;
 
         /// <summary>Letra exibida no ranking ao vivo (estilo indicador de pneu).</summary>
