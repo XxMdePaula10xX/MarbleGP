@@ -29,11 +29,14 @@ namespace MarbleGP.UI
         {
             public Image bg, accent, chip;
             public Outline glow;
-            public Text pos, arrow, number, code, gap, grip;
+            public Text pos, arrow, number, code, gap, grip, pit;
         }
         private readonly List<RankingRow> _rows = new();
         private readonly Dictionary<MarbleRuntime, int> _posSnapshot = new();
         private float _snapshotTimer;
+        private RectTransform _towerContainer;
+        private Text _towerToggleLabel;
+        private bool _towerCollapsed;
 
         // ---- Cards da equipe ----
         private class PlayerCard
@@ -125,8 +128,9 @@ namespace MarbleGP.UI
         private void BuildTimingTower(Transform canvas)
         {
             int count = _race.Field.Count;
-            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.232f, 0.99f),
-                Vector2.zero, Vector2.zero, new Color(0.04f, 0.04f, 0.06f, 0.88f));
+            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.235f, 0.99f),
+                Vector2.zero, Vector2.zero, new Color(0.04f, 0.04f, 0.06f, 0.9f));
+            _towerContainer = container;
 
             const float headerH = 48f;
             var header = UIFactory.Panel(container, new Vector2(0f, 1f), new Vector2(1f, 1f),
@@ -134,13 +138,36 @@ namespace MarbleGP.UI
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
-            var htxt = UIFactory.Label(header, "TIMING", 22, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, new Color(0.8f, 0.85f, 1f));
+            var htxt = UIFactory.Label(header, "TIMING", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0f), new Vector2(0.7f, 1f), new Color(0.8f, 0.85f, 1f));
             htxt.fontStyle = FontStyle.Bold;
+
+            // Botao recolher/expandir (PRD 4.1).
+            var toggle = UIFactory.Button(header, "«", new Color(0.2f, 0.25f, 0.4f, 0.95f),
+                new Vector2(0.74f, 0.15f), new Vector2(0.97f, 0.85f), Vector2.zero, Vector2.zero);
+            _towerToggleLabel = toggle.GetComponentInChildren<Text>();
+            toggle.onClick.AddListener(ToggleTower);
 
             float rowH = Mathf.Clamp(880f / Mathf.Max(1, count), 30f, 58f);
             for (int i = 0; i < count; i++)
                 _rows.Add(CreateRow(container, i, rowH, headerH));
+        }
+
+        private void ToggleTower()
+        {
+            _towerCollapsed = !_towerCollapsed;
+            _towerToggleLabel.text = _towerCollapsed ? "»" : "«";
+            // Recolhido: estreita o painel e mostra so posicao + chip + sigla.
+            _towerContainer.anchorMax = new Vector2(_towerCollapsed ? 0.095f : 0.235f, 0.99f);
+            foreach (var row in _rows)
+            {
+                bool show = !_towerCollapsed;
+                row.arrow.gameObject.SetActive(show);
+                row.gap.gameObject.SetActive(show);
+                row.grip.gameObject.SetActive(show);
+                row.pit.gameObject.SetActive(show);
+                row.number.gameObject.SetActive(show);
+            }
         }
 
         private RankingRow CreateRow(RectTransform container, int index, float rowH, float topOffset)
@@ -170,29 +197,33 @@ namespace MarbleGP.UI
             row.accent = accentRt.GetComponent<Image>();
 
             row.pos = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.04f, 0f), new Vector2(0.17f, 1f), Color.white);
+                new Vector2(0.04f, 0f), new Vector2(0.15f, 1f), Color.white);
             row.pos.fontStyle = FontStyle.Bold;
 
-            row.arrow = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleCenter,
-                new Vector2(0.17f, 0f), new Vector2(0.23f, 1f), Color.white);
+            row.arrow = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleCenter,
+                new Vector2(0.15f, 0f), new Vector2(0.21f, 1f), Color.white);
 
-            var chipRt = UIFactory.Panel(rowGo.transform, new Vector2(0.24f, 0.16f), new Vector2(0.32f, 0.84f),
+            var chipRt = UIFactory.Panel(rowGo.transform, new Vector2(0.22f, 0.18f), new Vector2(0.29f, 0.82f),
                 Vector2.zero, Vector2.zero, Color.gray);
             row.chip = chipRt.GetComponent<Image>();
-            row.number = UIFactory.Label(chipRt, "", 16, TextAnchor.MiddleCenter,
+            row.number = UIFactory.Label(chipRt, "", 15, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Color.white);
             row.number.fontStyle = FontStyle.Bold;
 
-            row.code = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleLeft,
-                new Vector2(0.35f, 0f), new Vector2(0.58f, 1f), Color.white);
+            row.code = UIFactory.Label(rowGo.transform, "", 21, TextAnchor.MiddleLeft,
+                new Vector2(0.31f, 0f), new Vector2(0.5f, 1f), Color.white);
             row.code.fontStyle = FontStyle.Bold;
 
-            row.gap = UIFactory.Label(rowGo.transform, "", 19, TextAnchor.MiddleRight,
-                new Vector2(0.55f, 0f), new Vector2(0.88f, 1f), new Color(0.85f, 0.85f, 0.9f));
+            row.gap = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleRight,
+                new Vector2(0.49f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
-            row.grip = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.88f, 0f), new Vector2(0.99f, 1f), Color.white);
+            row.grip = UIFactory.Label(rowGo.transform, "", 21, TextAnchor.MiddleCenter,
+                new Vector2(0.74f, 0f), new Vector2(0.85f, 1f), Color.white);
             row.grip.fontStyle = FontStyle.Bold;
+
+            // Pit stops (PRD 4.2).
+            row.pit = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleCenter,
+                new Vector2(0.85f, 0f), new Vector2(0.99f, 1f), new Color(0.7f, 0.78f, 0.9f));
 
             return row;
         }
@@ -448,6 +479,13 @@ namespace MarbleGP.UI
                 row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";
                 row.grip.text = m.grip != null ? m.grip.DisplayLetter : "?";
                 row.grip.color = m.grip != null ? m.grip.DisplayColor : Color.gray;
+                // Coluna de pit: contador, ou icone quando esta no pit.
+                bool inPit = m.state == MarbleRaceState.InPit || m.state == MarbleRaceState.EnteringPit
+                          || m.state == MarbleRaceState.ExitingPit;
+                row.pit.text = inPit ? "P" : m.pitStops.ToString();
+                row.pit.color = inPit ? new Color(1f, 0.65f, 0.2f) : new Color(0.7f, 0.78f, 0.9f);
+                // Lider em dourado.
+                row.code.color = i == 0 ? new Color(1f, 0.88f, 0.35f) : Color.white;
 
                 int prev = _posSnapshot.TryGetValue(m, out var p) ? p : (i + 1);
                 if (i + 1 < prev) { row.arrow.text = "▲"; row.arrow.color = new Color(0.3f, 0.9f, 0.4f); }
@@ -476,7 +514,7 @@ namespace MarbleGP.UI
             {
                 var m = card.ctrl.Runtime;
                 card.title.text = $"{m.DisplayName}   P{m.position}";
-                card.tyre.text = $"Pneu: {m.grip.gripId}";
+                card.tyre.text = $"Pneu: {m.grip.gripId}  (pit: {card.nextGrip})";
                 card.mode.text = $"Modo: {m.mode}";
 
                 SetBar(card.wearFill, m.wear / 100f);
@@ -493,7 +531,7 @@ namespace MarbleGP.UI
                 string alert = "";
                 if (m.wear > 70f) alert = "  ⚠ desgaste";
                 else if (m.energy < 20f) alert = "  ⚠ energia";
-                card.status.text = $"{StatusText(m.state)}{alert}   |   Pit p/: {card.nextGrip}";
+                card.status.text = $"{StatusText(m.state)}{alert}   |   Pits: {m.pitStops}";
 
                 // Estado do botao PIT.
                 bool pitting = m.state == MarbleRaceState.EnteringPit

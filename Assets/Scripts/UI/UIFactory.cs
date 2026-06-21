@@ -10,6 +10,19 @@ namespace MarbleGP.UI
     public static class UIFactory
     {
         private static Font _font;
+        private static Sprite _rounded;
+
+        /// <summary>Sprite arredondado built-in (9-slice) para cantos suaves.</summary>
+        public static Sprite RoundedSprite
+        {
+            get
+            {
+                if (_rounded == null)
+                    _rounded = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+                return _rounded;
+            }
+        }
+
         public static Font DefaultFont
         {
             get
@@ -42,6 +55,7 @@ namespace MarbleGP.UI
             go.transform.SetParent(parent, false);
             var img = go.GetComponent<Image>();
             img.color = color;
+            if (RoundedSprite != null) { img.sprite = RoundedSprite; img.type = Image.Type.Sliced; }
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
@@ -108,16 +122,47 @@ namespace MarbleGP.UI
         {
             var go = new GameObject("Button", typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
-            go.GetComponent<Image>().color = bg;
+            var img = go.GetComponent<Image>();
+            img.color = bg;
+            if (RoundedSprite != null) { img.sprite = RoundedSprite; img.type = Image.Type.Sliced; }
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
 
+            // Estados visuais (hover/pressed/disabled) via ColorTint.
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.transition = Selectable.Transition.ColorTint;
+            btn.colors = MakeColors(bg);
+
             var label = Label(go.transform, text, 22, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Color.white);
-            return go.GetComponent<Button>();
+            return btn;
+        }
+
+        /// <summary>ColorBlock coerente a partir da cor base do botao.</summary>
+        public static ColorBlock MakeColors(Color baseColor)
+        {
+            return new ColorBlock
+            {
+                normalColor = baseColor,
+                highlightedColor = Color.Lerp(baseColor, Color.white, 0.18f),
+                pressedColor = Color.Lerp(baseColor, Color.black, 0.25f),
+                selectedColor = baseColor,
+                disabledColor = new Color(baseColor.r * 0.4f, baseColor.g * 0.4f, baseColor.b * 0.4f, 0.5f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.1f
+            };
+        }
+
+        /// <summary>Atualiza a cor base de um botao (mantendo estados).</summary>
+        public static void SetButtonColor(Button btn, Color baseColor)
+        {
+            var img = btn.targetGraphic as Image;
+            if (img != null) img.color = baseColor;
+            btn.colors = MakeColors(baseColor);
         }
     }
 }

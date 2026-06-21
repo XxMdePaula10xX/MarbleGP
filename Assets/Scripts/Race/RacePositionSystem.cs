@@ -32,6 +32,19 @@ namespace MarbleGP.Race
         public void Register(MarbleRuntime m) => _nextCheckpoint[m] = 1 % Mathf.Max(1, _track.CheckpointCount);
 
         /// <summary>
+        /// Resincroniza o proximo checkpoint apos um pit (a bolinha pulou alguns
+        /// checkpoints no pit lane). Ajusta para o checkpoint logo a frente da
+        /// posicao atual, evitando perder uma volta inteira.
+        /// </summary>
+        public void ResyncCheckpoint(MarbleController ctrl)
+        {
+            if (_track.CheckpointCount == 0) return;
+            float arc = _track.ArcFraction(ctrl.transform.position);
+            int idx = Mathf.RoundToInt(arc * _track.CheckpointCount) % _track.CheckpointCount;
+            _nextCheckpoint[ctrl.Runtime] = idx;
+        }
+
+        /// <summary>
         /// Atualiza contagem de voltas via sequencia de checkpoints. Uma volta so
         /// conta ao cruzar todos os checkpoints na ordem e voltar ao checkpoint 0.
         /// </summary>

@@ -100,7 +100,8 @@ namespace MarbleGP.Race
 
             _tireSystem.OnHighWearAlert += m => Log($"⚠ {m.DisplayName}: desgaste alto!");
             _energySystem.OnLowEnergyAlert += m => Log($"⚠ {m.DisplayName}: energia baixa!");
-            _pitManager.OnPitCompleted += m => Log($"🔧 {m.DisplayName}: pit concluido.");
+            _pitManager.OnPitCompleted += m => Log($"🔧 {m.DisplayName} saiu do pit com {m.grip.gripId}.");
+            _pitManager.OnPitExit += c => _positionSystem.ResyncCheckpoint(c);
 
             SpawnField(config);
 

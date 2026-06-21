@@ -102,6 +102,9 @@ namespace MarbleGP.Track
         /// textura nas UVs do mesh.
         /// </summary>
         public static Material CreateTextured(Texture2D tex, Color fallbackColor, float tiling)
+            => CreateTextured(tex, fallbackColor, tiling, Color.white);
+
+        public static Material CreateTextured(Texture2D tex, Color fallbackColor, float tiling, Color tint)
         {
             if (tex == null) return Create(fallbackColor);
 
@@ -110,8 +113,9 @@ namespace MarbleGP.Track
             mat.mainTextureScale = new Vector2(tiling, tiling);
             if (mat.HasProperty("_BaseMap")) { mat.SetTexture("_BaseMap", tex); mat.SetTextureScale("_BaseMap", new Vector2(tiling, tiling)); }
             if (mat.HasProperty("_MainTex")) { mat.SetTexture("_MainTex", tex); mat.SetTextureScale("_MainTex", new Vector2(tiling, tiling)); }
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            // Tint multiplica a textura (usado p/ dessaturar/escurecer, ex.: grama).
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.1f);
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.1f);
             MakeDoubleSided(mat);

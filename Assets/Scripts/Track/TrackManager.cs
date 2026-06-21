@@ -35,6 +35,11 @@ namespace MarbleGP.Track
         public List<Vector3> GridPositions { get; private set; } = new List<Vector3>();
         public List<Vector3> PitBoxes { get; private set; } = new List<Vector3>();
 
+        /// <summary>Caminho FINITO do pit lane: entrada -> boxes -> saida (PRD 18 / 3).</summary>
+        public List<Vector3> PitPath { get; set; }
+        /// <summary>Indice em PitPath onde cada box manda a bolinha parar.</summary>
+        public List<int> PitBoxPathIndex { get; set; }
+
         public void Init(TrackDataSO data, Lane ideal, Lane inside, Lane outside, Lane pit)
         {
             Data = data;

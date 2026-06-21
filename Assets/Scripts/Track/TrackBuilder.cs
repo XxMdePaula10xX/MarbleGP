@@ -58,7 +58,6 @@ namespace MarbleGP.Track
             BuildGround(root.transform, grassTex);
             BuildRoadMesh(root.transform, center, normals, halfW,
                 MaterialFactory.CreateTextured(asphaltTex, Asphalt, 1f), "RoadMesh", 0f, 6f);
-            BuildRoadMesh(root.transform, pit, normals, 1.8f, MaterialFactory.Create(PitAsphalt), "PitMesh", 0.01f);
             BuildEdgeLines(root.transform, center, normals, halfW);
             BuildCurbs(root.transform, center, normals, halfW, curbTex);
             BuildCenterDashes(root.transform, center);
@@ -71,11 +70,10 @@ namespace MarbleGP.Track
             for (int i = 0; i < center.Length; i += every)
                 tm.Checkpoints.Add(center[i]);
 
-            // --- Grid, pit boxes e decoracao ---
+            // --- Grid, pit lane real e decoracao ---
             BuildGrid(tm, center, normals, marbleCount);
             BuildGridMarkers(root.transform, tm);
-            BuildPitBoxes(tm, pit, marbleCount);
-            BuildPitVisual(root.transform, tm, teamColors);
+            BuildPitLane(root.transform, tm, center, normals, halfW, marbleCount, teamColors);
             BuildSign(root.transform, center[0], normals[0], halfW, data.trackName);
 
             return tm;
@@ -144,15 +142,16 @@ namespace MarbleGP.Track
             ground.transform.SetParent(parent, false);
             ground.transform.position = new Vector3(0f, -0.05f, 0f);
             ground.transform.localScale = new Vector3(40f, 1f, 40f); // Plane = 10u -> 400u
-            // Tiling 40 => ~10 unidades por tile da textura.
+            // Tiling 40 => ~10 unidades por tile. Tint dessatura/escurece a grama ~18%
+            // para nao cansar a vista e dar mais contraste com a pista (PRD 8).
             ground.GetComponent<MeshRenderer>().sharedMaterial =
-                MaterialFactory.CreateTextured(grassTex, Grass, 40f);
+                MaterialFactory.CreateTextured(grassTex, Grass, 40f, new Color(0.78f, 0.82f, 0.78f));
         }
 
         // ---- Mesh de pista -----------------------------------------------
 
         private static void BuildRoadMesh(Transform parent, Vector3[] center, Vector3[] normals,
-            float halfW, Material mat, string name, float y, float uvTile = 0f)
+            float halfW, Material mat, string name, float y, float uvTile = 0f, bool closed = true)
         {
             int n = center.Length;
             var verts = new Vector3[n * 2];
@@ -181,7 +180,8 @@ namespace MarbleGP.Track
             }
 
             var tris = new List<int>(n * 6);
-            for (int i = 0; i < n; i++)
+            int segCount = closed ? n : n - 1; // faixa aberta nao fecha o loop
+            for (int i = 0; i < segCount; i++)
             {
                 int a = i * 2, b = i * 2 + 1;
                 int c = ((i + 1) % n) * 2, d = ((i + 1) % n) * 2 + 1;
@@ -388,48 +388,74 @@ namespace MarbleGP.Track
             }
         }
 
-        private static void BuildPitBoxes(TrackManager tm, Vector3[] pit, int marbleCount)
+        /// <summary>
+        /// Pit lane REAL (PRD 3 / 18): caminho finito que ramifica da reta principal,
+        /// segue paralelo pelos boxes e reentra na pista. Constroi o caminho de
+        /// navegacao (tm.PitPath), a malha visual, a faixa separadora, os boxes
+        /// coloridos por equipe e as placas PIT IN / PIT OUT.
+        /// </summary>
+        private static void BuildPitLane(Transform parent, TrackManager tm, Vector3[] center,
+            Vector3[] normals, float halfW, int marbleCount, IReadOnlyList<Color> teamColors)
         {
-            tm.PitBoxes.Clear();
-            int n = pit.Length;
-            int start = Mathf.RoundToInt(n * 0.45f);
-            for (int i = 0; i < marbleCount; i++)
-            {
-                int idx = (start + i * 2) % n;
-                tm.PitBoxes.Add(pit[idx] + Vector3.up * 0.5f);
-            }
-        }
+            int n = center.Length;
+            int pitLen = Mathf.Clamp(Mathf.RoundToInt(n * 0.24f), 14, n / 2);
+            float maxOffset = halfW + 3.2f; // distancia do pit lane ate o centro da pista
+            const float side = 1f;          // lado externo
 
-        private static void BuildPitVisual(Transform parent, TrackManager tm, IReadOnlyList<Color> teamColors)
-        {
+            // Caminho do pit (com rampas de entrada/saida e plato no meio).
+            var path = new Vector3[pitLen + 1];
+            for (int k = 0; k <= pitLen; k++)
+            {
+                int idx = k % n;
+                float t = k / (float)pitLen;
+                float ramp = (t < 0.18f) ? Mathf.SmoothStep(0f, 1f, t / 0.18f)
+                          : (t > 0.82f) ? Mathf.SmoothStep(0f, 1f, (1f - t) / 0.18f)
+                          : 1f;
+                path[k] = center[idx] + normals[idx] * (side * maxOffset * ramp);
+            }
+            tm.PitPath = new List<Vector3>(path);
+
+            // Malha do pit lane (faixa aberta).
+            var pitNormals = ComputeNormals(path);
+            BuildRoadMesh(parent, path, pitNormals, 1.7f, MaterialFactory.Create(PitAsphalt),
+                "PitLane", 0.02f, 0f, false);
+
+            // Boxes na regiao do plato, um por bolinha.
             var holder = new GameObject("PitBoxes");
             holder.transform.SetParent(parent, false);
-            for (int i = 0; i < tm.PitBoxes.Count; i++)
+            tm.PitBoxes.Clear();
+            tm.PitBoxPathIndex = new List<int>();
+            for (int i = 0; i < marbleCount; i++)
             {
-                Vector3 p = tm.PitBoxes[i];
-                p.y = 0.06f;
+                float bt = marbleCount > 1 ? 0.34f + (i / (float)(marbleCount - 1)) * 0.32f : 0.5f;
+                int bk = Mathf.Clamp(Mathf.RoundToInt(bt * pitLen), 2, pitLen - 2);
+                Vector3 stop = path[bk];
+                tm.PitBoxes.Add(stop);
+                tm.PitBoxPathIndex.Add(bk);
+
+                // Garagem (pad colorido) um pouco mais para fora do pit lane.
+                int cidx = bk % n;
+                Vector3 pad = path[bk] + normals[cidx] * (side * 1.6f);
                 Color c = (teamColors != null && i < teamColors.Count) ? teamColors[i] : Color.gray;
-                var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                pad.name = $"PitBox{i + 1}";
-                Object.Destroy(pad.GetComponent<Collider>());
-                pad.transform.SetParent(holder.transform, false);
-                pad.transform.position = p;
-                pad.transform.localScale = new Vector3(1.6f, 0.04f, 1.6f);
-                pad.GetComponent<MeshRenderer>().sharedMaterial = MaterialFactory.CreateUnlit(c);
+                var padGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                padGo.name = $"PitBox{i + 1}";
+                Object.Destroy(padGo.GetComponent<Collider>());
+                padGo.transform.SetParent(holder.transform, false);
+                padGo.transform.position = new Vector3(pad.x, 0.06f, pad.z);
+                padGo.transform.localScale = new Vector3(1.5f, 0.05f, 1.5f);
+                padGo.GetComponent<MeshRenderer>().sharedMaterial = MaterialFactory.CreateUnlit(c);
             }
 
-            // Placas PIT IN / OUT nas pontas do conjunto de boxes.
-            if (tm.PitBoxes.Count > 0)
-            {
-                BuildText(holder.transform, tm.PitBoxes[0] + Vector3.up * 0.5f, "PIT IN", 3f, new Color(0.4f, 1f, 0.5f));
-                BuildText(holder.transform, tm.PitBoxes[tm.PitBoxes.Count - 1] + Vector3.up * 0.5f, "PIT OUT", 3f, Color.white);
-            }
+            // Placas pequenas nas pontas reais do pit lane.
+            BuildText(holder.transform, path[1] + Vector3.up * 0.3f, "PIT IN", 1.6f, new Color(0.4f, 1f, 0.5f));
+            BuildText(holder.transform, path[pitLen - 1] + Vector3.up * 0.3f, "PIT OUT", 1.6f, new Color(0.9f, 0.9f, 1f));
         }
 
         private static void BuildSign(Transform parent, Vector3 pos, Vector3 normal, float halfW, string trackName)
         {
-            Vector3 p = pos + normal * (halfW + 5f) + Vector3.up * 0.2f;
-            BuildText(parent, p, trackName.ToUpper(), 6f, new Color(1f, 0.95f, 0.7f));
+            // Menor e bem afastado da pista para nao atrapalhar a leitura (PRD 8).
+            Vector3 p = pos + normal * (halfW + 10f) + Vector3.up * 0.2f;
+            BuildText(parent, p, trackName.ToUpper(), 2.6f, new Color(0.95f, 0.92f, 0.7f, 0.8f));
         }
 
         private static void BuildText(Transform parent, Vector3 pos, string text, float size, Color color)
