@@ -28,6 +28,10 @@ namespace MarbleGP.Systems
 
         public bool FuelEmpty => fuel <= 0f;
 
+        // Eventos de corrida (PRD 10).
+        public float recoverTimer = 0f;   // tempo de recuperacao apos batida forte
+        public float coreFailTimer = 0f;  // falha de nucleo (dreno extra de energia)
+
         // Progresso de corrida (PRD 26)
         public int completedLaps = 0;
         public int currentCheckpoint = 0;

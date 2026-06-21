@@ -178,6 +178,9 @@ namespace MarbleGP.Race
 
             Color c = Color.white;
             if (_isWinner) { c = new Color(1f, 0.85f, 0.2f); code = "★ " + code; }
+            else if (_runtime.coreFailTimer > 0f) { c = new Color(0.7f, 0.5f, 1f); code = "⚡" + code; }
+            else if (_runtime.state == MarbleRaceState.Recovering) { c = new Color(1f, 0.4f, 0.3f); code = "!" + code; }
+            else if (_runtime.FuelEmpty) { c = new Color(1f, 0.4f, 0.2f); }
             else if (_runtime.wear > 70f) c = new Color(1f, 0.35f, 0.35f);
             else if (_runtime.energy < 20f) c = new Color(1f, 0.9f, 0.3f);
 
@@ -241,5 +244,24 @@ namespace MarbleGP.Race
         }
 
         public void SetWinner() => _isWinner = true;
+
+        // ---- Efeitos de evento (PRD 10) ----------------------------------
+
+        private Vector3 FxPos => transform.position + Vector3.up * _radius;
+
+        /// <summary>Faiscas de contato leve entre bolinhas.</summary>
+        public void PlayContactSpark()
+            => Fx.Burst(FxPos, new Color(1f, 0.8f, 0.2f), 5, 4.5f, _radius * 0.16f, 0.4f);
+
+        /// <summary>Fumaca + faiscas de batida forte.</summary>
+        public void PlayCrash()
+        {
+            Fx.Burst(FxPos, new Color(0.5f, 0.5f, 0.5f), 9, 3f, _radius * 0.28f, 0.8f);
+            Fx.Burst(FxPos, new Color(1f, 0.55f, 0.15f), 6, 5f, _radius * 0.18f, 0.5f);
+        }
+
+        /// <summary>Faiscas eletricas de falha de nucleo.</summary>
+        public void PlayCoreFailure()
+            => Fx.Burst(FxPos, new Color(0.6f, 0.4f, 1f), 7, 4f, _radius * 0.2f, 0.5f);
     }
 }

@@ -29,7 +29,7 @@ namespace MarbleGP.Systems
         public bool IsWet =>
             Current == Weather.Damp || Current == Weather.LightRain || Current == Weather.HeavyRain;
 
-        /// <summary>Avalia possiveis transicoes de clima.</summary>
+        /// <summary>Avalia possiveis transicoes de clima (mais dinamico, PRD 10).</summary>
         public void Tick(float dt)
         {
             _timer -= dt;
@@ -37,12 +37,15 @@ namespace MarbleGP.Systems
             _timer = NextInterval();
 
             int idx = (int)Current;
+            // Probabilidade de piorar guiada pela chance de chuva da pista (+base).
+            float worsenProb = Mathf.Clamp01(_rainChance * 0.9f + 0.04f);
             float r = UnityEngine.Random.value;
             int delta = 0;
 
-            // Probabilidade de piorar guiada pela chance de chuva da pista.
-            if (r < _rainChance * 0.6f) delta = +1;
-            else if (r > 0.7f) delta = -1; // tende a melhorar com o tempo
+            if (r < worsenProb)
+                delta = (UnityEngine.Random.value < 0.25f && _rainChance > 0.25f) ? 2 : 1; // pode pular 2 niveis
+            else if (r > 0.7f)
+                delta = -1; // tende a melhorar com o tempo
 
             int next = Mathf.Clamp(idx + delta, 0, 4);
             if (next != idx)
@@ -52,7 +55,7 @@ namespace MarbleGP.Systems
             }
         }
 
-        private static float NextInterval() => UnityEngine.Random.Range(8f, 16f);
+        private static float NextInterval() => UnityEngine.Random.Range(5f, 10f);
 
         /// <summary>Clima inicial sorteado a partir da chance de chuva da pista.</summary>
         public static Weather InitialFor(float rainChance)

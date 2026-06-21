@@ -55,6 +55,9 @@ namespace MarbleGP.Race
             // 4) Energia muito baixa e ainda longe do fim.
             if (m.energy < 12f && lapsRemaining > 3) needPit = true;
 
+            // 5) Falha de nucleo: precisa do pit (PRD 10/11).
+            if (m.coreFailTimer > 0f && lapsRemaining > 1) needPit = true;
+
             if (!needPit) return;
 
             // Escolhe pneu alvo conforme clima e voltas restantes.

@@ -205,6 +205,7 @@ namespace MarbleGP.Race
                 _field.Add(ctrl);
                 _ais[ctrl] = new MarbleAI(ctrl, Track, _bal, this);
                 _positionSystem.Register(runtime);
+                ctrl.Contact += OnMarbleContact; // eventos de batida (PRD 10)
             }
         }
 
@@ -266,6 +267,22 @@ namespace MarbleGP.Race
                         ctrl.Line = RacingLine.Ideal;
                     }
 
+                    // Recuperacao apos batida forte: anda muito devagar (PRD 10).
+                    if (m.state == MarbleRaceState.Recovering)
+                    {
+                        m.recoverTimer -= dt;
+                        ctrl.DesiredSpeed = Mathf.Min(ctrl.DesiredSpeed, _bal.baseSpeed * 0.25f);
+                        ctrl.Line = RacingLine.Ideal;
+                        if (m.recoverTimer <= 0f) m.state = MarbleRaceState.Racing;
+                    }
+
+                    // Falha de nucleo: dreno extra de energia (PRD 10).
+                    if (m.coreFailTimer > 0f)
+                    {
+                        m.coreFailTimer -= dt;
+                        m.energy = Mathf.Max(0f, m.energy - 14f * dt);
+                    }
+
                     ctrl.PhysicsStep(dt);
                     ctrl.HandleStuckRecovery(dt);
 
@@ -279,6 +296,7 @@ namespace MarbleGP.Race
                     if (lapDone)
                     {
                         _lapChangeTime[ctrl] = _raceClock; // janela anti-falsa-ultrapassagem
+                        RollMarbleLapEvents(ctrl, m);
                         if (m.pitRequested)
                         {
                             _pitManager.BeginEntry(ctrl);
@@ -316,11 +334,16 @@ namespace MarbleGP.Race
         /// </summary>
         private void DetectOvertakes(float dt)
         {
-            // Cooldowns por par decrementam todo frame.
+            // Cooldowns por par decrementam todo frame (ultrapassagem e contato).
             if (_pairCooldown.Count > 0)
             {
                 var keys = new List<string>(_pairCooldown.Keys);
                 foreach (var k in keys) _pairCooldown[k] = Mathf.Max(0f, _pairCooldown[k] - dt);
+            }
+            if (_contactCooldown.Count > 0)
+            {
+                var ckeys = new List<string>(_contactCooldown.Keys);
+                foreach (var k in ckeys) _contactCooldown[k] = Mathf.Max(0f, _contactCooldown[k] - dt);
             }
 
             _otSnapTimer -= dt;
@@ -436,6 +459,95 @@ namespace MarbleGP.Race
             _safetyTimer = duration;
             Log("🚨 Safety Marble na pista! Velocidade neutralizada.");
         }
+
+        // ---- Eventos de corrida: batida, contato, falha de nucleo (PRD 10) --
+
+        private readonly Dictionary<string, float> _contactCooldown = new();
+
+        private void OnMarbleContact(MarbleController a, MarbleController b, float impact)
+        {
+            var ma = a.Runtime; var mb = b.Runtime;
+            if (ma.state == MarbleRaceState.Finished || mb.state == MarbleRaceState.Finished) return;
+
+            // Faiscas sempre (feedback visual de contato).
+            a.GetComponent<MarbleVisual>()?.PlayContactSpark();
+            b.GetComponent<MarbleVisual>()?.PlayContactSpark();
+
+            string key = ma.DisplayName.CompareTo(mb.DisplayName) < 0
+                ? ma.DisplayName + "|" + mb.DisplayName
+                : mb.DisplayName + "|" + ma.DisplayName;
+            if (_contactCooldown.TryGetValue(key, out float cd) && cd > 0f) return;
+            _contactCooldown[key] = 1.5f;
+
+            if (impact > 7f && UnityEngine.Random.value < 0.35f)
+            {
+                // Batida forte: a bolinha mais lenta (atingida) se complica.
+                var victim = a.CurrentSpeed <= b.CurrentSpeed ? a : b;
+                TriggerCrash(victim, "contato forte");
+            }
+            else if (impact > 4f)
+            {
+                Log($"💥 {ma.DisplayName} e {mb.DisplayName} se tocaram.");
+            }
+        }
+
+        private void RollMarbleLapEvents(MarbleController ctrl, MarbleRuntime m)
+        {
+            if (m.state != MarbleRaceState.Racing) return;
+            float risk = EventRisk(m);
+
+            if (UnityEngine.Random.value < 0.02f * risk) { TriggerCrash(ctrl, "erro grave"); return; }
+            if (m.coreFailTimer <= 0f && UnityEngine.Random.value < 0.01f * risk) TriggerCoreFailure(ctrl);
+        }
+
+        private float EventRisk(MarbleRuntime m)
+        {
+            float r = 1f;
+            if (m.mode == RaceMode.Push) r *= 1.4f;
+            if (m.mode == RaceMode.Save) r *= 0.7f;
+            if (m.wear > 75f) r *= 1.5f;
+            if (m.energy < 15f) r *= 1.3f;
+            if (IsWetWeather(CurrentWeather)) r *= 1.4f;
+            switch (m.driver.personality)
+            {
+                case Personality.Aggressive:
+                case Personality.RiskTaker: r *= 1.3f; break;
+                case Personality.Veteran:
+                case Personality.Smooth: r *= 0.7f; break;
+            }
+            r *= 1f - m.driver.control / 300f; // alto controle reduz risco
+            if (Config.track.difficulty == Difficulty.Hard) r *= 1.2f;
+            return r;
+        }
+
+        private void TriggerCrash(MarbleController ctrl, string reason)
+        {
+            var m = ctrl.Runtime;
+            if (m.state != MarbleRaceState.Racing) return;
+            m.state = MarbleRaceState.Recovering;
+            m.recoverTimer = UnityEngine.Random.Range(2f, 4f);
+            ctrl.GetComponent<MarbleVisual>()?.PlayCrash();
+            Log($"💥 {m.DisplayName} bateu forte ({reason})!");
+
+            // Chance de acionar Safety Marble.
+            if (!_safetyActive && _lastLeaderLap >= 1 && _lastLeaderLap < TotalLaps
+                && (_lastLeaderLap - _lastSafetyLap) >= 2 && UnityEngine.Random.value < 0.3f)
+            {
+                _lastSafetyLap = _lastLeaderLap;
+                StartSafetyMarble(UnityEngine.Random.Range(14f, 20f));
+            }
+        }
+
+        private void TriggerCoreFailure(MarbleController ctrl)
+        {
+            var m = ctrl.Runtime;
+            m.coreFailTimer = UnityEngine.Random.Range(6f, 10f);
+            ctrl.GetComponent<MarbleVisual>()?.PlayCoreFailure();
+            Log($"⚡ {m.DisplayName}: falha de nucleo! Precisa do pit.");
+        }
+
+        private static bool IsWetWeather(Weather w)
+            => w == Weather.Damp || w == Weather.LightRain || w == Weather.HeavyRain;
 
         private bool AllFinished()
         {

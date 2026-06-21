@@ -26,6 +26,9 @@ namespace MarbleGP.AI
         public float CurrentSpeed => new Vector3(_rb.velocity.x, 0f, _rb.velocity.z).magnitude;
         public float DistanceLastStep { get; private set; }
 
+        /// <summary>Disparado num contato relevante entre bolinhas (this, other, impacto).</summary>
+        public event System.Action<MarbleController, MarbleController, float> Contact;
+
         private Rigidbody _rb;
         private TrackManager _track;
         private GameBalance _bal;
@@ -137,6 +140,15 @@ namespace MarbleGP.AI
         {
             _rb.velocity = Vector3.zero;
             _rb.angularVelocity = Vector3.zero;
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            var other = collision.collider.GetComponentInParent<MarbleController>();
+            if (other == null || other == this) return;
+            float impact = collision.relativeVelocity.magnitude;
+            if (impact < 2.0f) return; // ignora toques irrelevantes
+            Contact?.Invoke(this, other, impact);
         }
     }
 }
