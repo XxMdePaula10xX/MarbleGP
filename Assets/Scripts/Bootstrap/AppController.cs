@@ -343,56 +343,107 @@ namespace MarbleGP.Bootstrap
         private void ShowResults(RaceResult result, bool returnToChampionship)
         {
             var canvas = NewCanvas("Results");
-            UIFactory.Label(canvas.transform, $"Resultado - {result.trackName}", 40, TextAnchor.MiddleCenter,
-                new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
 
-            // Faixa do vencedor.
+            // Titulo + subtitulo (PRD 4).
+            var title = UIFactory.Label(canvas.transform, "RESULTADO DA CORRIDA", 52, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.91f), new Vector2(0.95f, 0.99f), Color.white);
+            title.fontStyle = FontStyle.Bold;
+            UIFactory.Label(canvas.transform, $"{result.trackName}  ·  {result.laps} voltas", 24,
+                TextAnchor.MiddleCenter, new Vector2(0.05f, 0.865f), new Vector2(0.95f, 0.905f), UITheme.TextDim);
+
             var winner = result.entries.Count > 0 ? result.entries[0] : null;
-            if (winner != null)
-                UIFactory.Label(canvas.transform, $"🏆 Vencedor: {winner.marbleName} ({winner.teamName})", 26,
-                    TextAnchor.MiddleCenter, new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.9f),
-                    new Color(1f, 0.88f, 0.35f));
+            if (winner != null) BuildWinnerCard(canvas.transform, winner);
 
-            var panel = UIFactory.Panel(canvas.transform, new Vector2(0.08f, 0.22f), new Vector2(0.92f, 0.83f),
-                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
+            BuildResultTable(canvas.transform, result);
 
-            // Cabecalho.
-            UIFactory.Label(panel, $"{"Pos",-4}{"Bolinha",-13}{"Equipe",-17}{"Pneu",-5}{"Pit",-4}{"Comb",-6}{"Ener",-6}{"Status",-12}{"Pts",-4}",
-                17, TextAnchor.UpperLeft, new Vector2(0.02f, 0.9f), new Vector2(0.99f, 0.99f),
-                new Color(0.7f, 0.8f, 1f));
-
-            // Uma linha por bolinha (jogador destacado em amarelo).
-            int rows = result.entries.Count;
-            for (int i = 0; i < rows; i++)
-            {
-                var e = result.entries[i];
-                string player = e.isPlayer ? "►" : " ";
-                string line = $"{player}{e.position,-3}{Trim(e.marbleName, 12),-13}{Trim(e.teamName, 16),-17}" +
-                              $"{e.finalTyre,-5}{e.pitStops,-4}{e.finalFuel,4:0}  {e.finalEnergy,4:0}  " +
-                              $"{Trim(e.statusText, 11),-12}{e.points,-4}";
-                float yMax = 0.88f - i * (0.86f / Mathf.Max(1, rows));
-                float yMin = yMax - (0.86f / Mathf.Max(1, rows));
-                Color rowColor = e.position == 1 ? new Color(1f, 0.88f, 0.35f)
-                               : e.isPlayer ? new Color(1f, 0.95f, 0.6f) : Color.white;
-                UIFactory.Label(panel, line, 18, TextAnchor.MiddleLeft,
-                    new Vector2(0.02f, yMin), new Vector2(0.99f, yMax), rowColor);
-            }
-
-            var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", new Color(0.2f, 0.4f, 0.7f),
-                new Vector2(0.2f, 0.08f), new Vector2(0.45f, 0.16f), Vector2.zero, Vector2.zero);
+            // Rodape (PRD 4).
+            var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", UITheme.SecondaryButton,
+                new Vector2(0.18f, 0.035f), new Vector2(0.42f, 0.115f), Vector2.zero, Vector2.zero);
             menu.onClick.AddListener(() => { CleanupRace(); ShowMainMenu(); });
 
             if (returnToChampionship)
             {
-                var next = UIFactory.Button(canvas.transform, "Classificacao / Proxima", new Color(0.85f, 0.4f, 0.2f),
-                    new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
+                var next = UIFactory.Button(canvas.transform, "Classificacao / Proxima", UITheme.PrimaryButton,
+                    new Vector2(0.58f, 0.035f), new Vector2(0.82f, 0.115f), Vector2.zero, Vector2.zero);
                 next.onClick.AddListener(() => { CleanupRace(); ShowChampionshipHub(); });
             }
             else
             {
-                var again = UIFactory.Button(canvas.transform, "Correr de novo", new Color(0.85f, 0.4f, 0.2f),
-                    new Vector2(0.55f, 0.08f), new Vector2(0.8f, 0.16f), Vector2.zero, Vector2.zero);
+                var again = UIFactory.Button(canvas.transform, "Correr de Novo", UITheme.PrimaryButton,
+                    new Vector2(0.58f, 0.035f), new Vector2(0.82f, 0.115f), Vector2.zero, Vector2.zero);
                 again.onClick.AddListener(() => { CleanupRace(); ShowStrategy(); });
+            }
+        }
+
+        private Color TeamColorOf(RaceResultEntry e)
+        {
+            if (e.isPlayer && _gm.Profile != null) return _gm.Profile.PrimaryColor;
+            var t = _gm.Database.GetTeam(e.teamId);
+            return t != null ? t.primaryColor : Color.gray;
+        }
+
+        /// <summary>Card do vencedor em destaque dourado (PRD 4).</summary>
+        private void BuildWinnerCard(Transform canvas, RaceResultEntry w)
+        {
+            var card = UIFactory.Panel(canvas, new Vector2(0.24f, 0.69f), new Vector2(0.76f, 0.85f),
+                Vector2.zero, Vector2.zero, new Color(0.12f, 0.10f, 0.04f, 0.95f));
+            var glow = card.gameObject.AddComponent<Outline>();
+            glow.effectColor = UITheme.Gold; glow.effectDistance = new Vector2(3f, 3f);
+
+            // Barra lateral na cor da equipe.
+            var bar = UIFactory.Panel(card, new Vector2(0f, 0f), new Vector2(0.02f, 1f),
+                Vector2.zero, Vector2.zero, TeamColorOf(w));
+
+            UIFactory.Label(card, "★", 60, TextAnchor.MiddleCenter,
+                new Vector2(0.03f, 0.1f), new Vector2(0.16f, 0.9f), UITheme.Gold);
+
+            var name = UIFactory.Label(card, $"P1  {w.marbleName}", 30, TextAnchor.LowerLeft,
+                new Vector2(0.18f, 0.5f), new Vector2(0.98f, 0.95f), UITheme.Gold);
+            name.fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, w.teamName, 20, TextAnchor.UpperLeft,
+                new Vector2(0.18f, 0.32f), new Vector2(0.7f, 0.55f), UITheme.TextDim);
+
+            string stats = $"Pneu {w.finalTyre}   ·   Pits {w.pitStops}   ·   " +
+                           $"Comb {w.finalFuel:0}   ·   Energia {w.finalEnergy:0}   ·   {w.points} pts";
+            UIFactory.Label(card, stats, 18, TextAnchor.UpperLeft,
+                new Vector2(0.18f, 0.05f), new Vector2(0.98f, 0.32f), Color.white);
+        }
+
+        /// <summary>Tabela moderna de classificacao (PRD 4).</summary>
+        private void BuildResultTable(Transform canvas, RaceResult result)
+        {
+            var table = UIFactory.Panel(canvas, new Vector2(0.06f, 0.135f), new Vector2(0.94f, 0.66f),
+                Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
+
+            // Cabecalho fixo no topo.
+            UIFactory.Label(table, $" {"P",-3}{"Marble",-9}{"Equipe",-15}{"Tyre",-5}{"Pit",-4}{"Fuel",-6}{"Ener",-6}{"Status",-11}{"Pts",-4}",
+                17, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.92f), new Vector2(0.99f, 1f), UITheme.Neon);
+
+            int rows = result.entries.Count;
+            float area = 0.9f;                       // area abaixo do cabecalho (0..0.9)
+            float rowH = area / Mathf.Max(1, rows);
+            for (int i = 0; i < rows; i++)
+            {
+                var e = result.entries[i];
+                float yTop = 0.9f - i * rowH;
+                float yBot = yTop - rowH + 0.002f;
+
+                Color bg = e.position == 1 ? new Color(0.22f, 0.18f, 0.05f, 0.95f)
+                         : e.isPlayer ? new Color(0.06f, 0.12f, 0.22f, 0.95f)
+                         : (i % 2 == 0 ? new Color(0.10f, 0.11f, 0.15f, 0.6f) : new Color(0.07f, 0.08f, 0.12f, 0.6f));
+                var row = UIFactory.Panel(table, new Vector2(0.005f, yBot), new Vector2(0.995f, yTop),
+                    Vector2.zero, Vector2.zero, bg);
+
+                // Barra lateral cor da equipe.
+                UIFactory.Panel(row, new Vector2(0f, 0.1f), new Vector2(0.012f, 0.9f),
+                    Vector2.zero, Vector2.zero, TeamColorOf(e));
+
+                Color txt = e.position == 1 ? UITheme.Gold : (e.isPlayer ? UITheme.PlayerHighlight : Color.white);
+                string line = $" {e.position,-3}{Trim(e.marbleName, 8),-9}{Trim(e.teamName, 14),-15}" +
+                              $"{e.finalTyre,-5}{e.pitStops,-4}{e.finalFuel,4:0}  {e.finalEnergy,4:0}  " +
+                              $"{Trim(e.statusText, 10),-11}{e.points,-4}";
+                UIFactory.Label(row, line, 15, TextAnchor.MiddleLeft,
+                    new Vector2(0.02f, 0f), new Vector2(0.99f, 1f), txt);
             }
         }
 

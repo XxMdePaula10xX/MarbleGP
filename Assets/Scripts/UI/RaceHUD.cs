@@ -47,7 +47,10 @@ namespace MarbleGP.UI
             public RectTransform wearFill, energyFill, fuelFill;
             public Button pitBtn;
             public GameObject modeSelector, tyreSelector;
+            public readonly List<GameObject> detail = new(); // escondido quando recolhido
         }
+        private bool _rightCollapsed;
+        private Text _rightToggleLabel;
         private readonly List<PlayerCard> _cards = new();
 
         // ---- Log ----
@@ -247,8 +250,12 @@ namespace MarbleGP.UI
 
         private void BuildMinimap(Transform canvas)
         {
-            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.135f),
-                Vector2.zero, Vector2.zero, new Color(0.05f, 0.07f, 0.05f, 0.85f));
+            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.155f, 0.135f),
+                Vector2.zero, Vector2.zero, new Color(0.03f, 0.04f, 0.06f, 0.9f));
+            // Borda neon fina.
+            var border = _mapContainer.gameObject.AddComponent<Outline>();
+            border.effectColor = new Color(0.35f, 0.75f, 1f, 0.85f);
+            border.effectDistance = new Vector2(2f, 2f);
 
             var lane = _race.Track != null ? _race.Track.IdealLine : null;
             if (lane == null) return;
@@ -259,14 +266,23 @@ namespace MarbleGP.UI
             _mapMin = new Vector2(min.x - margin.x, min.z - margin.y);
             _mapMax = new Vector2(max.x + margin.x, max.z + margin.y);
 
-            // Tracado da pista (pontos cinza).
+            // Pit lane em ciano (PRD 11).
+            var pit = _race.Track.PitPath;
+            if (pit != null)
+                for (int i = 0; i < pit.Count; i += 2)
+                {
+                    var pd = Dot(_mapContainer, new Color(0.25f, 0.7f, 0.95f, 0.9f), 4f);
+                    PlaceNorm(pd, Norm(pit[i]));
+                }
+
+            // Tracado da pista (pontos cinza claro, menores).
             for (int i = 0; i < lane.Points.Length; i += 2)
             {
-                var d = Dot(_mapContainer, new Color(0.5f, 0.55f, 0.5f), 5f);
+                var d = Dot(_mapContainer, new Color(0.62f, 0.66f, 0.72f), 4f);
                 PlaceNorm(d, Norm(lane.Points[i]));
             }
             // Linha de chegada.
-            var sf = Dot(_mapContainer, Color.white, 8f);
+            var sf = Dot(_mapContainer, Color.white, 7f);
             PlaceNorm(sf, Norm(lane.Points[0]));
 
             // Pontos das bolinhas.
@@ -317,6 +333,12 @@ namespace MarbleGP.UI
                 float yMax = top - i * (h + gap);
                 BuildCard(canvas, players[i], yMax - h, yMax);
             }
+
+            // Botao de recolher o painel da direita (PRD 9).
+            var toggle = UIFactory.Button(canvas, "›", new Color(0.2f, 0.25f, 0.4f, 0.95f),
+                new Vector2(0.752f, 0.93f), new Vector2(0.783f, 0.99f), Vector2.zero, Vector2.zero);
+            _rightToggleLabel = toggle.GetComponentInChildren<Text>();
+            toggle.onClick.AddListener(ToggleRightPanel);
         }
 
         private void BuildCard(Transform canvas, MarbleController ctrl, float yMin, float yMax)
@@ -373,7 +395,29 @@ namespace MarbleGP.UI
             BuildModeSelector(panel, card);
             BuildTyreSelector(panel, card);
 
+            // Elementos escondidos no modo recolhido (mantem titulo + barras).
+            card.detail.Add(card.pitBtn.gameObject);
+            card.detail.Add(modeBtn.gameObject);
+            card.detail.Add(tyreBtn.gameObject);
+            card.detail.Add(card.status.gameObject);
+
             _cards.Add(card);
+        }
+
+        private void ToggleRightPanel()
+        {
+            _rightCollapsed = !_rightCollapsed;
+            _rightToggleLabel.text = _rightCollapsed ? "‹" : "›";
+            foreach (var card in _cards)
+            {
+                foreach (var go in card.detail) go.SetActive(!_rightCollapsed);
+                // selectores sempre escondidos ao recolher
+                if (_rightCollapsed)
+                {
+                    if (card.modeSelector != null) card.modeSelector.SetActive(false);
+                    if (card.tyreSelector != null) card.tyreSelector.SetActive(false);
+                }
+            }
         }
 
         private RectTransform BuildBar(Transform parent, float yMin, float yMax, Color fillColor)
@@ -582,8 +626,19 @@ namespace MarbleGP.UI
 
         private void UpdateMinimap()
         {
+            var leader = _race.Field.Count > 0 ? _race.Field[0] : null;
             foreach (var (rt, c) in _mapDots)
+            {
                 PlaceNorm(rt, Norm(c.transform.position));
+                var img = rt.GetComponent<Image>();
+                if (img == null) continue;
+                var m = c.Runtime;
+                bool inPit = m.state == MarbleRaceState.InPit || m.state == MarbleRaceState.EnteringPit
+                          || m.state == MarbleRaceState.ExitingPit;
+                if (c == leader) img.color = UITheme.Gold;
+                else if (inPit) img.color = new Color(0.25f, 0.7f, 0.95f);
+                else img.color = m.MarbleColor;
+            }
         }
 
         // ---- Log com cores + fade ----
