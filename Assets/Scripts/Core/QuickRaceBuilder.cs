@@ -15,7 +15,7 @@ namespace MarbleGP.Core
         /// usando a estrategia padrao recebida para todas (jogador customiza depois).
         /// </summary>
         public static RaceConfig Build(GameDatabase db, TrackDataSO track, string playerTeamId,
-            int maxMarbles = 8, GripType defaultGrip = GripType.Medium,
+            int maxMarbles = 20, GripType defaultGrip = GripType.Medium,
             SurfaceType defaultSurface = SurfaceType.MicroGrooved,
             float startEnergy = 70f, RaceMode startMode = RaceMode.Normal)
         {

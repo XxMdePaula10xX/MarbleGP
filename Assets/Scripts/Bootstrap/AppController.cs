@@ -27,6 +27,12 @@ namespace MarbleGP.Bootstrap
         private GameObject _uiRoot;       // canvas atual de menu
         private GameObject _raceRoot;     // objetos da corrida (destruidos ao sair)
 
+        // Pausa / reinicio (PRD 8).
+        private MarbleGP.Race.RaceManager _currentRace;
+        private RaceConfig _lastConfig;
+        private bool _lastWasChampionship;
+        private GameObject _pausePanel;
+
         // Selecoes correntes do fluxo.
         private TrackDataSO _selectedTrack;
         private GripType _grip = GripType.Medium;
@@ -207,10 +213,13 @@ namespace MarbleGP.Bootstrap
             UIFactory.Label(canvas.transform, $"Estrategia - {_selectedTrack.trackName}", 36, TextAnchor.MiddleCenter,
                 new Vector2(0.1f, 0.86f), new Vector2(0.9f, 0.95f), Color.white);
 
-            // Previsao do tempo (PRD 19): chance de chuva da pista.
+            // Previsao do tempo (PRD 10/19): chance de chuva + mudancas previstas.
             int rainPct = Mathf.RoundToInt(_selectedTrack.rainChance * 100f);
-            UIFactory.Label(canvas.transform, $"Previsao: chance de chuva {rainPct}%", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.8f), new Vector2(0.9f, 0.85f),
+            int maxChanges = _selectedLaps <= 6 ? 1 : (_selectedLaps <= 15 ? 2 : 3);
+            string confianca = rainPct >= 40 ? "instavel" : rainPct >= 15 ? "moderada" : "estavel";
+            UIFactory.Label(canvas.transform,
+                $"Previsao: chuva {rainPct}%  ·  ate {maxChanges} mudanca(s) de clima  ·  {confianca}",
+                22, TextAnchor.MiddleCenter, new Vector2(0.08f, 0.8f), new Vector2(0.92f, 0.85f),
                 rainPct >= 30 ? new Color(0.5f, 0.7f, 1f) : new Color(0.8f, 0.85f, 0.9f));
 
             UIFactory.Label(canvas.transform, "Anel de aderencia:", 24, TextAnchor.MiddleLeft,
@@ -285,7 +294,7 @@ namespace MarbleGP.Bootstrap
         {
             string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
             var config = QuickRaceBuilder.Build(_gm.Database, _selectedTrack, playerTeamId,
-                maxMarbles: 8, defaultGrip: _grip, startEnergy: _startEnergy, startMode: _mode);
+                maxMarbles: 20, defaultGrip: _grip, startEnergy: _startEnergy, startMode: _mode);
             config.laps = _selectedLaps; // duracao escolhida (PRD 3)
             RunRace(config, isChampionship: false);
         }
@@ -294,13 +303,17 @@ namespace MarbleGP.Bootstrap
         private void RunRace(RaceConfig config, bool isChampionship)
         {
             ClearMenuUI();
+            ClosePause();
             _gm.CurrentRace = config;
             _gm.RaceIsChampionship = isChampionship;
+            _lastConfig = config;
+            _lastWasChampionship = isChampionship;
 
             _raceRoot = new GameObject("RaceRoot");
             var raceGo = new GameObject("RaceManager");
             raceGo.transform.SetParent(_raceRoot.transform, false);
             var race = raceGo.AddComponent<RaceManager>();
+            _currentRace = race;
             race.StartRace(config);
 
             _camera.FrameTrack(race.Track);
@@ -385,8 +398,65 @@ namespace MarbleGP.Bootstrap
 
         private void CleanupRace()
         {
+            ClosePause();
+            Time.timeScale = 1f;
+            _currentRace = null;
             if (_raceRoot != null) Destroy(_raceRoot);
             _camera.SetOverview();
+        }
+
+        // ---- Menu de pausa (PRD 8) --------------------------------------
+
+        private void Update()
+        {
+            // ESC pausa/despausa durante a corrida (nao na tela de resultado).
+            if (_raceRoot != null && _currentRace != null &&
+                (_currentRace.State == RaceState.Racing || _currentRace.State == RaceState.Countdown) &&
+                Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (_pausePanel == null) OpenPause(); else ClosePause();
+            }
+        }
+
+        private void OpenPause()
+        {
+            Time.timeScale = 0f;
+            var canvas = UIFactory.CreateCanvas("PauseMenu");
+            _pausePanel = canvas.gameObject;
+            UIFactory.Panel(canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0f, 0f, 0f, 0.7f));
+
+            UIFactory.Label(canvas.transform, "PAUSA", 56, TextAnchor.MiddleCenter,
+                new Vector2(0.3f, 0.74f), new Vector2(0.7f, 0.86f), Color.white).fontStyle = FontStyle.Bold;
+
+            PauseButton(canvas.transform, "Continuar", 0, new Color(0.2f, 0.6f, 0.3f), ClosePause);
+            PauseButton(canvas.transform, "Reiniciar Corrida", 1, new Color(0.2f, 0.45f, 0.8f),
+                () => { var c = _lastConfig; bool ch = _lastWasChampionship; CleanupRace(); if (c != null) RunRace(c, ch); });
+            PauseButton(canvas.transform, "Voltar ao Menu", 2, new Color(0.5f, 0.4f, 0.7f),
+                () => { CleanupRace(); ShowMainMenu(); });
+            PauseButton(canvas.transform, "Sair", 3, new Color(0.7f, 0.25f, 0.2f), () =>
+            {
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
+            });
+        }
+
+        private void PauseButton(Transform parent, string label, int index, Color color,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            float yMax = 0.62f - index * 0.11f;
+            var btn = UIFactory.Button(parent, label, color,
+                new Vector2(0.36f, yMax - 0.09f), new Vector2(0.64f, yMax), Vector2.zero, Vector2.zero);
+            btn.onClick.AddListener(onClick);
+        }
+
+        private void ClosePause()
+        {
+            if (_pausePanel != null) { Destroy(_pausePanel); _pausePanel = null; }
+            if (_raceRoot != null) Time.timeScale = 1f; // so retoma se ainda em corrida
         }
 
         // ---- Campeonato (PRD 29) ----------------------------------------

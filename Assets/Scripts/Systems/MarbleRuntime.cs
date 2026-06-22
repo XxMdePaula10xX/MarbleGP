@@ -32,6 +32,11 @@ namespace MarbleGP.Systems
         public float recoverTimer = 0f;   // tempo de recuperacao apos batida forte
         public float coreFailTimer = 0f;  // falha de nucleo (dreno extra de energia)
 
+        // Dificuldade da IA (PRD 12). 1 = neutro (jogador).
+        public float aiSpeedMult = 1f;
+        public float aiErrorMult = 1f;
+        public float aiPitQuality = 1f;
+
         // Progresso de corrida (PRD 26)
         public int completedLaps = 0;
         public int currentCheckpoint = 0;

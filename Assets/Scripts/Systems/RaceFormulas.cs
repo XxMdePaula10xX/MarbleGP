@@ -25,7 +25,8 @@ namespace MarbleGP.Systems
             float energy = EnergySpeedPenalty(m.energy);
             float fuel = FuelSpeedPenalty(m.fuel);
 
-            return baseSpeed * driver * grip * surface * mode * wear * energy * fuel * trackCond * m.upgSpeedFactor;
+            return baseSpeed * driver * grip * surface * mode * wear * energy * fuel * trackCond
+                 * m.upgSpeedFactor * m.aiSpeedMult;
         }
 
         /// <summary>Penalidade multiplicativa de velocidade por desgaste (PRD 14 / 28).</summary>
@@ -70,15 +71,29 @@ namespace MarbleGP.Systems
             return delta;
         }
 
-        /// <summary>Ganho de desgaste por volta (PRD 41 - WearGain).</summary>
-        public static float WearGainPerLap(MarbleRuntime m, GameBalance bal, float trackAbrasion, Weather weather)
+        /// <summary>Desgaste base (%/volta) escalado pela duracao da corrida (PRD 13).</summary>
+        public static float BaseWearPerLap(int totalLaps)
+            => totalLaps <= 6 ? 18f : (totalLaps <= 15 ? 8f : 5f);
+
+        /// <summary>
+        /// Ganho de desgaste por volta (PRD 13/14). Forte e diferenciado por pneu:
+        /// baseWear(duracao) * pneu.WearMult * modo * superficie * abrasao * clima * piloto.
+        /// </summary>
+        public static float WearGainPerLap(MarbleRuntime m, GameBalance bal, float trackAbrasion,
+            Weather weather, int totalLaps)
         {
-            float baseWear = m.grip.WearForWeather(weather);
+            float baseWear = BaseWearPerLap(totalLaps);
+            float tyre = m.grip.WearMult;
             float mode = ModeTuning.Get(m.mode).wear;
             float surface = m.surface.wearModifier;
+
+            bool wet = weather == Weather.Damp || weather == Weather.LightRain || weather == Weather.HeavyRain;
+            float weatherWear = (wet && m.grip.IsDryTyre) ? 1.2f
+                              : (!wet && m.grip.gripId == GripType.Rain) ? 1.5f : 1f;
+
             // Bom tireManagement REDUZ desgaste => dividimos pelo multiplicador.
             float driverMgmt = 1f / Mathf.Max(0.01f, m.driver.TireMgmtMultiplier);
-            return baseWear * mode * surface * trackAbrasion * driverMgmt * m.upgWearFactor;
+            return baseWear * tyre * mode * surface * trackAbrasion * weatherWear * driverMgmt * m.upgWearFactor;
         }
 
         /// <summary>Chance de erro por avaliacao (PRD 41 - ErrorChance), em 0..1.</summary>
@@ -118,6 +133,7 @@ namespace MarbleGP.Systems
             if (m.driver.personality == Personality.Smooth) chance *= 0.85f;
 
             chance *= m.upgErrorFactor; // upgrades StrategyCenter / AICoaching (PRD 30)
+            chance *= m.aiErrorMult;    // dificuldade da IA (PRD 12)
             return Mathf.Clamp01(chance);
         }
 

@@ -1,3 +1,4 @@
+using UnityEngine;
 using MarbleGP.AI;
 using MarbleGP.Core;
 using MarbleGP.Data;
@@ -32,42 +33,51 @@ namespace MarbleGP.Race
             if (m.state != MarbleRaceState.Racing) return;
 
             int lapsRemaining = _totalLaps - m.completedLaps;
-            if (lapsRemaining <= 1) return; // sem sentido parar na ultima volta
+            if (lapsRemaining <= 1) return; // nunca parar na ultima volta
+            int lap = m.completedLaps + 1;
 
-            bool wet = IsWet(_cond.CurrentWeather);
+            Weather w = _cond.CurrentWeather;
+            bool wet = IsWet(w);
             bool slick = m.grip.gripId == GripType.Soft || m.grip.gripId == GripType.Medium || m.grip.gripId == GripType.Hard;
             bool wetTyre = m.grip.gripId == GripType.Rain || m.grip.gripId == GripType.Intermediate;
 
-            bool needPit = false;
+            // --- 1) CRITICO: pit imediato, ignora janela/bloqueios (PRD 6) ---
+            bool fuelCritical = m.fuel < Mathf.Max(18f, _fuel.FuelForLaps(m, 1.5f)) || m.fuel < 20f;
+            bool heavyWrong = w == Weather.HeavyRain && slick;   // muito lento na chuva forte
+            bool damage = m.coreFailTimer > 0f;
+            if (fuelCritical || damage || heavyWrong) { RequestPit(m, w, lapsRemaining); return; }
 
-            // 1) Combustivel insuficiente para terminar (margem) ou < 1.5 volta.
-            if (m.fuel < _fuel.FuelForLaps(m, lapsRemaining) * 1.05f) needPit = true;
-            if (m.fuel < _fuel.FuelForLaps(m, 1.5f)) needPit = true;
+            // --- 2) BLOQUEIO: nao para cedo demais (PRD 6) ---
+            if (m.completedLaps < 1) return;          // nunca na volta 1 (exceto critico)
 
-            // 2) Desgaste alto (limiar por personalidade).
-            float wearThresh = WearThreshold(m.driver.personality);
-            if (m.wear > wearThresh) needPit = true;
+            // --- 3) MOTIVO real para parar ---
+            // Hard (aiPitQuality alto) reage um pouco antes ao desgaste/clima.
+            float wearThresh = m.aiPitQuality >= 1.2f ? 72f : (m.aiPitQuality <= 0.8f ? 82f : 75f);
+            bool wrongTyre = (wet && slick) || (!wet && wetTyre);
+            bool reason = m.fuel < 40f || m.wear > wearThresh || wrongTyre || (m.energy < 12f);
+            if (!reason) return;
 
-            // 3) Pneu errado para o clima (PRD 11).
-            if (wet && slick && lapsRemaining > 2) needPit = true;
-            if (!wet && wetTyre && lapsRemaining > 2) needPit = true;
+            // --- 4) Apenas dentro da janela estrategica ---
+            if (!InPitWindow(lap)) return;
 
-            // 4) Energia muito baixa e ainda longe do fim.
-            if (m.energy < 12f && lapsRemaining > 3) needPit = true;
+            RequestPit(m, w, lapsRemaining);
+        }
 
-            // 5) Falha de nucleo: precisa do pit (PRD 10/11).
-            if (m.coreFailTimer > 0f && lapsRemaining > 1) needPit = true;
-
-            if (!needPit) return;
-
-            // Escolhe pneu alvo conforme clima e voltas restantes.
-            GripType target = ChooseTyre(m, lapsRemaining, wet);
+        private void RequestPit(MarbleRuntime m, Weather w, int lapsRemaining)
+        {
+            GripType target = ChooseTyre(m, lapsRemaining, IsWet(w));
             if (_db.GetGrip(target) == null) target = m.grip.gripId;
-
             m.pitTargetGrip = target;
             m.pitChangeTires = true;
             m.pitRefillAmount = 100f;
             m.pitRequested = true;
+        }
+
+        /// <summary>Janela estrategica de pit por duracao (PRD 6).</summary>
+        private bool InPitWindow(int lap)
+        {
+            int start = _totalLaps <= 6 ? 2 : (_totalLaps <= 15 ? 4 : 6);
+            return lap >= start && lap <= _totalLaps - 1;
         }
 
         private GripType ChooseTyre(MarbleRuntime m, int lapsRemaining, bool wet)

@@ -97,12 +97,12 @@ namespace MarbleGP.Race
             Weather start = config.weather != Weather.Dry
                 ? config.weather
                 : WeatherSystem.InitialFor(config.track.rainChance);
-            _weatherSystem = new WeatherSystem(start, config.track.rainChance);
+            _weatherSystem = new WeatherSystem(start, config.track.rainChance, TotalLaps);
             _weatherSystem.OnChanged += w => Log($"🌦 Clima mudou: {WeatherLabel(w)}");
             _eventSystem = new RaceEventSystem();
 
             // Sistemas (PRD 24.2).
-            _tireSystem = new TireWearSystem(_bal, config.track);
+            _tireSystem = new TireWearSystem(_bal, config.track, TotalLaps);
             _energySystem = new EnergySystem(_bal, config.track);
             _fuelSystem = new FuelSystem(config.track, TotalLaps);
             _positionSystem = new RacePositionSystem(Track, _bal.baseSpeed);
@@ -190,6 +190,17 @@ namespace MarbleGP.Race
                     runtime.upgSpeedFactor = upgrades.speedFactor;
                     runtime.upgControlFactor = upgrades.controlFactor;
                     runtime.upgErrorFactor = upgrades.errorFactor;
+                }
+                else
+                {
+                    // Dificuldade da IA (PRD 12): velocidade, erro e qualidade de pit.
+                    int diff = profile != null ? profile.difficulty : 1;
+                    switch (diff)
+                    {
+                        case 0: runtime.aiSpeedMult = 0.96f; runtime.aiErrorMult = 1.25f; runtime.aiPitQuality = 0.70f; break;
+                        case 2: runtime.aiSpeedMult = 1.04f; runtime.aiErrorMult = 0.75f; runtime.aiPitQuality = 1.30f; break;
+                        default: runtime.aiSpeedMult = 1.00f; runtime.aiErrorMult = 1.00f; runtime.aiPitQuality = 1.00f; break;
+                    }
                 }
 
                 Vector3 grid = i < Track.GridPositions.Count
@@ -350,7 +361,8 @@ namespace MarbleGP.Race
             if (_otSnapTimer > 0f) return;
             _otSnapTimer = 0.5f;
 
-            if (_raceClock < 3f) { SnapshotPositions(); return; }
+            // Sem ultrapassagens durante Safety Marble ou nos 3s iniciais (PRD 1).
+            if (_raceClock < 3f || _safetyActive) { SnapshotPositions(); return; }
 
             for (int i = 0; i + 1 < _field.Count; i++)
             {
@@ -436,6 +448,9 @@ namespace MarbleGP.Race
             int leaderLap = _field[0].Runtime.completedLaps;
             if (leaderLap <= _lastLeaderLap) return;
             _lastLeaderLap = leaderLap;
+
+            // Clima e avaliado uma vez por volta do lider (PRD 10).
+            _weatherSystem.EvaluateLap(leaderLap);
 
             if (_safetyActive) return;
             if (leaderLap < 1 || leaderLap >= TotalLaps) return;     // nem 1a nem ultima
@@ -636,7 +651,7 @@ namespace MarbleGP.Race
 
         private void UpdateConditions(float dt)
         {
-            _weatherSystem.Tick(dt);
+            // Clima agora e avaliado por volta (HandleSafetyMarbleRoll), nao por tempo.
 
             // Contagem de eventos ativos.
             if (_safetyTimer > 0f)

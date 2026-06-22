@@ -84,7 +84,7 @@ namespace MarbleGP.Core
 
             // MVP: usa todas as bolinhas disponiveis (8). Arquitetura suporta 24.
             return QuickRaceBuilder.Build(_db, track, Data.playerTeamId,
-                maxMarbles: _db.drivers.Count);
+                maxMarbles: Mathf.Min(20, _db.drivers.Count));
         }
 
         // ---- Aplicacao de resultado (PRD 10 / 29.2) ---------------------

@@ -56,28 +56,28 @@ namespace MarbleGP.EditorTools
         private static List<GripRingSO> CreateGrips()
         {
             var list = new List<GripRingSO>();
-            // id, nome, speed, grip, wear, wet, dry, energyMult, fuelMult, desc (PRD 5.2)
-            list.Add(MakeGrip(GripType.Soft, "Soft Grip", 1.08f, 1.06f, 18f, 0.6f, 1.0f, 1.15f, 1.10f,
+            // id, nome, speed, grip, wear, wet, dry, energyMult, fuelMult, wearMult, desc (PRD 5.2/13)
+            list.Add(MakeGrip(GripType.Soft, "Soft Grip", 1.08f, 1.06f, 18f, 0.6f, 1.0f, 1.15f, 1.10f, 1.50f,
                 "Rapido e aderente, mas gasta mais energia/combustivel e desgasta rapido."));
-            list.Add(MakeGrip(GripType.Medium, "Medium Grip", 1.00f, 1.00f, 11f, 0.7f, 1.0f, 1.00f, 1.00f,
+            list.Add(MakeGrip(GripType.Medium, "Medium Grip", 1.00f, 1.00f, 11f, 0.7f, 1.0f, 1.00f, 1.00f, 1.00f,
                 "Equilibrado em tudo."));
-            list.Add(MakeGrip(GripType.Hard, "Hard Grip", 0.96f, 0.97f, 7f, 0.7f, 1.0f, 0.90f, 0.92f,
+            list.Add(MakeGrip(GripType.Hard, "Hard Grip", 0.96f, 0.97f, 7f, 0.7f, 1.0f, 0.90f, 0.92f, 0.65f,
                 "Mais lento, porem economico (energia/combustivel) e duravel."));
-            list.Add(MakeGrip(GripType.Intermediate, "Intermediate Grip", 0.98f, 1.00f, 12f, 1.0f, 0.92f, 1.00f, 1.05f,
+            list.Add(MakeGrip(GripType.Intermediate, "Intermediate Grip", 0.98f, 1.00f, 12f, 1.0f, 0.92f, 1.00f, 1.05f, 1.20f,
                 "Para pista umida. Ruim no seco e na chuva muito forte."));
-            list.Add(MakeGrip(GripType.Rain, "Rain Grip", 0.95f, 1.05f, 10f, 1.08f, 0.85f, 1.00f, 1.15f,
+            list.Add(MakeGrip(GripType.Rain, "Rain Grip", 0.95f, 1.05f, 10f, 1.08f, 0.85f, 1.00f, 1.15f, 1.10f,
                 "Para chuva forte. Lento e gasta muito no seco."));
             return list;
         }
 
         private static GripRingSO MakeGrip(GripType id, string name, float spd, float grip,
-            float wear, float wet, float dry, float energyMult, float fuelMult, string desc)
+            float wear, float wet, float dry, float energyMult, float fuelMult, float wearMult, string desc)
         {
             var so = CreateOrLoad<GripRingSO>($"{Root}/GripRings/Grip_{id}.asset");
             so.gripId = id; so.compoundName = name;
             so.speedMultiplier = spd; so.gripMultiplier = grip; so.wearRate = wear;
             so.wetPerformance = wet; so.dryPerformance = dry;
-            so.energyMultiplier = energyMult; so.fuelMultiplier = fuelMult;
+            so.energyMultiplier = energyMult; so.fuelMultiplier = fuelMult; so.wearMultiplier = wearMult;
             so.description = desc;
             EditorUtility.SetDirty(so);
             return so;
@@ -125,6 +125,23 @@ namespace MarbleGP.EditorTools
             list.Add(MakeTeam("shadow_marble", "Shadow Marble Team", "#202020", "#7A3FB0",
                 TeamStyle.Strategic, TeamBonusType.PitStops, 70, 52,
                 "Estrategica, excelente nos pit stops."));
+            // Equipes restantes (PRD 11) para grid de 20.
+            list.Add(MakeTeam("solar_spin", "Solar Spin", "#F2C200", "#F07000",
+                TeamStyle.Fast, TeamBonusType.Acceleration, 55, 52, "Veloz, forte aceleracao."));
+            list.Add(MakeTeam("frostline", "Frostline Racing", "#7FD0F0", "#C0C8D0",
+                TeamStyle.Precise, TeamBonusType.WetWeather, 58, 55, "Precisa, otima na chuva."));
+            list.Add(MakeTeam("iron_sphere", "Iron Sphere", "#8A8A8A", "#C0241F",
+                TeamStyle.Resistant, TeamBonusType.LowDamage, 60, 50, "Resistente, baixo dano."));
+            list.Add(MakeTeam("neon_pulse", "Neon Pulse", "#FF4FA3", "#20E0E0",
+                TeamStyle.Unpredictable, TeamBonusType.Overtaking, 54, 53, "Imprevisivel, boa em ultrapassagem."));
+            list.Add(MakeTeam("jungle_curve", "Jungle Curve", "#2E6B2E", "#6B4A2A",
+                TeamStyle.Technical, TeamBonusType.Cornering, 53, 56, "Tecnica em curvas lentas."));
+            list.Add(MakeTeam("royal_club", "Royal Marble Club", "#6A2FB0", "#D4AF37",
+                TeamStyle.Premium, TeamBonusType.Development, 64, 66, "Premium, forte desenvolvimento."));
+            list.Add(MakeTeam("volcano_gp", "Volcano GP", "#F0560F", "#1A1A1A",
+                TeamStyle.AllOut, TeamBonusType.EarlyPace, 56, 50, "Ataque total, ritmo inicial."));
+            list.Add(MakeTeam("aqua_drift", "Aqua Drift", "#16407A", "#1FD0C0",
+                TeamStyle.Fluid, TeamBonusType.WetWeather, 57, 54, "Fluida, boa em pista molhada."));
             return list;
         }
 
@@ -166,6 +183,40 @@ namespace MarbleGP.EditorTools
                 74, 66, 72, 60, 74, 75, 72, 70, 90, 65, Personality.Defensive));
             list.Add(MakeDriver("shadow_two", "Shadow Two", "SH2", 8, "shadow_marble",
                 72, 64, 70, 58, 72, 76, 74, 72, 88, 64, Personality.Balanced));
+
+            // ---- Equipes restantes (16 bolinhas) para grid de 20 ----
+            list.Add(MakeDriver("solar_one", "Solar One", "SL1", 9, "solar_spin",
+                78, 86, 64, 66, 60, 64, 55, 58, 58, 55, Personality.Aggressive));
+            list.Add(MakeDriver("solar_two", "Solar Two", "SL2", 10, "solar_spin",
+                76, 84, 62, 64, 60, 66, 56, 60, 58, 55, Personality.RiskTaker));
+            list.Add(MakeDriver("frost_one", "Frost One", "FR1", 11, "frostline",
+                70, 68, 78, 54, 70, 78, 70, 70, 64, 88, Personality.Smooth));
+            list.Add(MakeDriver("frost_two", "Frost Two", "FR2", 12, "frostline",
+                68, 66, 76, 52, 72, 80, 72, 70, 64, 85, Personality.Conservative));
+            list.Add(MakeDriver("iron_one", "Iron One", "IR1", 13, "iron_sphere",
+                66, 64, 72, 56, 82, 78, 80, 74, 62, 60, Personality.Defensive));
+            list.Add(MakeDriver("iron_two", "Iron Two", "IR2", 14, "iron_sphere",
+                64, 62, 70, 54, 84, 80, 82, 76, 62, 60, Personality.Veteran));
+            list.Add(MakeDriver("neon_one", "Neon One", "NP1", 15, "neon_pulse",
+                80, 78, 66, 84, 58, 56, 52, 56, 58, 58, Personality.RiskTaker));
+            list.Add(MakeDriver("neon_two", "Neon Two", "NP2", 16, "neon_pulse",
+                78, 76, 64, 86, 56, 54, 50, 56, 58, 58, Personality.Aggressive));
+            list.Add(MakeDriver("jungle_one", "Jungle One", "JG1", 17, "jungle_curve",
+                68, 66, 86, 56, 66, 72, 70, 64, 60, 70, Personality.Smooth));
+            list.Add(MakeDriver("jungle_two", "Jungle Two", "JG2", 18, "jungle_curve",
+                66, 64, 84, 54, 66, 74, 72, 64, 60, 70, Personality.Conservative));
+            list.Add(MakeDriver("royal_one", "Royal One", "RY1", 19, "royal_club",
+                80, 76, 78, 64, 70, 80, 70, 72, 70, 68, Personality.Veteran));
+            list.Add(MakeDriver("royal_two", "Royal Two", "RY2", 20, "royal_club",
+                78, 74, 76, 70, 66, 72, 66, 70, 70, 66, Personality.Balanced));
+            list.Add(MakeDriver("volcano_one", "Volcano One", "VL1", 21, "volcano_gp",
+                84, 82, 60, 80, 58, 58, 46, 54, 56, 52, Personality.Aggressive));
+            list.Add(MakeDriver("volcano_two", "Volcano Two", "VL2", 22, "volcano_gp",
+                82, 82, 58, 82, 56, 56, 46, 54, 56, 52, Personality.RiskTaker));
+            list.Add(MakeDriver("aqua_one", "Aqua One", "AQ1", 23, "aqua_drift",
+                72, 70, 74, 58, 68, 76, 70, 68, 64, 84, Personality.Balanced));
+            list.Add(MakeDriver("aqua_two", "Aqua Two", "AQ2", 24, "aqua_drift",
+                70, 68, 72, 56, 70, 78, 72, 68, 64, 82, Personality.Smooth));
             return list;
         }
 
