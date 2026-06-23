@@ -20,9 +20,6 @@ namespace MarbleGP.Race
 
         // Estado de validacao por bolinha (PRD 9.3: ordem correta de checkpoints).
         private readonly Dictionary<MarbleRuntime, int> _nextCheckpoint = new();
-        // Ultimo arco "limpo" por bolinha (continuidade contra saltos de projecao).
-        private readonly Dictionary<MarbleRuntime, float> _lastArc = new();
-        private const float MaxArcStep = 0.08f; // maximo avanco de arco por frame
 
         public RacePositionSystem(TrackManager track, float baseSpeed)
         {
@@ -42,9 +39,13 @@ namespace MarbleGP.Race
         public void ResyncCheckpoint(MarbleController ctrl)
         {
             if (_track.CheckpointCount == 0) return;
+            int n = _track.CheckpointCount;
             float arc = _track.ArcFraction(ctrl.transform.position);
-            int idx = Mathf.RoundToInt(arc * _track.CheckpointCount) % _track.CheckpointCount;
+            int idx = Mathf.RoundToInt(arc * n) % n;       // checkpoint logo a frente
             _nextCheckpoint[ctrl.Runtime] = idx;
+            // Mantem currentCheckpoint adjacente ao proximo (progresso coerente
+            // apos o pit, que usa cp + fracao ate o proximo).
+            ctrl.Runtime.currentCheckpoint = (idx - 1 + n) % n;
         }
 
         /// <summary>
@@ -92,38 +93,30 @@ namespace MarbleGP.Race
         /// <summary>Recalcula raceProgress e ordena o campo, setando position (1-based).</summary>
         public void UpdatePositions(List<MarbleController> field)
         {
+            int n = Mathf.Max(1, _track.CheckpointCount);
             foreach (var c in field)
             {
                 var m = c.Runtime;
 
-                // Continuidade: em pistas que passam perto de si mesmas (curvas em
-                // S/figura), a projecao "mais proxima" pode saltar para um trecho
-                // PARALELO da pista, teleportando o progresso (lider falso, gaps
-                // absurdos, ultrapassagens falsas). Restringimos a busca a uma
-                // janela de arco em torno da posicao anterior; e ainda limitamos o
-                // passo por frame ao maximo fisicamente possivel.
-                float arc;
-                if (_lastArc.TryGetValue(m, out float prevArc))
-                {
-                    arc = _track.ArcFraction(c.transform.position, prevArc, 0.12f);
-                    float d = Mathf.Repeat(arc - prevArc + 0.5f, 1f) - 0.5f; // [-0.5,0.5]
-                    if (Mathf.Abs(d) > MaxArcStep) d = Mathf.Sign(d) * MaxArcStep;
-                    arc = Mathf.Repeat(prevArc + d, 1f);
-                }
-                else
-                {
-                    arc = _track.ArcFraction(c.transform.position); // 0..1 ao longo da pista
-                }
-                _lastArc[m] = arc;
+                // Progresso baseado em CHECKPOINTS (robusto). Os checkpoints sao
+                // validados em ordem estrita por proximidade, entao isto e imune
+                // ao salto de projecao em pistas que passam perto de si mesmas e
+                // ao wrap da linha de largada. Ordem grosseira = nº de checkpoints
+                // ja passados; ordem fina = quao perto esta do proximo checkpoint.
+                int cp = Mathf.Clamp(m.currentCheckpoint, 0, n - 1);
+                int next = _nextCheckpoint.TryGetValue(m, out var nx) ? Mathf.Clamp(nx, 0, n - 1) : (cp + 1) % n;
 
-                // Correcao do grid de largada: as bolinhas comecam LOGO ATRAS da
-                // linha (arc ~0.97). Enquanto nao cruzam a linha pela 1a vez, o
-                // arco alto conta como progresso negativo.
-                if (!m.startLineCrossed && arc < 0.5f) m.startLineCrossed = true;
-                float effArc = m.startLineCrossed ? arc : arc - 1f;
+                Vector3 nextPos = _track.Checkpoints[next];
+                Vector3 cpPos = _track.Checkpoints[cp];
+                Vector3 pos = c.transform.position; pos.y = nextPos.y; cpPos.y = nextPos.y;
 
-                // Progresso monotonico: voltas + fracao do arco (PRD 26).
-                m.raceProgress = m.completedLaps + effArc;
+                float segLen = Vector3.Distance(cpPos, nextPos);
+                float distToNext = Vector3.Distance(pos, nextPos);
+                // Pode ser <0 (atras do checkpoint atual, ex.: grid) — mantem a
+                // ordem do grid; e continuo ao cruzar a linha (sem hack).
+                float frac = segLen > 0.01f ? 1f - distToNext / segLen : 0f;
+
+                m.raceProgress = m.completedLaps + (cp + frac) / n;
             }
 
             field.Sort((a, b) =>

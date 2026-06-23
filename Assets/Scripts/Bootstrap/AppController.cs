@@ -243,9 +243,9 @@ namespace MarbleGP.Bootstrap
                 22, TextAnchor.MiddleCenter, new Vector2(0.08f, 0.8f), new Vector2(0.92f, 0.85f),
                 rainPct >= 30 ? new Color(0.5f, 0.7f, 1f) : new Color(0.8f, 0.85f, 0.9f));
 
-            UIFactory.Icon(canvas.transform, "tyre", new Vector2(0.055f, 0.715f), new Vector2(0.092f, 0.785f), Color.white);
-            var lblGrip = UIFactory.Label(canvas.transform, "Anel de aderência:", 24, TextAnchor.MiddleRight,
-                new Vector2(0.10f, 0.71f), new Vector2(0.30f, 0.79f), Color.white);
+            UIFactory.Icon(canvas.transform, "tyre", new Vector2(0.075f, 0.715f), new Vector2(0.115f, 0.785f), Color.white);
+            var lblGrip = UIFactory.Label(canvas.transform, "Anel de aderência:", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.125f, 0.71f), new Vector2(0.255f, 0.79f), Color.white);
             lblGrip.fontStyle = FontStyle.Bold;
             GripButton(canvas.transform, GripType.Soft, "Soft", 0);
             GripButton(canvas.transform, GripType.Medium, "Medium", 1);
@@ -253,18 +253,18 @@ namespace MarbleGP.Bootstrap
             GripButton(canvas.transform, GripType.Intermediate, "Inter", 3);
             GripButton(canvas.transform, GripType.Rain, "Rain", 4);
 
-            UIFactory.Icon(canvas.transform, "mode", new Vector2(0.055f, 0.555f), new Vector2(0.092f, 0.625f), Color.white);
-            var lblMode = UIFactory.Label(canvas.transform, "Modo inicial:", 24, TextAnchor.MiddleRight,
-                new Vector2(0.10f, 0.55f), new Vector2(0.30f, 0.63f), Color.white);
+            UIFactory.Icon(canvas.transform, "mode", new Vector2(0.075f, 0.555f), new Vector2(0.115f, 0.625f), Color.white);
+            var lblMode = UIFactory.Label(canvas.transform, "Modo inicial:", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.125f, 0.55f), new Vector2(0.255f, 0.63f), Color.white);
             lblMode.fontStyle = FontStyle.Bold;
             ModeButton(canvas.transform, RaceMode.Save, "Save", 0);
             ModeButton(canvas.transform, RaceMode.Normal, "Normal", 1);
             ModeButton(canvas.transform, RaceMode.Push, "Push", 2);
 
             // Duracao da corrida (PRD 3 / 13).
-            UIFactory.Icon(canvas.transform, "laps", new Vector2(0.055f, 0.455f), new Vector2(0.092f, 0.525f), Color.white);
-            var lblDur = UIFactory.Label(canvas.transform, "Duração:", 24, TextAnchor.MiddleRight,
-                new Vector2(0.10f, 0.45f), new Vector2(0.30f, 0.53f), Color.white);
+            UIFactory.Icon(canvas.transform, "laps", new Vector2(0.075f, 0.455f), new Vector2(0.115f, 0.525f), Color.white);
+            var lblDur = UIFactory.Label(canvas.transform, "Duração:", 22, TextAnchor.MiddleLeft,
+                new Vector2(0.125f, 0.45f), new Vector2(0.255f, 0.53f), Color.white);
             lblDur.fontStyle = FontStyle.Bold;
             LapButton(canvas.transform, 5, "Rapido (5)", 0);
             LapButton(canvas.transform, 12, "Normal (12)", 1);
@@ -290,7 +290,7 @@ namespace MarbleGP.Bootstrap
 
         private void LapButton(Transform parent, int laps, string label, int col)
         {
-            float xMin = 0.31f + col * 0.16f;
+            float xMin = 0.26f + col * 0.16f;
             var btn = UIFactory.Button(parent, label,
                 _selectedLaps == laps ? new Color(0.2f, 0.6f, 0.85f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.45f), new Vector2(xMin + 0.14f, 0.53f), Vector2.zero, Vector2.zero);
@@ -299,7 +299,7 @@ namespace MarbleGP.Bootstrap
 
         private void GripButton(Transform parent, GripType g, string label, int col)
         {
-            float xMin = 0.31f + col * 0.135f;
+            float xMin = 0.26f + col * 0.135f;
             var btn = UIFactory.Button(parent, label,
                 _grip == g ? new Color(0.9f, 0.6f, 0.2f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.71f), new Vector2(xMin + 0.105f, 0.79f), Vector2.zero, Vector2.zero);
@@ -308,7 +308,7 @@ namespace MarbleGP.Bootstrap
 
         private void ModeButton(Transform parent, RaceMode m, string label, int col)
         {
-            float xMin = 0.31f + col * 0.16f;
+            float xMin = 0.26f + col * 0.16f;
             var btn = UIFactory.Button(parent, label,
                 _mode == m ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.55f), new Vector2(xMin + 0.14f, 0.63f), Vector2.zero, Vector2.zero);
@@ -537,16 +537,10 @@ namespace MarbleGP.Bootstrap
             PauseButton(canvas.transform, "Continuar", 0, new Color(0.2f, 0.6f, 0.3f), ClosePause);
             PauseButton(canvas.transform, "Reiniciar Corrida", 1, new Color(0.2f, 0.45f, 0.8f),
                 () => { var c = _lastConfig; bool ch = _lastWasChampionship; CleanupRace(); if (c != null) RunRace(c, ch); });
-            PauseButton(canvas.transform, "Voltar ao Menu", 2, new Color(0.5f, 0.4f, 0.7f),
+            // "Sair" da corrida volta ao menu (nao fecha o jogo). O progresso da
+            // corrida nao e salvo (apenas o campeonato, ao fim de cada etapa).
+            PauseButton(canvas.transform, "Sair para o Menu", 2, new Color(0.7f, 0.3f, 0.25f),
                 () => { CleanupRace(); ShowMainMenu(); });
-            PauseButton(canvas.transform, "Sair", 3, new Color(0.7f, 0.25f, 0.2f), () =>
-            {
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-#else
-                Application.Quit();
-#endif
-            });
         }
 
         private void PauseButton(Transform parent, string label, int index, Color color,
@@ -904,22 +898,18 @@ namespace MarbleGP.Bootstrap
             Color current = profile.GetMarbleColor(index) ?? profile.PrimaryColor;
 
             // Preview da cor da bolinha.
-            var preview = UIFactory.Panel(panel, new Vector2(0.02f, 0.55f), new Vector2(0.1f, 0.95f),
+            var preview = UIFactory.Panel(panel, new Vector2(0.025f, 0.5f), new Vector2(0.1f, 0.92f),
                 Vector2.zero, Vector2.zero, current);
+            if (UIFactory.CircleSprite != null) preview.GetComponent<Image>().sprite = UIFactory.CircleSprite;
 
-            UIFactory.Label(panel, $"#{driver.number}  {driver.marbleName}  ({driver.shortCode})", 22,
-                TextAnchor.MiddleLeft, new Vector2(0.12f, 0.6f), new Vector2(0.95f, 0.95f), Color.white);
-
-            UIFactory.Label(panel,
-                $"VEL {driver.speed}  ACE {driver.acceleration}  CTR {driver.control}  " +
-                $"AGR {driver.aggression}  DEF {driver.defense}  CON {driver.consistency}\n" +
-                $"PNE {driver.tireManagement}  ENE {driver.energyManagement}  PIT {driver.pitSkill}  " +
-                $"Personalidade: {driver.personality}", 16,
-                TextAnchor.UpperLeft, new Vector2(0.12f, 0.32f), new Vector2(0.95f, 0.62f),
-                new Color(0.8f, 0.85f, 0.95f));
+            var nameLbl = UIFactory.Label(panel, $"#{driver.number}  {driver.marbleName}  ({driver.shortCode})", 22,
+                TextAnchor.MiddleLeft, new Vector2(0.12f, 0.55f), new Vector2(0.95f, 0.92f), Color.white);
+            nameLbl.fontStyle = FontStyle.Bold;
+            UIFactory.Label(panel, "Escolha a cor da bolinha:", 15,
+                TextAnchor.UpperLeft, new Vector2(0.12f, 0.42f), new Vector2(0.95f, 0.55f), UITheme.TextDim);
 
             int captured = index;
-            ColorSwatchRow(panel, new Vector2(0.12f, 0.05f), new Vector2(0.95f, 0.28f),
+            ColorSwatchRow(panel, new Vector2(0.12f, 0.08f), new Vector2(0.95f, 0.40f),
                 current, c => { ApplyTeamName(); profile.SetMarbleColor(captured, c); _gm.SaveProfile(); ShowGarage(); });
         }
 

@@ -316,21 +316,26 @@ namespace MarbleGP.UI
 
         private void BuildLog(Transform canvas)
         {
-            _logPanel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.135f),
-                Vector2.zero, Vector2.zero, new Color(0.03f, 0.03f, 0.05f, 0.7f));
+            _logPanel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.15f),
+                Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
 
-            // Botao recolher/expandir o log (PRD 4).
-            var toggle = UIFactory.Button(_logPanel, "▼", new Color(0.2f, 0.25f, 0.4f, 0.95f),
-                new Vector2(0.94f, 0.6f), new Vector2(0.994f, 0.96f), Vector2.zero, Vector2.zero);
+            // Cabecalho do log.
+            var hdr = UIFactory.Panel(_logPanel, new Vector2(0f, 0.8f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
+            UIFactory.Label(hdr, "EVENTOS DA CORRIDA", 14, TextAnchor.MiddleLeft,
+                new Vector2(0.02f, 0f), new Vector2(0.8f, 1f), UITheme.Neon).fontStyle = FontStyle.Bold;
+            var toggle = UIFactory.Button(hdr, "▼", new Color(0.22f, 0.27f, 0.42f, 0.95f),
+                new Vector2(0.955f, 0.12f), new Vector2(0.992f, 0.88f), Vector2.zero, Vector2.zero);
             _logToggleLabel = toggle.GetComponentInChildren<Text>();
+            _logToggleLabel.fontSize = 14;
             toggle.onClick.AddListener(ToggleLog);
 
             _logRows = new Text[LogRows];
             for (int i = 0; i < LogRows; i++)
             {
-                float yMin = 0.02f + i * 0.19f;
-                _logRows[i] = UIFactory.Label(_logPanel, "", 18, TextAnchor.LowerLeft,
-                    new Vector2(0.02f, yMin), new Vector2(0.92f, yMin + 0.19f), Color.white);
+                float yMin = 0.02f + i * 0.152f;
+                _logRows[i] = UIFactory.Label(_logPanel, "", 16, TextAnchor.LowerLeft,
+                    new Vector2(0.025f, yMin), new Vector2(0.97f, yMin + 0.152f), Color.white);
             }
         }
 
@@ -339,20 +344,20 @@ namespace MarbleGP.UI
             _logCollapsed = !_logCollapsed;
             _logToggleLabel.text = _logCollapsed ? "▲" : "▼";
             foreach (var r in _logRows) r.gameObject.SetActive(!_logCollapsed);
-            // Recolhido: o painel vira uma barra fina (so o botao aparece).
-            _logPanel.anchorMin = new Vector2(0.24f, _logCollapsed ? 0.105f : 0f);
+            // Recolhido: o painel vira so o cabecalho.
+            _logPanel.anchorMin = new Vector2(0.24f, _logCollapsed ? 0.12f : 0f);
         }
 
         // ---- Minimap ----
 
         private void BuildMinimap(Transform canvas)
         {
-            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.155f, 0.135f),
-                Vector2.zero, Vector2.zero, new Color(0.03f, 0.04f, 0.06f, 0.9f));
-            // Borda neon fina.
+            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.15f),
+                Vector2.zero, Vector2.zero, new Color(0.04f, 0.05f, 0.09f, 0.95f));
+            // Borda neon.
             var border = _mapContainer.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0.35f, 0.75f, 1f, 0.85f);
-            border.effectDistance = new Vector2(2f, 2f);
+            border.effectColor = new Color(0.35f, 0.75f, 1f, 0.9f);
+            border.effectDistance = new Vector2(2.5f, 2.5f);
 
             var lane = _race.Track != null ? _race.Track.IdealLine : null;
             if (lane == null) return;
@@ -427,32 +432,33 @@ namespace MarbleGP.UI
             var players = new List<MarbleController>();
             foreach (var c in _race.Field) if (c.Runtime.isPlayer) players.Add(c);
 
-            float top = 0.99f, h = 0.29f, gap = 0.01f;
+            float top = 0.99f, h = 0.29f, gap = 0.012f;
             for (int i = 0; i < players.Count; i++)
             {
                 float yMax = top - i * (h + gap);
                 BuildCard(canvas, players[i], yMax - h, yMax);
             }
-
-            // Botao de recolher o painel da direita (PRD 9).
-            var toggle = UIFactory.Button(canvas, "›", new Color(0.2f, 0.25f, 0.4f, 0.95f),
-                new Vector2(0.752f, 0.93f), new Vector2(0.783f, 0.99f), Vector2.zero, Vector2.zero);
-            _rightToggleLabel = toggle.GetComponentInChildren<Text>();
-            toggle.onClick.AddListener(ToggleRightPanel);
         }
 
         private void BuildCard(Transform canvas, MarbleController ctrl, float yMin, float yMax)
         {
             var panel = UIFactory.Panel(canvas, new Vector2(0.785f, yMin), new Vector2(0.995f, yMax),
-                Vector2.zero, Vector2.zero, new Color(0.07f, 0.08f, 0.12f, 0.92f));
-            // Faixa superior com a cor da equipe.
+                Vector2.zero, Vector2.zero, UITheme.CardPanel);
+            var border = panel.gameObject.AddComponent<Outline>();
+            border.effectColor = new Color(0f, 0f, 0f, 0.45f);
+            border.effectDistance = new Vector2(1.5f, 1.5f);
+
+            // Header escuro com faixa fina da cor da equipe a esquerda (texto sempre legivel).
             var headRt = UIFactory.Panel(panel, new Vector2(0f, 0.86f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
+            var sideAcc = UIFactory.Panel(headRt, new Vector2(0f, 0.12f), new Vector2(0.022f, 0.88f),
                 Vector2.zero, Vector2.zero, ctrl.Runtime.TeamPrimary);
+            sideAcc.GetComponent<Image>().raycastTarget = false;
 
             var card = new PlayerCard { ctrl = ctrl, nextGrip = ctrl.Runtime.grip.gripId };
 
-            card.title = UIFactory.Label(headRt, "", 22, TextAnchor.MiddleLeft,
-                new Vector2(0.04f, 0f), new Vector2(1f, 1f), Color.white);
+            card.title = UIFactory.Label(headRt, "", 20, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0f), new Vector2(1f, 1f), Color.white);
             card.title.fontStyle = FontStyle.Bold;
 
             card.tyre = UIFactory.Label(panel, "", 16, TextAnchor.MiddleLeft,
