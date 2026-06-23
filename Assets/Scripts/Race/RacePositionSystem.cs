@@ -132,7 +132,14 @@ namespace MarbleGP.Race
                 var ma = a.Runtime; var mb = b.Runtime;
                 bool fa = ma.state == MarbleRaceState.Finished;
                 bool fb = mb.state == MarbleRaceState.Finished;
-                if (fa && fb) return ma.totalTime.CompareTo(mb.totalTime);
+                if (fa && fb)
+                {
+                    // Mais voltas na frente (retardatarios que tomaram a bandeira
+                    // ficam atras); empate de voltas decide por tempo total.
+                    if (ma.completedLaps != mb.completedLaps)
+                        return mb.completedLaps.CompareTo(ma.completedLaps);
+                    return ma.totalTime.CompareTo(mb.totalTime);
+                }
                 if (fa != fb) return fa ? -1 : 1;
                 return mb.raceProgress.CompareTo(ma.raceProgress);
             });

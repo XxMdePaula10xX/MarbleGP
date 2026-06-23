@@ -20,6 +20,7 @@ namespace MarbleGP.UI
     {
         private RaceManager _race;
         private CameraController _camera;
+        private Transform _canvasT;
 
         private Text _topCircuit, _topLap, _topWeather, _countdownText, _camLabel;
         private RectTransform _safetyBadge;
@@ -86,6 +87,7 @@ namespace MarbleGP.UI
         {
             var canvas = UIFactory.CreateCanvas("RaceHUD");
             canvas.transform.SetParent(transform, false);
+            _canvasT = canvas.transform;
 
             BuildTopBar(canvas.transform);
             BuildTimingTower(canvas.transform);
@@ -96,6 +98,53 @@ namespace MarbleGP.UI
             _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
                 new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));
             _countdownText.fontStyle = FontStyle.Bold;
+
+            if (!_raceTutorialSeen) ShowRaceTutorial(); // mini tutorial na 1a corrida da sessao
+        }
+
+        // ---- Mini tutorial (PRD) ----
+
+        private static bool _raceTutorialSeen;
+        private GameObject _tutorialPanel;
+
+        private void ShowRaceTutorial()
+        {
+            if (_tutorialPanel != null || _canvasT == null) return;
+            _raceTutorialSeen = true;
+
+            var overlay = UIFactory.Panel(_canvasT, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0f, 0f, 0f, 0.82f));
+            overlay.SetAsLastSibling();
+            _tutorialPanel = overlay.gameObject;
+
+            var card = UIFactory.Panel(overlay, new Vector2(0.27f, 0.16f), new Vector2(0.73f, 0.84f),
+                Vector2.zero, Vector2.zero, UITheme.CardPanel);
+            var glow = card.gameObject.AddComponent<Outline>();
+            glow.effectColor = UITheme.Neon; glow.effectDistance = new Vector2(2f, 2f);
+
+            UIFactory.Label(card, "COMO JOGAR", 34, TextAnchor.UpperCenter,
+                new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f), Color.white).fontStyle = FontStyle.Bold;
+
+            string tips =
+                "Você é o ESTRATEGISTA — as bolinhas correm sozinhas.\n\n" +
+                "•  TIMING (esquerda): posições ao vivo, gap e pneu. Recolha com «.\n" +
+                "•  Cards (direita): suas bolinhas, com PIT / MODE / TYRE.\n" +
+                "     –  PIT: chama a parada (troca pneu + reabastece).\n" +
+                "     –  MODE: Save (poupa) · Normal · Push (mais rápido, arrisca).\n" +
+                "     –  TYRE: escolhe o próximo pneu do pit.\n" +
+                "•  O combustível NÃO chega ao fim: ao menos 1 pit é obrigatório.\n" +
+                "•  Desgaste e chuva mudam o ritmo — o pneu certo importa!\n" +
+                "•  Minimapa (canto inferior esq.) e log de eventos (embaixo).\n" +
+                "•  Botão Pausa (no topo) para pausar ou sair da corrida.";
+            UIFactory.Label(card, tips, 18, TextAnchor.UpperLeft,
+                new Vector2(0.06f, 0.17f), new Vector2(0.95f, 0.83f), UITheme.TextDim);
+
+            var ok = UIFactory.Button(card, "Entendi!", UITheme.PrimaryButton,
+                new Vector2(0.38f, 0.05f), new Vector2(0.62f, 0.14f), Vector2.zero, Vector2.zero);
+            ok.onClick.AddListener(() =>
+            {
+                if (_tutorialPanel != null) { Destroy(_tutorialPanel); _tutorialPanel = null; }
+            });
         }
 
         private void BuildTopBar(Transform canvas)
@@ -112,7 +161,17 @@ namespace MarbleGP.UI
             _topLap.fontStyle = FontStyle.Bold;
 
             _topWeather = UIFactory.Label(bar, "", 22, TextAnchor.MiddleRight,
-                new Vector2(0.62f, 0f), new Vector2(0.97f, 1f), new Color(0.7f, 0.85f, 1f));
+                new Vector2(0.58f, 0f), new Vector2(0.78f, 1f), new Color(0.7f, 0.85f, 1f));
+
+            // Pausa + ajuda (tutorial) no proprio top bar.
+            var pause = UIFactory.Button(bar, "Pausa", new Color(0.30f, 0.33f, 0.45f, 0.95f),
+                new Vector2(0.795f, 0.16f), new Vector2(0.89f, 0.84f), Vector2.zero, Vector2.zero);
+            pause.GetComponentInChildren<Text>().fontSize = 16;
+            pause.onClick.AddListener(() => _race.PauseRequested?.Invoke());
+
+            var help = UIFactory.Button(bar, "?", new Color(0.22f, 0.45f, 0.85f, 0.95f),
+                new Vector2(0.9f, 0.16f), new Vector2(0.985f, 0.84f), Vector2.zero, Vector2.zero);
+            help.onClick.AddListener(ShowRaceTutorial);
 
             // Badge de safety marble (escondido por padrao).
             _safetyBadge = UIFactory.Panel(canvas, new Vector2(0.4f, 0.87f), new Vector2(0.6f, 0.92f),

@@ -354,6 +354,9 @@ namespace MarbleGP.Bootstrap
             var hud = hudGo.AddComponent<RaceHUD>();
             hud.Bind(race, _camera);
 
+            // Botao de pausa do HUD abre o menu de pausa (PRD 8).
+            race.PauseRequested = () => { if (_pausePanel == null) OpenPause(); };
+
             race.OnRaceFinished += result =>
             {
                 if (isChampionship)
@@ -563,6 +566,43 @@ namespace MarbleGP.Bootstrap
 
         // ---- Campeonato (PRD 29) ----------------------------------------
 
+        private GameObject _infoPanel;
+        private static bool _champTutorialSeen;
+
+        private static string ChampTutorialText()
+            => "Você dirige a ESTRATÉGIA da equipe ao longo de várias etapas.\n\n" +
+               "•  Cada etapa é uma corrida numa pista diferente do calendário.\n" +
+               "•  Pontuação por chegada: P1 = 25, P2 = 18, P3 = 15, ...\n" +
+               "•  Há classificação de PILOTOS e de EQUIPES (soma das 2 bolinhas).\n" +
+               "•  Correndo você ganha CRÉDITOS para gastar em UPGRADES.\n" +
+               "•  Upgrades melhoram pit, energia, desgaste, velocidade e erros.\n" +
+               "•  Clique em 'Correr Etapa' para disputar a próxima corrida.\n" +
+               "•  O progresso do campeonato é salvo automaticamente após cada etapa.";
+
+        /// <summary>Overlay informativo modal (mini tutorial). Fecha em 'Entendi'.</summary>
+        private void ShowInfoOverlay(string title, string body)
+        {
+            if (_infoPanel != null) { Destroy(_infoPanel); _infoPanel = null; }
+            var canvas = UIFactory.CreateCanvas("InfoOverlay");
+            _infoPanel = canvas.gameObject;
+            var overlay = UIFactory.Panel(canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0f, 0f, 0f, 0.82f));
+
+            var card = UIFactory.Panel(overlay, new Vector2(0.26f, 0.18f), new Vector2(0.74f, 0.82f),
+                Vector2.zero, Vector2.zero, UITheme.CardPanel);
+            var glow = card.gameObject.AddComponent<Outline>();
+            glow.effectColor = UITheme.Neon; glow.effectDistance = new Vector2(2f, 2f);
+
+            UIFactory.Label(card, title, 32, TextAnchor.UpperCenter,
+                new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, body, 18, TextAnchor.UpperLeft,
+                new Vector2(0.06f, 0.17f), new Vector2(0.95f, 0.83f), UITheme.TextDim);
+
+            var ok = UIFactory.Button(card, "Entendi!", UITheme.PrimaryButton,
+                new Vector2(0.38f, 0.05f), new Vector2(0.62f, 0.14f), Vector2.zero, Vector2.zero);
+            ok.onClick.AddListener(() => { if (_infoPanel != null) { Destroy(_infoPanel); _infoPanel = null; } });
+        }
+
         private void EnsureChampionship()
         {
             if (_gm.Championship == null)
@@ -580,6 +620,12 @@ namespace MarbleGP.Bootstrap
 
             UIFactory.Label(canvas.transform, "CAMPEONATO", 44, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.9f), new Vector2(0.95f, 0.98f), Color.white);
+
+            // Ajuda (mini tutorial do campeonato).
+            var champHelp = UIFactory.Button(canvas.transform, "?", new Color(0.22f, 0.45f, 0.85f, 0.95f),
+                new Vector2(0.02f, 0.91f), new Vector2(0.06f, 0.975f), Vector2.zero, Vector2.zero);
+            champHelp.onClick.AddListener(() => ShowInfoOverlay("CAMPEONATO", ChampTutorialText()));
+            if (!_champTutorialSeen) { _champTutorialSeen = true; ShowInfoOverlay("CAMPEONATO", ChampTutorialText()); }
 
             if (!champ.HasActiveSeason)
             {
@@ -675,59 +721,117 @@ namespace MarbleGP.Bootstrap
 
         private void BuildUpgradeRow(Transform canvas, ChampionshipManager champ, UpgradeType type, int index)
         {
-            float yMax = 0.86f - index * 0.11f;
-            var panel = UIFactory.Panel(canvas, new Vector2(0.08f, yMax - 0.1f), new Vector2(0.92f, yMax),
-                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.55f));
+            float yMax = 0.87f - index * 0.118f;
+            var panel = UIFactory.Panel(canvas, new Vector2(0.08f, yMax - 0.105f), new Vector2(0.92f, yMax),
+                Vector2.zero, Vector2.zero, UITheme.CardPanel);
+            var acc = UIFactory.Panel(panel, new Vector2(0f, 0.14f), new Vector2(0.006f, 0.86f),
+                Vector2.zero, Vector2.zero, UITheme.Neon);
+            acc.GetComponent<Image>().raycastTarget = false;
 
             int level = champ.GetLevel(type);
+            int max = ChampionshipManager.MaxUpgradeLevel;
 
-            UIFactory.Label(panel,
-                $"{ChampionshipManager.UpgradeName(type)}   Nivel {level}/{ChampionshipManager.MaxUpgradeLevel}", 22,
-                TextAnchor.MiddleLeft, new Vector2(0.02f, 0.5f), new Vector2(0.7f, 1f), Color.white);
-            UIFactory.Label(panel, ChampionshipManager.UpgradeDesc(type), 16,
-                TextAnchor.MiddleLeft, new Vector2(0.02f, 0f), new Vector2(0.7f, 0.5f),
-                new Color(0.8f, 0.85f, 0.95f));
+            var nameLbl = UIFactory.Label(panel, ChampionshipManager.UpgradeName(type), 22,
+                TextAnchor.LowerLeft, new Vector2(0.03f, 0.5f), new Vector2(0.55f, 0.95f), Color.white);
+            nameLbl.fontStyle = FontStyle.Bold;
+            UIFactory.Label(panel, ChampionshipManager.UpgradeDesc(type), 15,
+                TextAnchor.UpperLeft, new Vector2(0.03f, 0.08f), new Vector2(0.62f, 0.48f), UITheme.TextDim);
+
+            // Pips de nivel (0..5).
+            UIFactory.Label(panel, $"Nível {level}/{max}", 14, TextAnchor.LowerLeft,
+                new Vector2(0.50f, 0.55f), new Vector2(0.69f, 0.92f), UITheme.TextDim);
+            BuildLevelPips(panel, level, max, new Vector2(0.50f, 0.2f), new Vector2(0.69f, 0.48f));
 
             if (champ.IsMaxed(type))
             {
-                UIFactory.Label(panel, "MAX", 24, TextAnchor.MiddleCenter,
-                    new Vector2(0.72f, 0f), new Vector2(0.98f, 1f), new Color(0.5f, 0.9f, 0.6f));
+                UIFactory.Label(panel, "MÁX", 24, TextAnchor.MiddleCenter,
+                    new Vector2(0.72f, 0.2f), new Vector2(0.97f, 0.8f), UITheme.Success).fontStyle = FontStyle.Bold;
             }
             else
             {
                 int cost = champ.UpgradeCost(type);
                 bool can = champ.CanUpgrade(type);
-                var btn = UIFactory.Button(panel,
-                    $"Melhorar ({cost})",
-                    can ? new Color(0.2f, 0.6f, 0.3f) : new Color(0.3f, 0.3f, 0.35f),
-                    new Vector2(0.72f, 0.2f), new Vector2(0.98f, 0.8f), Vector2.zero, Vector2.zero);
+                var btn = UIFactory.Button(panel, $"Melhorar ({cost})",
+                    can ? UITheme.Success : UITheme.NeutralButton,
+                    new Vector2(0.72f, 0.2f), new Vector2(0.97f, 0.8f), Vector2.zero, Vector2.zero);
                 btn.interactable = can;
                 var captured = type;
                 btn.onClick.AddListener(() => { if (champ.BuyUpgrade(captured)) ShowUpgrades(); });
             }
         }
 
+        /// <summary>Pips de nivel (preenchidos = comprados).</summary>
+        private void BuildLevelPips(Transform parent, int level, int max, Vector2 aMin, Vector2 aMax)
+        {
+            float w = (aMax.x - aMin.x) / Mathf.Max(1, max);
+            for (int i = 0; i < max; i++)
+            {
+                float x0 = aMin.x + i * w;
+                var pip = UIFactory.Panel(parent, new Vector2(x0 + 0.004f, aMin.y), new Vector2(x0 + w - 0.004f, aMax.y),
+                    Vector2.zero, Vector2.zero, i < level ? UITheme.Success : new Color(0.20f, 0.22f, 0.28f, 0.9f));
+                pip.GetComponent<Image>().raycastTarget = false;
+            }
+        }
+
         private void BuildStandings(Transform canvas, ChampionshipManager champ)
         {
-            // Pilotos (esquerda).
-            var leftPanel = UIFactory.Panel(canvas, new Vector2(0.06f, 0.16f), new Vector2(0.5f, 0.8f),
-                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
-            var sbD = new StringBuilder("PILOTOS\n");
-            int rank = 1;
-            foreach (var d in champ.DriverStandingsSorted())
-                sbD.AppendLine($"{rank++,2}. {champ.DriverCode(d.driverId)}  {Trim(champ.TeamName(d.teamId), 14),-14} {d.points,3} pts  ({d.wins}V)");
-            UIFactory.Label(leftPanel, sbD.ToString(), 19, TextAnchor.UpperLeft,
-                new Vector2(0.04f, 0f), new Vector2(1f, 0.98f), Color.white);
+            string playerTeam = champ.Data != null ? champ.Data.playerTeamId : "";
 
-            // Equipes (direita).
-            var rightPanel = UIFactory.Panel(canvas, new Vector2(0.52f, 0.16f), new Vector2(0.94f, 0.8f),
-                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.6f));
-            var sbT = new StringBuilder("EQUIPES\n");
-            rank = 1;
-            foreach (var t in champ.TeamStandingsSorted())
-                sbT.AppendLine($"{rank++,2}. {Trim(champ.TeamName(t.teamId), 18),-18} {t.points,3} pts  ({t.wins}V)");
-            UIFactory.Label(rightPanel, sbT.ToString(), 19, TextAnchor.UpperLeft,
-                new Vector2(0.04f, 0f), new Vector2(1f, 0.98f), Color.white);
+            // ---- Pilotos (esquerda) ----
+            var leftPanel = UIFactory.Panel(canvas, new Vector2(0.05f, 0.15f), new Vector2(0.495f, 0.8f),
+                Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
+            StandHeader(leftPanel, "PILOTOS");
+            var drivers = champ.DriverStandingsSorted();
+            float top = 0.9f, bottom = 0.01f;
+            float h = (top - bottom) / Mathf.Max(1, drivers.Count);
+            for (int i = 0; i < drivers.Count; i++)
+            {
+                var d = drivers[i];
+                StandRow(leftPanel, i + 1, d.teamId, champ.DriverCode(d.driverId), champ.DriverName(d.driverId),
+                    d.points, d.wins, top - i * h, top - (i + 1) * h + 0.002f, d.teamId == playerTeam);
+            }
+
+            // ---- Equipes (direita) ----
+            var rightPanel = UIFactory.Panel(canvas, new Vector2(0.505f, 0.15f), new Vector2(0.95f, 0.8f),
+                Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
+            StandHeader(rightPanel, "EQUIPES");
+            var teams = champ.TeamStandingsSorted();
+            float th = (top - bottom) / Mathf.Max(1, teams.Count);
+            for (int i = 0; i < teams.Count; i++)
+            {
+                var t = teams[i];
+                StandRow(rightPanel, i + 1, t.teamId, "", champ.TeamName(t.teamId),
+                    t.points, t.wins, top - i * th, top - (i + 1) * th + 0.002f, t.teamId == playerTeam);
+            }
+        }
+
+        private void StandHeader(Transform panel, string title)
+        {
+            var header = UIFactory.Panel(panel, new Vector2(0.005f, 0.9f), new Vector2(0.995f, 0.99f),
+                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
+            var t = UIFactory.Label(header, title, 18, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0f), new Vector2(0.6f, 1f), UITheme.Neon);
+            t.fontStyle = FontStyle.Bold;
+            Col(header, "PTS", 13, TextAnchor.MiddleRight, 0.6f, 0.82f, UITheme.Neon);
+            Col(header, "V", 13, TextAnchor.MiddleRight, 0.84f, 0.97f, UITheme.Neon);
+        }
+
+        private void StandRow(Transform table, int rank, string teamId, string code, string name,
+            int points, int wins, float yTop, float yBot, bool highlight)
+        {
+            Color bg = rank == 1 ? new Color(0.20f, 0.17f, 0.05f, 0.92f)
+                     : highlight ? new Color(0.06f, 0.12f, 0.22f, 0.92f)
+                     : (rank % 2 == 0 ? new Color(0.10f, 0.11f, 0.15f, 0.85f) : new Color(0.07f, 0.08f, 0.12f, 0.85f));
+            var row = UIFactory.Panel(table, new Vector2(0.008f, yBot), new Vector2(0.992f, yTop),
+                Vector2.zero, Vector2.zero, bg);
+
+            Color txt = rank == 1 ? UITheme.Gold : (highlight ? UITheme.PlayerHighlight : Color.white);
+            Col(row, rank.ToString(), 13, TextAnchor.MiddleCenter, 0.02f, 0.085f, txt);
+            UIFactory.Logo(row, teamId, new Vector2(0.10f, 0.1f), new Vector2(0.165f, 0.9f));
+            string label = string.IsNullOrEmpty(code) ? name : $"{code}  {name}";
+            Col(row, Trim(label, 24), 13, TextAnchor.MiddleLeft, 0.18f, 0.6f, txt);
+            Col(row, points.ToString(), 13, TextAnchor.MiddleRight, 0.6f, 0.82f, txt);
+            Col(row, $"{wins}V", 12, TextAnchor.MiddleRight, 0.84f, 0.97f, UITheme.TextDim);
         }
 
         // ---- Garagem (PRD 31) -------------------------------------------

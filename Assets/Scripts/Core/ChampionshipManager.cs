@@ -59,7 +59,7 @@ namespace MarbleGP.Core
             string json = SaveManager.LoadChampionship();
             if (string.IsNullOrEmpty(json)) return false;
             Data = JsonUtility.FromJson<ChampionshipData>(json);
-            if (Data != null) EnsureUpgrades();
+            if (Data != null) { EnsureUpgrades(); EnsureStandings(); }
             return Data != null && Data.active;
         }
 
@@ -153,6 +153,20 @@ namespace MarbleGP.Core
             foreach (UpgradeType type in System.Enum.GetValues(typeof(UpgradeType)))
                 if (!Data.upgrades.Any(x => x.type == type))
                     Data.upgrades.Add(new UpgradeState { type = type, level = 0 });
+        }
+
+        /// <summary>Garante que todos os pilotos/equipes do banco estejam na
+        /// classificacao (saves antigos, criados com menos pilotos). PRD 29.2.</summary>
+        private void EnsureStandings()
+        {
+            if (Data.driverStandings == null) Data.driverStandings = new List<DriverStanding>();
+            if (Data.teamStandings == null) Data.teamStandings = new List<TeamStanding>();
+            foreach (var d in _db.drivers)
+                if (!Data.driverStandings.Any(x => x.driverId == d.driverId))
+                    Data.driverStandings.Add(new DriverStanding { driverId = d.driverId, teamId = d.teamId });
+            foreach (var t in _db.teams)
+                if (!Data.teamStandings.Any(x => x.teamId == t.teamId))
+                    Data.teamStandings.Add(new TeamStanding { teamId = t.teamId });
         }
 
         public int GetLevel(UpgradeType type)

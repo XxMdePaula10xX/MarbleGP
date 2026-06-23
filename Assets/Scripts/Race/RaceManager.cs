@@ -41,6 +41,7 @@ namespace MarbleGP.Race
         public event Action OnRaceStarted;
         public event Action<string> OnRaceEvent;       // log de eventos
         public event Action<RaceResult> OnRaceFinished;
+        public Action PauseRequested;                  // HUD pede pausa ao AppController
 
         private readonly List<MarbleController> _field = new();
         private readonly Dictionary<MarbleController, MarbleAI> _ais = new();
@@ -65,7 +66,7 @@ namespace MarbleGP.Race
         // Fim de corrida (PRD 2).
         private bool _winnerDeclared;
         private float _finishTimer;
-        private const float FinishTimeout = 25f;
+        private const float FinishTimeout = 45f; // tempo p/ retardatarios cruzarem a linha
 
         private float _countdownTimer;
         private int _lastCountValue = -1;
@@ -308,7 +309,15 @@ namespace MarbleGP.Race
                     {
                         _lapChangeTime[ctrl] = _raceClock; // janela anti-falsa-ultrapassagem
                         RollMarbleLapEvents(ctrl, m);
-                        if (m.pitRequested)
+                        if (_winnerDeclared && m.state != MarbleRaceState.Finished)
+                        {
+                            // Apos a bandeirada, cada bolinha termina ao CRUZAR a
+                            // linha (nao para no meio da pista). PRD 2.
+                            m.state = MarbleRaceState.Finished;
+                            ctrl.Freeze();
+                            Log($"🏁 {m.DisplayName} cruzou a linha.");
+                        }
+                        else if (m.pitRequested)
                         {
                             _pitManager.BeginEntry(ctrl);
                             Log($"🔧 {m.DisplayName} entrou no pit.");

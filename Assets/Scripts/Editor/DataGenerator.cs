@@ -138,10 +138,7 @@ namespace MarbleGP.EditorTools
                 TeamStyle.Technical, TeamBonusType.Cornering, 53, 56, "Tecnica em curvas lentas."));
             list.Add(MakeTeam("royal_club", "Royal Marble Club", "#6A2FB0", "#D4AF37",
                 TeamStyle.Premium, TeamBonusType.Development, 64, 66, "Premium, forte desenvolvimento."));
-            list.Add(MakeTeam("volcano_gp", "Volcano GP", "#F0560F", "#1A1A1A",
-                TeamStyle.AllOut, TeamBonusType.EarlyPace, 56, 50, "Ataque total, ritmo inicial."));
-            list.Add(MakeTeam("aqua_drift", "Aqua Drift", "#16407A", "#1FD0C0",
-                TeamStyle.Fluid, TeamBonusType.WetWeather, 57, 54, "Fluida, boa em pista molhada."));
+            // 10 equipes x 2 bolinhas = grid de 20 (PRD 21.1).
             return list;
         }
 
@@ -209,14 +206,7 @@ namespace MarbleGP.EditorTools
                 80, 76, 78, 64, 70, 80, 70, 72, 70, 68, Personality.Veteran));
             list.Add(MakeDriver("royal_two", "Royal Two", "RY2", 20, "royal_club",
                 78, 74, 76, 70, 66, 72, 66, 70, 70, 66, Personality.Balanced));
-            list.Add(MakeDriver("volcano_one", "Volcano One", "VL1", 21, "volcano_gp",
-                84, 82, 60, 80, 58, 58, 46, 54, 56, 52, Personality.Aggressive));
-            list.Add(MakeDriver("volcano_two", "Volcano Two", "VL2", 22, "volcano_gp",
-                82, 82, 58, 82, 56, 56, 46, 54, 56, 52, Personality.RiskTaker));
-            list.Add(MakeDriver("aqua_one", "Aqua One", "AQ1", 23, "aqua_drift",
-                72, 70, 74, 58, 68, 76, 70, 68, 64, 84, Personality.Balanced));
-            list.Add(MakeDriver("aqua_two", "Aqua Two", "AQ2", 24, "aqua_drift",
-                70, 68, 72, 56, 70, 78, 72, 68, 64, 82, Personality.Smooth));
+            // Grid de 20 (10 equipes x 2). Volcano/Aqua removidos para manter 20.
             return list;
         }
 
