@@ -35,6 +35,7 @@ namespace MarbleGP.Bootstrap
 
         // Selecoes correntes do fluxo.
         private TrackDataSO _selectedTrack;
+        private TrackDataSO _previewTrack;   // circuito em destaque na selecao
         private GripType _grip = GripType.Medium;
         private RaceMode _mode = RaceMode.Normal;
         private float _startEnergy = 100f;
@@ -145,34 +146,47 @@ namespace MarbleGP.Bootstrap
         private void ShowMainMenu()
         {
             var canvas = NewCanvas("MainMenu");
-            var title = UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 66, TextAnchor.MiddleCenter,
-                new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.96f), Color.white);
+            var title = UIFactory.Label(canvas.transform, "MARBLE GP MANAGER", 70, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.83f), new Vector2(0.95f, 0.96f), Color.white);
             title.fontStyle = FontStyle.Bold;
-            UIFactory.Label(canvas.transform, "STRATEGY RACING CHAMPIONSHIP", 24, TextAnchor.MiddleCenter,
-                new Vector2(0.05f, 0.79f), new Vector2(0.95f, 0.84f), new Color(0.55f, 0.8f, 1f));
-            UIFactory.Label(canvas.transform, $"Equipe: {_gm.Profile.teamName}", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.73f), new Vector2(0.9f, 0.78f), new Color(0.85f, 0.85f, 0.95f));
+            var tglow = title.gameObject.AddComponent<Outline>();
+            tglow.effectColor = new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.55f);
+            tglow.effectDistance = new Vector2(2.5f, 2.5f);
+            UIFactory.Label(canvas.transform, "STRATEGY RACING CHAMPIONSHIP", 22, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.785f), new Vector2(0.95f, 0.83f), MarbleUITheme.NeonCyan);
 
-            MenuButton(canvas.transform, "Corrida Rapida", 0, () => ShowTrackSelect());
-            MenuButton(canvas.transform, "Campeonato", 1, () => ShowChampionshipHub());
-            MenuButton(canvas.transform, "Garagem", 2, () => ShowGarage());
-            MenuButton(canvas.transform, "Sair", 3, () =>
+            // Card da equipe atual (glass).
+            var teamCard = UIFactory.GlassPanel(canvas.transform, new Vector2(0.37f, 0.7f), new Vector2(0.63f, 0.76f));
+            UIFactory.Label(teamCard, "SUA EQUIPE", 11, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.5f), new Vector2(0.5f, 0.95f), MarbleUITheme.NeonCyan);
+            UIFactory.Label(teamCard, _gm.Profile.teamName, 20, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.55f), Color.white).fontStyle = FontStyle.Bold;
+
+            MenuButton(canvas.transform, "Corrida Rápida", "flag", 0, () => ShowTrackSelect(), MarbleUITheme.NeonOrange);
+            MenuButton(canvas.transform, "Campeonato", "trophy", 1, () => ShowChampionshipHub(), new Color32(18, 60, 105, 235));
+            MenuButton(canvas.transform, "Garagem", "settings", 2, () => ShowGarage(), MarbleUITheme.NeonPurple);
+            MenuButton(canvas.transform, "Sair", "", 3, () =>
             {
 #if UNITY_EDITOR
                 UnityEditor.EditorApplication.isPlaying = false;
 #else
                 Application.Quit();
 #endif
-            });
+            }, UITheme.DangerButton);
+
+            UIFactory.Label(canvas.transform, $"v1.0  ·  {_gm.Profile.playerName}", 14, TextAnchor.LowerRight,
+                new Vector2(0.5f, 0.01f), new Vector2(0.98f, 0.05f), UITheme.TextDim);
         }
 
-        private void MenuButton(Transform parent, string label, int index, UnityEngine.Events.UnityAction onClick, bool disabled = false)
+        private void MenuButton(Transform parent, string label, string icon, int index,
+            UnityEngine.Events.UnityAction onClick, Color color)
         {
-            float yMax = 0.66f - index * 0.1f;
-            var color = disabled ? new Color(0.3f, 0.3f, 0.3f, 0.6f) : new Color(0.2f, 0.4f, 0.7f, 0.95f);
+            float yMax = 0.65f - index * 0.115f;
             var btn = UIFactory.Button(parent, label, color,
-                new Vector2(0.32f, yMax - 0.08f), new Vector2(0.68f, yMax), Vector2.zero, Vector2.zero);
-            btn.interactable = !disabled;
+                new Vector2(0.3f, yMax - 0.09f), new Vector2(0.7f, yMax), Vector2.zero, Vector2.zero);
+            btn.GetComponentInChildren<Text>().fontSize = 24;
+            if (!string.IsNullOrEmpty(icon))
+                UIFactory.Icon(btn.transform, icon, new Vector2(0.06f, 0.22f), new Vector2(0.15f, 0.78f), Color.white);
             if (onClick != null) btn.onClick.AddListener(onClick);
         }
 
@@ -181,49 +195,121 @@ namespace MarbleGP.Bootstrap
         private void ShowTrackSelect()
         {
             var canvas = NewCanvas("TrackSelect");
-            UIFactory.Label(canvas.transform, "Escolha o Circuito", 40, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.89f), new Vector2(0.9f, 0.97f), Color.white);
+            UIFactory.Label(canvas.transform, "SELECT CIRCUIT", 44, TextAnchor.UpperLeft,
+                new Vector2(0.04f, 0.9f), new Vector2(0.6f, 0.99f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(canvas.transform, "Escolha o circuito da sua próxima corrida.", 18, TextAnchor.UpperLeft,
+                new Vector2(0.045f, 0.85f), new Vector2(0.6f, 0.9f), UITheme.TextDim);
 
-            // Grade de cards (2 colunas) com thumbnail do circuito (PRD 7.2).
             var tracks = _gm.Database.tracks;
-            float top = 0.83f, h = 0.135f, gap = 0.022f;
+            if (_previewTrack == null || !tracks.Contains(_previewTrack))
+                _previewTrack = tracks.FirstOrDefault(t => !t.trackLocked) ?? tracks.FirstOrDefault();
+
+            // Lista de circuitos (esquerda).
+            float top = 0.82f, h = 0.135f, gap = 0.016f;
             int i = 0;
             foreach (var t in tracks)
             {
-                int col = i % 2;
-                int rowIdx = i / 2;
-                float yTop = top - rowIdx * (h + gap);
+                float yTop = top - i * (h + gap);
                 float yBot = yTop - h;
-                if (yBot < 0.05f) break; // nao desenha alem da tela (campeonato tem muitos)
-                float xMin = col == 0 ? 0.075f : 0.515f;
-                float xMax = col == 0 ? 0.485f : 0.925f;
-
-                bool locked = t.trackLocked;
-                var card = UIFactory.Button(canvas.transform, "",
-                    locked ? new Color(0.15f, 0.16f, 0.20f, 0.92f) : new Color(0.13f, 0.22f, 0.32f, 0.95f),
-                    new Vector2(xMin, yBot), new Vector2(xMax, yTop), Vector2.zero, Vector2.zero);
-                card.interactable = !locked;
-                var captured = t;
-                if (!locked) card.onClick.AddListener(() => { _selectedTrack = captured; ShowStrategy(); });
-
-                UIFactory.Thumbnail(card.transform, t.trackId, new Vector2(0.02f, 0.12f), new Vector2(0.26f, 0.88f));
-
-                var title = UIFactory.Label(card.transform, t.trackName, 22, TextAnchor.LowerLeft,
-                    new Vector2(0.30f, 0.46f), new Vector2(0.98f, 0.9f), locked ? UITheme.TextDim : Color.white);
-                title.fontStyle = FontStyle.Bold;
-                title.raycastTarget = false;
-
-                string info = locked
-                    ? "Bloqueado · vence o campeonato"
-                    : $"{t.difficulty} · {t.recommendedLaps}v · chuva {Mathf.RoundToInt(t.rainChance * 100f)}%";
-                var lab = UIFactory.Label(card.transform, info, 16, TextAnchor.UpperLeft,
-                    new Vector2(0.30f, 0.12f), new Vector2(0.98f, 0.46f),
-                    locked ? new Color(0.6f, 0.62f, 0.7f) : UITheme.TextDim);
-                lab.raycastTarget = false;
+                if (yBot < 0.13f) break;
+                BuildCircuitListItem(canvas.transform, t, i + 1, new Vector2(0.04f, yBot), new Vector2(0.55f, yTop));
                 i++;
             }
 
-            BackButton(canvas.transform, ShowMainMenu);
+            // Preview (direita).
+            BuildCircuitPreview(canvas.transform, _previewTrack, tracks.IndexOf(_previewTrack) + 1);
+
+            // Rodape: Voltar / Aleatorio / Confirmar.
+            var back = UIFactory.Button(canvas.transform, "Voltar", UITheme.NeutralButton,
+                new Vector2(0.04f, 0.03f), new Vector2(0.2f, 0.1f), Vector2.zero, Vector2.zero);
+            back.onClick.AddListener(ShowMainMenu);
+            var rand = UIFactory.Button(canvas.transform, "Aleatório", UITheme.SecondaryButton,
+                new Vector2(0.42f, 0.03f), new Vector2(0.58f, 0.1f), Vector2.zero, Vector2.zero);
+            rand.onClick.AddListener(() =>
+            {
+                var avail = tracks.Where(x => !x.trackLocked).ToList();
+                if (avail.Count > 0) { _previewTrack = avail[UnityEngine.Random.Range(0, avail.Count)]; ShowTrackSelect(); }
+            });
+            bool canGo = _previewTrack != null && !_previewTrack.trackLocked;
+            var confirm = UIFactory.Button(canvas.transform, "Confirmar",
+                canGo ? UITheme.Success : UITheme.NeutralButton,
+                new Vector2(0.78f, 0.03f), new Vector2(0.96f, 0.1f), Vector2.zero, Vector2.zero);
+            confirm.interactable = canGo;
+            confirm.onClick.AddListener(() => { _selectedTrack = _previewTrack; ShowStrategy(); });
+        }
+
+        private void BuildCircuitListItem(Transform parent, TrackDataSO t, int num, Vector2 aMin, Vector2 aMax)
+        {
+            bool locked = t.trackLocked;
+            bool sel = t == _previewTrack;
+            var card = UIFactory.Button(parent, "",
+                locked ? new Color32(18, 22, 30, 235) : MarbleUITheme.PanelDark, aMin, aMax, Vector2.zero, Vector2.zero);
+            UIFactory.NeonBorder(card.gameObject,
+                sel ? MarbleUITheme.NeonBlue : (locked ? MarbleUITheme.PanelSoft : MarbleUITheme.NeonCyan),
+                sel ? 0.95f : 0.3f, sel ? 2.2f : 1f);
+            var ct = t;
+            card.onClick.AddListener(() => { _previewTrack = ct; ShowTrackSelect(); });
+
+            UIFactory.Thumbnail(card.transform, t.trackId, new Vector2(0.015f, 0.12f), new Vector2(0.2f, 0.88f));
+            var nb = UIFactory.Panel(card.transform, new Vector2(0.215f, 0.55f), new Vector2(0.275f, 0.9f),
+                Vector2.zero, Vector2.zero, sel ? MarbleUITheme.NeonBlue : MarbleUITheme.PanelSoft);
+            UIFactory.Label(nb, num.ToString(), 17, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
+
+            UIFactory.Label(card.transform, t.trackName, 20, TextAnchor.LowerLeft,
+                new Vector2(0.3f, 0.54f), new Vector2(0.98f, 0.92f), locked ? UITheme.TextDim : Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card.transform, locked ? "Bloqueado · vença o campeonato" : Trim(t.description, 64), 12,
+                TextAnchor.UpperLeft, new Vector2(0.3f, 0.08f), new Vector2(0.72f, 0.52f), UITheme.TextDim);
+            UIFactory.Label(card.transform,
+                $"{t.difficulty}  ·  {t.recommendedLaps}v  ·  chuva {Mathf.RoundToInt(t.rainChance * 100f)}%", 12,
+                TextAnchor.LowerRight, new Vector2(0.72f, 0.1f), new Vector2(0.97f, 0.45f), UITheme.TextDim);
+        }
+
+        private void BuildCircuitPreview(Transform parent, TrackDataSO t, int num)
+        {
+            var panel = UIFactory.GlassPanel(parent, new Vector2(0.57f, 0.155f), new Vector2(0.97f, 0.835f));
+            if (t == null) return;
+            UIFactory.Label(panel, t.trackName.ToUpper(), 30, TextAnchor.UpperLeft,
+                new Vector2(0.05f, 0.88f), new Vector2(0.82f, 0.98f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(panel, t.trackLocked ? "BLOQUEADO" : "CIRCUITO", 13, TextAnchor.UpperLeft,
+                new Vector2(0.05f, 0.83f), new Vector2(0.82f, 0.88f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
+            var nb = UIFactory.Panel(panel, new Vector2(0.88f, 0.85f), new Vector2(0.96f, 0.97f),
+                Vector2.zero, Vector2.zero, MarbleUITheme.NeonBlue);
+            UIFactory.Label(nb, num.ToString(), 22, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
+
+            UIFactory.Thumbnail(panel, t.trackId, new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.81f));
+
+            PreviewStat(panel, "DIFICULDADE", DifficultyDots(t.difficulty), 5, MarbleUITheme.NeonGreen, 0.05f, 0.34f);
+            PreviewStat(panel, "ULTRAPASSAGEM", Mathf.RoundToInt(t.overtakeLevel * 8f), 8, MarbleUITheme.NeonCyan, 0.52f, 0.34f);
+            PreviewStat(panel, "DESGASTE DE PNEU", Mathf.RoundToInt((t.abrasionLevel - 0.5f) / 1.5f * 8f), 8, MarbleUITheme.NeonOrange, 0.05f, 0.26f);
+
+            UIFactory.Label(panel, Trim(t.description, 160), 14, TextAnchor.UpperLeft,
+                new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.2f), UITheme.TextDim);
+        }
+
+        private void PreviewStat(Transform parent, string label, int filled, int total, Color color, float xMin, float y)
+        {
+            float w = xMin + 0.43f;
+            UIFactory.Label(parent, label, 12, TextAnchor.UpperLeft,
+                new Vector2(xMin, y + 0.05f), new Vector2(w, y + 0.1f), UITheme.TextDim).fontStyle = FontStyle.Bold;
+            float pipW = (w - xMin) / total;
+            for (int i = 0; i < total; i++)
+            {
+                float px = xMin + i * pipW;
+                var pip = UIFactory.Panel(parent, new Vector2(px, y), new Vector2(px + pipW - 0.006f, y + 0.04f),
+                    Vector2.zero, Vector2.zero, i < filled ? color : new Color(0.18f, 0.22f, 0.3f, 0.9f));
+                pip.GetComponent<Image>().raycastTarget = false;
+            }
+        }
+
+        private static int DifficultyDots(Difficulty d)
+        {
+            switch (d)
+            {
+                case Difficulty.Easy: return 2;
+                case Difficulty.Medium: return 3;
+                case Difficulty.Hard: return 4;
+                default: return 3;
+            }
         }
 
         // ---- Tela: Estrategia pre-corrida (PRD 7.3 / 23.4) --------------
@@ -452,15 +538,15 @@ namespace MarbleGP.Bootstrap
             var canvas = NewCanvas("Results");
 
             // Titulo + subtitulo (PRD 4).
-            var title = UIFactory.Label(canvas.transform, "RESULTADO DA CORRIDA", 52, TextAnchor.MiddleCenter,
-                new Vector2(0.05f, 0.91f), new Vector2(0.95f, 0.99f), Color.white);
+            var title = UIFactory.Label(canvas.transform, "RACE RESULTS", 52, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.91f), new Vector2(0.95f, 0.99f), UITheme.Gold);
             title.fontStyle = FontStyle.Bold;
-            UIFactory.Label(canvas.transform, $"{result.trackName}  ·  {result.laps} voltas", 24,
-                TextAnchor.MiddleCenter, new Vector2(0.05f, 0.865f), new Vector2(0.95f, 0.905f), UITheme.TextDim);
+            UIFactory.Label(canvas.transform, $"{result.trackName}  ·  {result.laps} voltas", 22,
+                TextAnchor.MiddleCenter, new Vector2(0.05f, 0.872f), new Vector2(0.95f, 0.905f), UITheme.TextDim);
 
-            UIFactory.Divider(canvas.transform, new Vector2(0.4f, 0.858f), new Vector2(0.6f, 0.862f), UITheme.Gold);
-
-            BuildPodium(canvas.transform, result);
+            var winner = result.entries.Count > 0 ? result.entries[0] : null;
+            if (winner != null) BuildWinnerBanner(canvas.transform, winner);
+            BuildRaceStats(canvas.transform, result);
             BuildResultTable(canvas.transform, result);
 
             // Rodape (PRD 4).
@@ -487,6 +573,99 @@ namespace MarbleGP.Bootstrap
             if (e.isPlayer && _gm.Profile != null) return _gm.Profile.PrimaryColor;
             var t = _gm.Database.GetTeam(e.teamId);
             return t != null ? t.primaryColor : Color.gray;
+        }
+
+        private static string FormatTime(float t)
+        {
+            if (t <= 0f) return "--:--";
+            int m = (int)(t / 60f);
+            float s = t - m * 60f;
+            return $"{m}:{s:00.000}";
+        }
+
+        private static Color TyreColorByLetter(string s)
+        {
+            switch (s)
+            {
+                case "S": return MarbleUITheme.NeonRed;
+                case "M": return MarbleUITheme.NeonGold;
+                case "H": return new Color32(220, 226, 236, 255);
+                case "I": return MarbleUITheme.NeonGreen;
+                case "W": case "R": return MarbleUITheme.NeonBlue;
+                default: return UITheme.TextDim;
+            }
+        }
+
+        /// <summary>Banner horizontal do vencedor (estilo transmissao, PRD 4).</summary>
+        private void BuildWinnerBanner(Transform canvas, RaceResultEntry w)
+        {
+            UIFactory.Shadow(canvas, new Vector2(0.22f, 0.71f), new Vector2(0.88f, 0.87f), new Vector2(4f, -6f), 0.35f);
+            var card = UIFactory.Panel(canvas, new Vector2(0.22f, 0.71f), new Vector2(0.88f, 0.87f),
+                Vector2.zero, Vector2.zero, new Color32(26, 21, 7, 245));
+            UIFactory.NeonBorder(card.gameObject, MarbleUITheme.NeonGold, 0.95f, 2.5f);
+
+            UIFactory.Label(card, "1º", 44, TextAnchor.MiddleCenter,
+                new Vector2(0.005f, 0.46f), new Vector2(0.1f, 0.96f), MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
+            UIFactory.Logo(card, w.teamId, new Vector2(0.105f, 0.5f), new Vector2(0.2f, 0.96f));
+            var nm = UIFactory.Label(card, w.marbleName, 26, TextAnchor.LowerLeft,
+                new Vector2(0.22f, 0.58f), new Vector2(0.8f, 0.97f), Color.white);
+            nm.fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, w.teamName, 15, TextAnchor.UpperLeft,
+                new Vector2(0.22f, 0.46f), new Vector2(0.8f, 0.58f), UITheme.TextDim);
+
+            var wb = UIFactory.Panel(card, new Vector2(0.83f, 0.6f), new Vector2(0.985f, 0.93f),
+                Vector2.zero, Vector2.zero, new Color32(44, 35, 9, 240));
+            UIFactory.NeonBorder(wb.gameObject, MarbleUITheme.NeonGold, 0.85f, 1.6f);
+            UIFactory.Label(wb, "WINNER", 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one,
+                MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
+
+            // Faixa de estatisticas (parte inferior).
+            BannerStat(card, "TEMPO", FormatTime(w.totalTime), MarbleUITheme.NeonGold, 0.22f, 0.36f);
+            UIFactory.Label(card, "PNEU", 11, TextAnchor.LowerCenter,
+                new Vector2(0.37f, 0.04f), new Vector2(0.47f, 0.2f), UITheme.TextDim);
+            var tb = UIFactory.TyreBadge(card, new Vector2(0.385f, 0.2f), new Vector2(0.455f, 0.44f));
+            var tc = TyreColorByLetter(w.finalTyre);
+            tb.ring.color = tc; tb.letter.text = w.finalTyre; tb.letter.color = tc;
+            BannerStat(card, "PITS", w.pitStops.ToString(), Color.white, 0.47f, 0.57f);
+            BannerStat(card, "FUEL", $"{w.finalFuel:0}%", MarbleUITheme.Fuel, 0.58f, 0.7f);
+            BannerStat(card, "ENERGIA", $"{w.finalEnergy:0}%", MarbleUITheme.Energy, 0.71f, 0.83f);
+            BannerStat(card, "PONTOS", $"+{w.points}", MarbleUITheme.NeonGold, 0.84f, 0.97f);
+        }
+
+        private void BannerStat(Transform card, string label, string value, Color color, float xMin, float xMax)
+        {
+            UIFactory.Label(card, label, 11, TextAnchor.LowerCenter,
+                new Vector2(xMin, 0.04f), new Vector2(xMax, 0.2f), UITheme.TextDim);
+            UIFactory.Label(card, value, 18, TextAnchor.UpperCenter,
+                new Vector2(xMin, 0.2f), new Vector2(xMax, 0.44f), color).fontStyle = FontStyle.Bold;
+        }
+
+        /// <summary>Sidebar de estatisticas da corrida (esquerda).</summary>
+        private void BuildRaceStats(Transform canvas, RaceResult result)
+        {
+            var panel = UIFactory.GlassPanel(canvas, new Vector2(0.035f, 0.63f), new Vector2(0.205f, 0.87f));
+            UIFactory.Label(panel, "RACE STATS", 14, TextAnchor.UpperLeft,
+                new Vector2(0.08f, 0.9f), new Vector2(0.92f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
+
+            var winner = result.entries.Count > 0 ? result.entries[0] : null;
+            RaceResultEntry fl = null; float best = float.MaxValue;
+            foreach (var e in result.entries)
+                if (e.bestLapTime > 0.1f && e.bestLapTime < best) { best = e.bestLapTime; fl = e; }
+
+            StatLine(panel, "TEMPO DE CORRIDA", FormatTime(winner != null ? winner.totalTime : 0f), "", 0.66f, MarbleUITheme.NeonCyan);
+            StatLine(panel, "VOLTA MAIS RÁPIDA", fl != null ? FormatTime(best) : "--", fl != null ? fl.marbleName : "", 0.42f, MarbleUITheme.NeonGold);
+            StatLine(panel, "CIRCUITO", Trim(result.trackName, 16), $"{result.laps} voltas", 0.18f, Color.white);
+        }
+
+        private void StatLine(Transform parent, string label, string value, string sub, float y, Color color)
+        {
+            UIFactory.Label(parent, label, 11, TextAnchor.UpperLeft,
+                new Vector2(0.08f, y + 0.1f), new Vector2(0.94f, y + 0.17f), UITheme.TextDim);
+            UIFactory.Label(parent, value, 18, TextAnchor.UpperLeft,
+                new Vector2(0.08f, y + 0.01f), new Vector2(0.94f, y + 0.1f), color).fontStyle = FontStyle.Bold;
+            if (!string.IsNullOrEmpty(sub))
+                UIFactory.Label(parent, sub, 10, TextAnchor.UpperLeft,
+                    new Vector2(0.08f, y - 0.04f), new Vector2(0.94f, y + 0.01f), UITheme.TextDim);
         }
 
         /// <summary>Podio top-3 (P2 esq, P1 centro maior, P3 dir) com medalhas.</summary>
@@ -566,8 +745,9 @@ namespace MarbleGP.Bootstrap
         /// <summary>Tabela moderna de classificacao (PRD 4).</summary>
         private void BuildResultTable(Transform canvas, RaceResult result)
         {
-            var table = UIFactory.Panel(canvas, new Vector2(0.06f, 0.135f), new Vector2(0.94f, 0.66f),
+            var table = UIFactory.Panel(canvas, new Vector2(0.035f, 0.125f), new Vector2(0.965f, 0.6f),
                 Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
+            UIFactory.NeonBorder(table.gameObject, MarbleUITheme.NeonCyan, 0.4f, 1.4f);
 
             // Cabecalho com colunas alinhadas (Text proprio por coluna, nao
             // depende de fonte monoespacada).
