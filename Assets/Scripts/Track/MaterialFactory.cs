@@ -75,6 +75,16 @@ namespace MarbleGP.Track
             return mat;
         }
 
+        /// <summary>Material para TrailRenderer: transparente e respeita a cor por
+        /// vertice (gradiente do trail), dando um rastro suave que esmaece.</summary>
+        public static Material CreateTrail()
+        {
+            var sh = Shader.Find("Sprites/Default");
+            if (sh == null) sh = Shader.Find("UI/Default");
+            if (sh == null) return CreateUnlit(Color.white);
+            return new Material(sh);
+        }
+
         public static Material Create(Color color, float smoothness = 0.2f, float metallic = 0f)
         {
             var mat = new Material(LitShader);

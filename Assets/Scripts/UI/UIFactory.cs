@@ -133,6 +133,39 @@ namespace MarbleGP.UI
             return rt;
         }
 
+        /// <summary>Sombra suave atras de um retangulo (deslocada). Crie ANTES do
+        /// elemento para ela ficar atras.</summary>
+        public static RectTransform Shadow(Transform parent, Vector2 anchorMin, Vector2 anchorMax,
+            Vector2 offset, float alpha = 0.35f)
+        {
+            var rt = Panel(parent, anchorMin, anchorMax, offset, offset, new Color(0f, 0f, 0f, alpha));
+            rt.GetComponent<Image>().raycastTarget = false;
+            return rt;
+        }
+
+        /// <summary>Card premium: sombra + painel arredondado + borda clara sutil (glass).</summary>
+        public static RectTransform Card(Transform parent, Vector2 anchorMin, Vector2 anchorMax,
+            Color color, bool shadow = true)
+        {
+            if (shadow) Shadow(parent, anchorMin, anchorMax, new Vector2(4f, -6f), 0.32f);
+            var rt = Panel(parent, anchorMin, anchorMax, Vector2.zero, Vector2.zero, color);
+            var border = rt.gameObject.AddComponent<Outline>();
+            border.effectColor = new Color(1f, 1f, 1f, 0.10f);
+            border.effectDistance = new Vector2(1f, 1f);
+            return rt;
+        }
+
+        /// <summary>Linha divisoria fina (acento esportivo).</summary>
+        public static RectTransform Divider(Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color color)
+        {
+            var go = new GameObject("Divider", typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.color = color; img.raycastTarget = false;
+            SetRect(go, anchorMin, anchorMax);
+            return go.GetComponent<RectTransform>();
+        }
+
         public static Text Label(Transform parent, string text, int size, TextAnchor anchor,
             Vector2 anchorMin, Vector2 anchorMax, Color color)
         {

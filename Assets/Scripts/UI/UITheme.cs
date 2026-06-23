@@ -26,9 +26,20 @@ namespace MarbleGP.UI
         public static readonly Color Energy = new Color(0.30f, 0.80f, 0.95f);
         public static readonly Color TyreWear = new Color(0.90f, 0.45f, 0.30f);
 
-        public static readonly Color Gold = new Color(1f, 0.86f, 0.32f);
+        public static readonly Color Gold = new Color(1f, 0.84f, 0.32f);
+        public static readonly Color Silver = new Color(0.80f, 0.84f, 0.90f);
+        public static readonly Color Bronze = new Color(0.85f, 0.55f, 0.32f);
         public static readonly Color PlayerHighlight = new Color(1f, 0.85f, 0.25f);
         public static readonly Color TextDim = new Color(0.78f, 0.82f, 0.92f);
         public static readonly Color Neon = new Color(0.35f, 0.75f, 1f);
+
+        // Vidro/glass para cards premium (escuro translucido) + acento esportivo.
+        public static readonly Color Glass = new Color(0.10f, 0.13f, 0.20f, 0.82f);
+        public static readonly Color GlassLight = new Color(0.16f, 0.20f, 0.30f, 0.85f);
+        public static readonly Color AccentRed = new Color(0.90f, 0.22f, 0.28f);
+
+        /// <summary>Cor da medalha por posicao (1=ouro, 2=prata, 3=bronze).</summary>
+        public static Color Medal(int pos)
+            => pos == 1 ? Gold : pos == 2 ? Silver : pos == 3 ? Bronze : TextDim;
     }
 }

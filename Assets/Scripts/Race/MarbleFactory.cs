@@ -39,18 +39,18 @@ namespace MarbleGP.Race
             visual.transform.localScale = Vector3.one * (Radius * 2f);
             Color primary = runtime.MarbleColor; // respeita customizacao da garagem (PRD 31)
             visual.GetComponent<MeshRenderer>().sharedMaterial =
-                MaterialFactory.Create(primary, smoothness: 0.85f, metallic: 0.2f);
+                MaterialFactory.Create(primary, smoothness: 0.92f, metallic: 0.15f);
 
-            // Faixa/marcador na cor secundaria (PRD 22.2).
-            var band = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            band.name = "Band";
-            Object.Destroy(band.GetComponent<Collider>());
-            band.transform.SetParent(visual.transform, false);
-            band.transform.localScale = Vector3.one * 0.45f;
-            band.transform.localPosition = new Vector3(0f, 0.62f, 0f);
-            Color secondary = runtime.TeamSecondary;
-            band.GetComponent<MeshRenderer>().sharedMaterial =
-                MaterialFactory.Create(secondary, smoothness: 0.6f);
+            // Marcador de equipe: ANEL fino na cor secundaria na base (legivel de
+            // cima, sem o "ponto" grudado de antes). Nao rola (parented na raiz).
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "TeamRing";
+            Object.Destroy(ring.GetComponent<Collider>());
+            ring.transform.SetParent(go.transform, false);
+            ring.transform.localScale = new Vector3(Radius * 2.5f, 0.05f, Radius * 2.5f);
+            ring.transform.localPosition = new Vector3(0f, -Radius * 0.72f, 0f);
+            ring.GetComponent<MeshRenderer>().sharedMaterial =
+                MaterialFactory.Create(runtime.TeamSecondary, smoothness: 0.6f, metallic: 0.2f);
 
             var ctrl = go.AddComponent<MarbleController>();
             ctrl.Configure(runtime, track, bal, visual.transform, Radius);

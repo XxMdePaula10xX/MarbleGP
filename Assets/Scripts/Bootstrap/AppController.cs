@@ -381,9 +381,9 @@ namespace MarbleGP.Bootstrap
             UIFactory.Label(canvas.transform, $"{result.trackName}  ·  {result.laps} voltas", 24,
                 TextAnchor.MiddleCenter, new Vector2(0.05f, 0.865f), new Vector2(0.95f, 0.905f), UITheme.TextDim);
 
-            var winner = result.entries.Count > 0 ? result.entries[0] : null;
-            if (winner != null) BuildWinnerCard(canvas.transform, winner);
+            UIFactory.Divider(canvas.transform, new Vector2(0.4f, 0.858f), new Vector2(0.6f, 0.862f), UITheme.Gold);
 
+            BuildPodium(canvas.transform, result);
             BuildResultTable(canvas.transform, result);
 
             // Rodape (PRD 4).
@@ -410,6 +410,50 @@ namespace MarbleGP.Bootstrap
             if (e.isPlayer && _gm.Profile != null) return _gm.Profile.PrimaryColor;
             var t = _gm.Database.GetTeam(e.teamId);
             return t != null ? t.primaryColor : Color.gray;
+        }
+
+        /// <summary>Podio top-3 (P2 esq, P1 centro maior, P3 dir) com medalhas.</summary>
+        private void BuildPodium(Transform canvas, RaceResult result)
+        {
+            int count = result.entries.Count;
+            if (count >= 2) BuildPodiumCard(canvas, result.entries[1], 2,
+                new Vector2(0.205f, 0.665f), new Vector2(0.395f, 0.80f));
+            if (count >= 3) BuildPodiumCard(canvas, result.entries[2], 3,
+                new Vector2(0.605f, 0.665f), new Vector2(0.795f, 0.79f));
+            if (count >= 1) BuildPodiumCard(canvas, result.entries[0], 1,
+                new Vector2(0.405f, 0.665f), new Vector2(0.595f, 0.862f)); // P1 maior, por cima
+        }
+
+        private void BuildPodiumCard(Transform canvas, RaceResultEntry e, int pos, Vector2 aMin, Vector2 aMax)
+        {
+            var med = UITheme.Medal(pos);
+            UIFactory.Shadow(canvas, aMin, aMax, new Vector2(4f, -6f), 0.35f);
+            var card = UIFactory.Panel(canvas, aMin, aMax, Vector2.zero, Vector2.zero,
+                new Color(0.10f, 0.11f, 0.16f, 0.97f));
+            var glow = card.gameObject.AddComponent<Outline>();
+            glow.effectColor = new Color(med.r, med.g, med.b, 0.95f);
+            glow.effectDistance = new Vector2(pos == 1 ? 3f : 2f, pos == 1 ? 3f : 2f);
+
+            // Faixa superior da medalha + barra da equipe.
+            UIFactory.Panel(card, new Vector2(0f, 0.85f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, new Color(med.r * 0.45f, med.g * 0.42f, med.b * 0.32f, 0.97f));
+            var side = UIFactory.Panel(card, new Vector2(0f, 0f), new Vector2(0.025f, 0.85f),
+                Vector2.zero, Vector2.zero, TeamColorOf(e));
+            side.GetComponent<Image>().raycastTarget = false;
+
+            string crown = pos == 1 ? "★ " : "";
+            UIFactory.Label(card, $"{crown}P{pos}", pos == 1 ? 40 : 30, TextAnchor.MiddleCenter,
+                new Vector2(0f, 0.85f), new Vector2(1f, 1f), Color.white).fontStyle = FontStyle.Bold;
+
+            UIFactory.Logo(card, e.teamId, new Vector2(0.36f, 0.5f), new Vector2(0.64f, 0.82f));
+
+            var nm = UIFactory.Label(card, Trim(e.marbleName, 16), pos == 1 ? 20 : 16, TextAnchor.MiddleCenter,
+                new Vector2(0.04f, 0.32f), new Vector2(0.96f, 0.5f), Color.white);
+            nm.fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, Trim(e.teamName, 18), 13, TextAnchor.MiddleCenter,
+                new Vector2(0.04f, 0.21f), new Vector2(0.96f, 0.32f), UITheme.TextDim);
+            UIFactory.Label(card, $"{e.finalTyre}  ·  Pits {e.pitStops}  ·  {e.points} pts", 13, TextAnchor.MiddleCenter,
+                new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.2f), med);
         }
 
         /// <summary>Card do vencedor em destaque dourado (PRD 4).</summary>

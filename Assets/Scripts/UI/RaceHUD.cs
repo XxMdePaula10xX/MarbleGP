@@ -47,6 +47,7 @@ namespace MarbleGP.UI
             public Text title, tyre, mode, status, wearLabel, energyLabel, fuelLabel, pitLabel;
             public RectTransform wearFill, energyFill, fuelFill;
             public Button pitBtn;
+            public Outline pitGlow;
             public GameObject modeSelector, tyreSelector;
             public readonly List<GameObject> detail = new(); // escondido quando recolhido
         }
@@ -352,12 +353,19 @@ namespace MarbleGP.UI
 
         private void BuildMinimap(Transform canvas)
         {
-            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.15f),
-                Vector2.zero, Vector2.zero, new Color(0.04f, 0.05f, 0.09f, 0.95f));
+            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.16f),
+                Vector2.zero, Vector2.zero, new Color(0.05f, 0.07f, 0.12f, 0.96f));
             // Borda neon.
             var border = _mapContainer.gameObject.AddComponent<Outline>();
             border.effectColor = new Color(0.35f, 0.75f, 1f, 0.9f);
             border.effectDistance = new Vector2(2.5f, 2.5f);
+
+            // Cabecalho do minimapa.
+            var mapHdr = UIFactory.Panel(_mapContainer, new Vector2(0f, 0.83f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
+            UIFactory.Label(mapHdr, "PISTA", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.08f, 0f), new Vector2(0.7f, 1f), UITheme.Neon).fontStyle = FontStyle.Bold;
+            UIFactory.Divider(mapHdr, new Vector2(0f, 0f), new Vector2(1f, 0.06f), UITheme.Neon);
 
             var lane = _race.Track != null ? _race.Track.IdealLine : null;
             if (lane == null) return;
@@ -403,8 +411,12 @@ namespace MarbleGP.UI
         }
 
         private Vector2 Norm(Vector3 world)
-            => new Vector2(Mathf.InverseLerp(_mapMin.x, _mapMax.x, world.x),
-                           Mathf.InverseLerp(_mapMin.y, _mapMax.y, world.z));
+        {
+            float nx = Mathf.InverseLerp(_mapMin.x, _mapMax.x, world.x);
+            float ny = Mathf.InverseLerp(_mapMin.y, _mapMax.y, world.z);
+            // Insere o tracado na area abaixo do cabecalho (deixa o topo livre).
+            return new Vector2(Mathf.Lerp(0.07f, 0.93f, nx), Mathf.Lerp(0.05f, 0.80f, ny));
+        }
 
         private static Image Dot(Transform parent, Color color, float sizePx)
         {
@@ -482,20 +494,26 @@ namespace MarbleGP.UI
             card.status = UIFactory.Label(panel, "", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.33f), new Color(0.85f, 0.85f, 0.9f));
 
-            // Botoes.
-            card.pitBtn = UIFactory.Button(panel, "PIT", new Color(0.85f, 0.35f, 0.2f),
+            // Botoes de acao (icone + texto, cores do tema).
+            card.pitBtn = UIFactory.Button(panel, "PIT", UITheme.PrimaryButton,
                 new Vector2(0.04f, 0.03f), new Vector2(0.34f, 0.2f), Vector2.zero, Vector2.zero);
             card.pitLabel = card.pitBtn.GetComponentInChildren<Text>();
+            UIFactory.Icon(card.pitBtn.transform, "pit", new Vector2(0.08f, 0.2f), new Vector2(0.32f, 0.8f), Color.white);
+            card.pitGlow = card.pitBtn.gameObject.AddComponent<Outline>();
+            card.pitGlow.effectColor = new Color(1f, 0.7f, 0.2f, 0f);
+            card.pitGlow.effectDistance = new Vector2(2.5f, 2.5f);
             var capturedCard = card;
             card.pitBtn.onClick.AddListener(() =>
                 _race.RequestPit(capturedCard.ctrl, capturedCard.nextGrip, true, 60f));
 
-            var modeBtn = UIFactory.Button(panel, "MODE", new Color(0.2f, 0.55f, 0.85f),
+            var modeBtn = UIFactory.Button(panel, "MODE", UITheme.SecondaryButton,
                 new Vector2(0.36f, 0.03f), new Vector2(0.66f, 0.2f), Vector2.zero, Vector2.zero);
+            UIFactory.Icon(modeBtn.transform, "mode", new Vector2(0.06f, 0.2f), new Vector2(0.3f, 0.8f), Color.white);
             modeBtn.onClick.AddListener(() => ToggleSelector(capturedCard, true));
 
-            var tyreBtn = UIFactory.Button(panel, "TYRE", new Color(0.55f, 0.35f, 0.8f),
+            var tyreBtn = UIFactory.Button(panel, "TYRE", new Color(0.50f, 0.32f, 0.78f),
                 new Vector2(0.68f, 0.03f), new Vector2(0.96f, 0.2f), Vector2.zero, Vector2.zero);
+            UIFactory.Icon(tyreBtn.transform, "tyre", new Vector2(0.05f, 0.2f), new Vector2(0.29f, 0.8f), Color.white);
             tyreBtn.onClick.AddListener(() => ToggleSelector(capturedCard, false));
 
             BuildModeSelector(panel, card);
@@ -653,8 +671,9 @@ namespace MarbleGP.UI
                           || m.state == MarbleRaceState.ExitingPit;
                 row.pit.text = inPit ? "P" : m.pitStops.ToString();
                 row.pit.color = inPit ? new Color(1f, 0.65f, 0.2f) : new Color(0.7f, 0.78f, 0.9f);
-                // Lider em dourado.
-                row.code.color = i == 0 ? new Color(1f, 0.88f, 0.35f) : Color.white;
+                // Posicao com cor de medalha no top 3; lider tambem na sigla.
+                row.pos.color = i < 3 ? UITheme.Medal(i + 1) : Color.white;
+                row.code.color = i == 0 ? UITheme.Gold : Color.white;
 
                 int prev = _posSnapshot.TryGetValue(m, out var p) ? p : (i + 1);
                 if (i + 1 < prev) { row.arrow.text = "▲"; row.arrow.color = new Color(0.3f, 0.9f, 0.4f); }
@@ -662,11 +681,17 @@ namespace MarbleGP.UI
                 else row.arrow.text = "";
                 if (refresh) _posSnapshot[m] = i + 1;
 
-                // Destaque do jogador: fundo + glow dourado.
+                // Destaque: jogador (dourado), top 3 (acento da medalha) e zebra.
                 if (m.isPlayer)
                 {
                     row.bg.color = new Color(0.2f, 0.17f, 0.05f, 0.96f);
                     row.glow.effectColor = new Color(1f, 0.85f, 0.2f, 0.9f);
+                }
+                else if (i < 3)
+                {
+                    var med = UITheme.Medal(i + 1);
+                    row.bg.color = new Color(med.r * 0.18f, med.g * 0.16f, med.b * 0.12f, 0.96f);
+                    row.glow.effectColor = new Color(med.r, med.g, med.b, 0.35f);
                 }
                 else
                 {
@@ -719,6 +744,15 @@ namespace MarbleGP.UI
                 if (pitting) { card.pitLabel.text = "IN PIT"; card.pitBtn.interactable = false; }
                 else if (m.pitRequested) { card.pitLabel.text = "QUEUED"; card.pitBtn.interactable = false; }
                 else { card.pitLabel.text = "PIT"; card.pitBtn.interactable = m.state == MarbleRaceState.Racing; }
+
+                // Glow pulsante quando o PIT esta disponivel e e recomendado
+                // (combustivel/desgaste altos), reforcando a acao importante.
+                if (card.pitGlow != null)
+                {
+                    bool urge = card.pitBtn.interactable && (m.fuel < 25f || m.wear > 70f);
+                    float a = urge ? 0.5f + 0.4f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 4f)) : 0f;
+                    card.pitGlow.effectColor = new Color(1f, 0.7f, 0.2f, a);
+                }
             }
         }
 

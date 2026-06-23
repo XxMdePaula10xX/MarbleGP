@@ -89,12 +89,19 @@ namespace MarbleGP.Race
             go.transform.SetParent(transform, false);
             go.transform.localPosition = Vector3.zero;
             _trail = go.AddComponent<TrailRenderer>();
-            _trail.time = 0.35f;
-            _trail.startWidth = _radius * 0.8f;
-            _trail.endWidth = 0f;
-            _trail.minVertexDistance = 0.15f;
-            _trail.numCapVertices = 4;
-            _trail.material = MaterialFactory.CreateUnlit(_teamColor);
+            _trail.time = 0.28f;
+            // Rastro fino e suave que esmaece (sem a "ponta de triangulo" de antes).
+            _trail.startWidth = _radius * 0.42f;
+            _trail.endWidth = _radius * 0.06f;
+            _trail.minVertexDistance = 0.1f;
+            _trail.numCapVertices = 6;
+            _trail.numCornerVertices = 4;
+            _trail.material = MaterialFactory.CreateTrail();
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(_teamColor, 0f), new GradientColorKey(_teamColor, 1f) },
+                new[] { new GradientAlphaKey(0.55f, 0f), new GradientAlphaKey(0f, 1f) });
+            _trail.colorGradient = grad;
             _trail.emitting = false;
         }
 
