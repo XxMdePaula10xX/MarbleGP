@@ -340,8 +340,66 @@ namespace MarbleGP.UI
             btn.transition = Selectable.Transition.ColorTint;
             btn.colors = MakeColors(bg);
 
+            // Borda neon sutil (estilo sci-fi).
+            NeonBorder(go, MarbleUITheme.NeonCyan, 0.30f, 1.2f);
+
             Label(go.transform, text, 22, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white);
             return btn;
+        }
+
+        // ---- Design system premium (glass / neon / badge) ------------------
+
+        /// <summary>Adiciona uma borda neon (glow) a um GameObject de UI.</summary>
+        public static Outline NeonBorder(GameObject go, Color color, float alpha = 0.55f, float dist = 1.6f)
+        {
+            var ol = go.AddComponent<Outline>();
+            var c = color; c.a = alpha; ol.effectColor = c;
+            ol.effectDistance = new Vector2(dist, dist);
+            return ol;
+        }
+
+        /// <summary>Painel glassmorphism: escuro translucido + borda neon ciano.</summary>
+        public static RectTransform GlassPanel(Transform parent, Vector2 aMin, Vector2 aMax,
+            Color? fill = null, Color? border = null)
+        {
+            var rt = Panel(parent, aMin, aMax, Vector2.zero, Vector2.zero, fill ?? MarbleUITheme.PanelDark);
+            NeonBorder(rt.gameObject, border ?? MarbleUITheme.NeonCyan, 0.45f, 1.6f);
+            return rt;
+        }
+
+        /// <summary>Badge circular de pneu (anel colorido + nucleo escuro + letra).
+        /// Retorna o anel e a letra para atualizacao dinamica.</summary>
+        public static (Image ring, Text letter) TyreBadge(Transform parent, Vector2 aMin, Vector2 aMax)
+        {
+            var ringGo = new GameObject("TyreBadge", typeof(Image));
+            ringGo.transform.SetParent(parent, false);
+            var ring = ringGo.GetComponent<Image>();
+            if (CircleSprite != null) ring.sprite = CircleSprite;
+            ring.color = MarbleUITheme.TextSecondary;
+            ring.raycastTarget = false;
+            SetRect(ringGo, aMin, aMax);
+
+            var coreGo = new GameObject("Core", typeof(Image));
+            coreGo.transform.SetParent(ringGo.transform, false);
+            var core = coreGo.GetComponent<Image>();
+            if (CircleSprite != null) core.sprite = CircleSprite;
+            core.color = new Color(0.04f, 0.07f, 0.11f, 1f);
+            core.raycastTarget = false;
+            var crt = coreGo.GetComponent<RectTransform>();
+            crt.anchorMin = new Vector2(0.22f, 0.22f); crt.anchorMax = new Vector2(0.78f, 0.78f);
+            crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
+
+            var letter = Label(ringGo.transform, "", 13, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white);
+            letter.fontStyle = FontStyle.Bold; letter.raycastTarget = false;
+            return (ring, letter);
+        }
+
+        /// <summary>Badge de pneu estatico (estrategia/resultado).</summary>
+        public static void TyreBadge(Transform parent, string gripId, Vector2 aMin, Vector2 aMax)
+        {
+            var b = TyreBadge(parent, aMin, aMax);
+            MarbleUITheme.TyreInfo(gripId, out var l, out var c);
+            b.ring.color = c; b.letter.text = l; b.letter.color = c;
         }
 
         /// <summary>ColorBlock coerente a partir da cor base do botao.</summary>

@@ -28,9 +28,9 @@ namespace MarbleGP.UI
         // ---- Timing tower ----
         private class RankingRow
         {
-            public Image bg, accent, chip, logo;
+            public Image bg, accent, chip, logo, gripRing;
             public Outline glow;
-            public Text pos, arrow, number, code, gap, grip, pit;
+            public Text pos, arrow, number, code, gap, gripLetter, pit;
         }
         private readonly List<RankingRow> _rows = new();
         private readonly Dictionary<MarbleRuntime, int> _posSnapshot = new();
@@ -95,12 +95,42 @@ namespace MarbleGP.UI
             BuildLog(canvas.transform);
             BuildMinimap(canvas.transform);
             BuildPlayerCards(canvas.transform);
+            BuildBottomNav(canvas.transform);
 
             _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
                 new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));
             _countdownText.fontStyle = FontStyle.Bold;
 
             if (!_raceTutorialSeen) ShowRaceTutorial(); // mini tutorial na 1a corrida da sessao
+        }
+
+        // ---- Navegacao inferior (DATA / STRATEGY / TIMINGS / MENU) ----
+
+        private void BuildBottomNav(Transform canvas)
+        {
+            string[] labels = { "DATA", "STRAT", "TIMING", "MENU" };
+            System.Action[] acts =
+            {
+                () => { },                              // DATA (reservado)
+                () => ToggleLog(),                      // STRATEGY -> alterna log/eventos
+                () => ToggleTower(),                    // TIMINGS  -> alterna a race tower
+                () => _race.PauseRequested?.Invoke()    // MENU     -> menu de pausa
+            };
+            Color[] cols =
+            {
+                MarbleUITheme.PanelSoft, MarbleUITheme.PanelSoft,
+                new Color32(18, 60, 105, 235), UITheme.PrimaryButton
+            };
+            float x0 = 0.80f, w = 0.046f, gap = 0.004f;
+            for (int i = 0; i < labels.Length; i++)
+            {
+                float xMin = x0 + i * (w + gap);
+                var b = UIFactory.Button(canvas, labels[i], cols[i],
+                    new Vector2(xMin, 0.012f), new Vector2(xMin + w, 0.085f), Vector2.zero, Vector2.zero);
+                b.GetComponentInChildren<Text>().fontSize = 12;
+                var act = acts[i];
+                b.onClick.AddListener(() => act());
+            }
         }
 
         // ---- Mini tutorial (PRD) ----
@@ -151,7 +181,8 @@ namespace MarbleGP.UI
         private void BuildTopBar(Transform canvas)
         {
             var bar = UIFactory.Panel(canvas, new Vector2(0.24f, 0.93f), new Vector2(0.78f, 1f),
-                Vector2.zero, Vector2.zero, new Color(0.04f, 0.05f, 0.08f, 0.82f));
+                Vector2.zero, Vector2.zero, MarbleUITheme.PanelDark);
+            UIFactory.NeonBorder(bar.gameObject, MarbleUITheme.NeonCyan, 0.5f, 1.6f);
 
             _topCircuit = UIFactory.Label(bar, "", 24, TextAnchor.MiddleLeft,
                 new Vector2(0.03f, 0f), new Vector2(0.42f, 1f), Color.white);
@@ -195,12 +226,13 @@ namespace MarbleGP.UI
         {
             int count = _race.Field.Count;
             var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.235f, 0.99f),
-                Vector2.zero, Vector2.zero, new Color(0.04f, 0.04f, 0.06f, 0.9f));
+                Vector2.zero, Vector2.zero, MarbleUITheme.BackgroundDark);
+            UIFactory.NeonBorder(container.gameObject, MarbleUITheme.NeonCyan, 0.5f, 1.8f);
             _towerContainer = container;
 
             const float headerH = 48f;
             var header = UIFactory.Panel(container, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, new Color(0.12f, 0.13f, 0.18f, 1f));
+                Vector2.zero, Vector2.zero, MarbleUITheme.PanelSoft);
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
@@ -230,7 +262,7 @@ namespace MarbleGP.UI
                 bool show = !_towerCollapsed;
                 row.arrow.gameObject.SetActive(show);
                 row.gap.gameObject.SetActive(show);
-                row.grip.gameObject.SetActive(show);
+                row.gripRing.gameObject.SetActive(show);
                 row.pit.gameObject.SetActive(show);
                 row.number.gameObject.SetActive(show);
             }
@@ -302,9 +334,10 @@ namespace MarbleGP.UI
             row.gap = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleRight,
                 new Vector2(0.49f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
-            row.grip = UIFactory.Label(rowGo.transform, "", 21, TextAnchor.MiddleCenter,
-                new Vector2(0.74f, 0f), new Vector2(0.85f, 1f), Color.white);
-            row.grip.fontStyle = FontStyle.Bold;
+            // Badge de pneu (anel colorido + letra), estilo transmissao.
+            var tb = UIFactory.TyreBadge(rowGo.transform, new Vector2(0.745f, 0.16f), new Vector2(0.85f, 0.84f));
+            row.gripRing = tb.ring;
+            row.gripLetter = tb.letter;
 
             // Pit stops (PRD 4.2).
             row.pit = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleCenter,
@@ -318,7 +351,8 @@ namespace MarbleGP.UI
         private void BuildLog(Transform canvas)
         {
             _logPanel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.15f),
-                Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
+                Vector2.zero, Vector2.zero, MarbleUITheme.PanelDark);
+            UIFactory.NeonBorder(_logPanel.gameObject, MarbleUITheme.NeonCyan, 0.4f, 1.4f);
 
             // Cabecalho do log.
             var hdr = UIFactory.Panel(_logPanel, new Vector2(0f, 0.8f), new Vector2(1f, 1f),
@@ -455,10 +489,8 @@ namespace MarbleGP.UI
         private void BuildCard(Transform canvas, MarbleController ctrl, float yMin, float yMax)
         {
             var panel = UIFactory.Panel(canvas, new Vector2(0.785f, yMin), new Vector2(0.995f, yMax),
-                Vector2.zero, Vector2.zero, UITheme.CardPanel);
-            var border = panel.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0f, 0f, 0f, 0.45f);
-            border.effectDistance = new Vector2(1.5f, 1.5f);
+                Vector2.zero, Vector2.zero, MarbleUITheme.PanelDark);
+            UIFactory.NeonBorder(panel.gameObject, ctrl.Runtime.TeamPrimary, 0.7f, 1.8f);
 
             // Header escuro com faixa fina da cor da equipe a esquerda (texto sempre legivel).
             var headRt = UIFactory.Panel(panel, new Vector2(0f, 0.86f), new Vector2(1f, 1f),
@@ -664,8 +696,10 @@ namespace MarbleGP.UI
                     row.number.color = m.TeamSecondary;
                 }
                 row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";
-                row.grip.text = m.grip != null ? m.grip.DisplayLetter : "?";
-                row.grip.color = m.grip != null ? m.grip.DisplayColor : Color.gray;
+                MarbleUITheme.TyreInfo(m.grip != null ? m.grip.gripId.ToString() : "", out var tl, out var tc);
+                row.gripRing.color = tc;
+                row.gripLetter.text = tl;
+                row.gripLetter.color = tc;
                 // Coluna de pit: contador, ou icone quando esta no pit.
                 bool inPit = m.state == MarbleRaceState.InPit || m.state == MarbleRaceState.EnteringPit
                           || m.state == MarbleRaceState.ExitingPit;
