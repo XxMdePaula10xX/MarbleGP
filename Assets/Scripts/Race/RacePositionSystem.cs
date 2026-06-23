@@ -93,8 +93,16 @@ namespace MarbleGP.Race
             {
                 var m = c.Runtime;
                 float arc = _track.ArcFraction(c.transform.position); // 0..1 ao longo da pista
+
+                // Correcao do grid de largada: as bolinhas comecam LOGO ATRAS da
+                // linha (arc ~0.97). Sem isso elas parecem "quase terminando a
+                // volta" e o ultimo do grid vira lider. Enquanto nao cruzam a
+                // linha pela 1a vez, o arco alto conta como progresso negativo.
+                if (!m.startLineCrossed && arc < 0.5f) m.startLineCrossed = true;
+                float effArc = m.startLineCrossed ? arc : arc - 1f;
+
                 // Progresso monotonico: voltas + fracao do arco (PRD 26).
-                m.raceProgress = m.completedLaps + arc;
+                m.raceProgress = m.completedLaps + effArc;
             }
 
             field.Sort((a, b) =>

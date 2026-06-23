@@ -41,6 +41,7 @@ namespace MarbleGP.Systems
         public int completedLaps = 0;
         public int currentCheckpoint = 0;
         public float raceProgress = 0f;    // calculado pelo RacePositionSystem
+        public bool startLineCrossed = false; // ja cruzou a linha de largada (evita wrap do grid)
         public int position = 0;           // posicao ao vivo (1-based)
         public float gapToLeader = 0f;     // segundos atras do lider (timing tower)
 
