@@ -231,38 +231,41 @@ namespace MarbleGP.Bootstrap
         private void ShowStrategy()
         {
             var canvas = NewCanvas("Strategy");
-            UIFactory.Label(canvas.transform, $"Estrategia - {_selectedTrack.trackName}", 36, TextAnchor.MiddleCenter,
+            UIFactory.Label(canvas.transform, $"Estratégia — {_selectedTrack.trackName}", 36, TextAnchor.MiddleCenter,
                 new Vector2(0.1f, 0.86f), new Vector2(0.9f, 0.95f), Color.white);
 
             // Previsao do tempo (PRD 10/19): chance de chuva + mudancas previstas.
             int rainPct = Mathf.RoundToInt(_selectedTrack.rainChance * 100f);
             int maxChanges = _selectedLaps <= 6 ? 1 : (_selectedLaps <= 15 ? 2 : 3);
-            string confianca = rainPct >= 40 ? "instavel" : rainPct >= 15 ? "moderada" : "estavel";
+            string confianca = rainPct >= 40 ? "instável" : rainPct >= 15 ? "moderada" : "estável";
             UIFactory.Label(canvas.transform,
-                $"Previsao: chuva {rainPct}%  ·  ate {maxChanges} mudanca(s) de clima  ·  {confianca}",
+                $"Previsão: chuva {rainPct}%   ·   até {maxChanges} mudança(s) de clima   ·   {confianca}",
                 22, TextAnchor.MiddleCenter, new Vector2(0.08f, 0.8f), new Vector2(0.92f, 0.85f),
                 rainPct >= 30 ? new Color(0.5f, 0.7f, 1f) : new Color(0.8f, 0.85f, 0.9f));
 
-            UIFactory.Icon(canvas.transform, "tyre", new Vector2(0.045f, 0.72f), new Vector2(0.075f, 0.78f), Color.white);
-            UIFactory.Label(canvas.transform, "Anel de aderencia:", 24, TextAnchor.MiddleLeft,
-                new Vector2(0.08f, 0.72f), new Vector2(0.4f, 0.78f), Color.white);
+            UIFactory.Icon(canvas.transform, "tyre", new Vector2(0.055f, 0.715f), new Vector2(0.092f, 0.785f), Color.white);
+            var lblGrip = UIFactory.Label(canvas.transform, "Anel de aderência:", 24, TextAnchor.MiddleRight,
+                new Vector2(0.10f, 0.71f), new Vector2(0.30f, 0.79f), Color.white);
+            lblGrip.fontStyle = FontStyle.Bold;
             GripButton(canvas.transform, GripType.Soft, "Soft", 0);
             GripButton(canvas.transform, GripType.Medium, "Medium", 1);
             GripButton(canvas.transform, GripType.Hard, "Hard", 2);
             GripButton(canvas.transform, GripType.Intermediate, "Inter", 3);
             GripButton(canvas.transform, GripType.Rain, "Rain", 4);
 
-            UIFactory.Icon(canvas.transform, "mode", new Vector2(0.045f, 0.56f), new Vector2(0.075f, 0.62f), Color.white);
-            UIFactory.Label(canvas.transform, "Modo inicial:", 24, TextAnchor.MiddleLeft,
-                new Vector2(0.08f, 0.56f), new Vector2(0.4f, 0.62f), Color.white);
+            UIFactory.Icon(canvas.transform, "mode", new Vector2(0.055f, 0.555f), new Vector2(0.092f, 0.625f), Color.white);
+            var lblMode = UIFactory.Label(canvas.transform, "Modo inicial:", 24, TextAnchor.MiddleRight,
+                new Vector2(0.10f, 0.55f), new Vector2(0.30f, 0.63f), Color.white);
+            lblMode.fontStyle = FontStyle.Bold;
             ModeButton(canvas.transform, RaceMode.Save, "Save", 0);
             ModeButton(canvas.transform, RaceMode.Normal, "Normal", 1);
             ModeButton(canvas.transform, RaceMode.Push, "Push", 2);
 
             // Duracao da corrida (PRD 3 / 13).
-            UIFactory.Icon(canvas.transform, "laps", new Vector2(0.045f, 0.46f), new Vector2(0.075f, 0.52f), Color.white);
-            UIFactory.Label(canvas.transform, "Duracao:", 24, TextAnchor.MiddleLeft,
-                new Vector2(0.08f, 0.46f), new Vector2(0.4f, 0.52f), Color.white);
+            UIFactory.Icon(canvas.transform, "laps", new Vector2(0.055f, 0.455f), new Vector2(0.092f, 0.525f), Color.white);
+            var lblDur = UIFactory.Label(canvas.transform, "Duração:", 24, TextAnchor.MiddleRight,
+                new Vector2(0.10f, 0.45f), new Vector2(0.30f, 0.53f), Color.white);
+            lblDur.fontStyle = FontStyle.Bold;
             LapButton(canvas.transform, 5, "Rapido (5)", 0);
             LapButton(canvas.transform, 12, "Normal (12)", 1);
             LapButton(canvas.transform, 20, "Longo (20)", 2);
@@ -271,8 +274,8 @@ namespace MarbleGP.Bootstrap
             int stops = _selectedLaps >= 18 ? 2 : 1;
             string summary =
                 $"Circuito: {_selectedTrack.trackName}    Voltas: {_selectedLaps}    Clima inicial: Seco\n" +
-                $"Pneu: {_grip}    Modo: {_mode}    Combustivel: 100    Energia: 100\n" +
-                $"Paradas previstas: ~{stops}   (combustivel nao chega ao fim sem parar)";
+                $"Pneu: {_grip}    Modo: {_mode}    Combustível: 100    Energia: 100\n" +
+                $"Paradas previstas: ~{stops}   (combustível não chega ao fim sem parar)";
             var sumPanel = UIFactory.Panel(canvas.transform, new Vector2(0.2f, 0.24f), new Vector2(0.8f, 0.38f),
                 Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.5f));
             UIFactory.Label(sumPanel, summary, 18, TextAnchor.MiddleCenter,
@@ -287,7 +290,7 @@ namespace MarbleGP.Bootstrap
 
         private void LapButton(Transform parent, int laps, string label, int col)
         {
-            float xMin = 0.42f + col * 0.16f;
+            float xMin = 0.31f + col * 0.16f;
             var btn = UIFactory.Button(parent, label,
                 _selectedLaps == laps ? new Color(0.2f, 0.6f, 0.85f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.45f), new Vector2(xMin + 0.14f, 0.53f), Vector2.zero, Vector2.zero);
@@ -296,7 +299,7 @@ namespace MarbleGP.Bootstrap
 
         private void GripButton(Transform parent, GripType g, string label, int col)
         {
-            float xMin = 0.42f + col * 0.115f;
+            float xMin = 0.31f + col * 0.135f;
             var btn = UIFactory.Button(parent, label,
                 _grip == g ? new Color(0.9f, 0.6f, 0.2f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.71f), new Vector2(xMin + 0.105f, 0.79f), Vector2.zero, Vector2.zero);
@@ -305,7 +308,7 @@ namespace MarbleGP.Bootstrap
 
         private void ModeButton(Transform parent, RaceMode m, string label, int col)
         {
-            float xMin = 0.42f + col * 0.16f;
+            float xMin = 0.31f + col * 0.16f;
             var btn = UIFactory.Button(parent, label,
                 _mode == m ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(xMin, 0.55f), new Vector2(xMin + 0.14f, 0.63f), Vector2.zero, Vector2.zero);

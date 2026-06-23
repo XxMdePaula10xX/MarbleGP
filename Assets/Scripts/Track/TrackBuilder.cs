@@ -60,8 +60,7 @@ namespace MarbleGP.Track
                 MaterialFactory.CreateTextured(asphaltTex, Asphalt, 1f), "RoadMesh", 0f, 6f);
             BuildEdgeLines(root.transform, center, normals, halfW);
             BuildCurbs(root.transform, center, normals, halfW, curbTex);
-            BuildCenterDashes(root.transform, center);
-            BuildDirectionArrows(root.transform, center);
+            // Setas de direcao e tracos centrais removidos do asfalto (PRD: visual limpo).
             BuildCheckeredLine(root.transform, center[0], normals[0], data.trackWidth);
 
             // --- Checkpoints ---

@@ -86,5 +86,9 @@ namespace MarbleGP.Track
 
         /// <summary>Fracao de arco da posicao na linha ideal (PRD 26, ordenacao fina).</summary>
         public float ArcFraction(Vector3 pos) => IdealLine.ClosestArcFraction(pos, out _);
+
+        /// <summary>Fracao de arco restrita a uma janela em torno do arco esperado.</summary>
+        public float ArcFraction(Vector3 pos, float aroundArc, float window)
+            => IdealLine.ClosestArcFraction(pos, aroundArc, window, out _);
     }
 }

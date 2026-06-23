@@ -198,10 +198,16 @@ namespace MarbleGP.UI
             row.glow.effectColor = new Color(1f, 0.85f, 0.2f, 0f);
             row.glow.effectDistance = new Vector2(2.5f, 2.5f);
 
-            // Faixa de cor da equipe (esquerda).
-            var accentRt = UIFactory.Panel(rowGo.transform, new Vector2(0f, 0f), new Vector2(0.03f, 1f),
-                Vector2.zero, Vector2.zero, Color.gray);
-            row.accent = accentRt.GetComponent<Image>();
+            // Faixa de cor da equipe (esquerda) — retangulo limpo (sem cantos
+            // arredondados, para nao virar "pilula" oval).
+            var accentGo = new GameObject("Accent", typeof(Image));
+            accentGo.transform.SetParent(rowGo.transform, false);
+            row.accent = accentGo.GetComponent<Image>();
+            row.accent.raycastTarget = false;
+            var accentRt = accentGo.GetComponent<RectTransform>();
+            accentRt.anchorMin = new Vector2(0f, 0.08f);
+            accentRt.anchorMax = new Vector2(0.022f, 0.92f);
+            accentRt.offsetMin = Vector2.zero; accentRt.offsetMax = Vector2.zero;
 
             row.pos = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
                 new Vector2(0.04f, 0f), new Vector2(0.15f, 1f), Color.white);
@@ -298,23 +304,24 @@ namespace MarbleGP.UI
             _mapMin = new Vector2(min.x - margin.x, min.z - margin.y);
             _mapMax = new Vector2(max.x + margin.x, max.z + margin.y);
 
-            // Pit lane em ciano (PRD 11).
+            // Pit lane em ciano (PRD 11) — pontos densos formam uma linha suave.
             var pit = _race.Track.PitPath;
             if (pit != null)
-                for (int i = 0; i < pit.Count; i += 2)
+                for (int i = 0; i < pit.Count; i++)
                 {
-                    var pd = Dot(_mapContainer, new Color(0.25f, 0.7f, 0.95f, 0.9f), 4f);
+                    var pd = Dot(_mapContainer, new Color(0.25f, 0.7f, 0.95f, 0.85f), 4f);
                     PlaceNorm(pd, Norm(pit[i]));
                 }
 
-            // Tracado da pista (pontos cinza claro, menores).
-            for (int i = 0; i < lane.Points.Length; i += 2)
+            // Tracado da pista: pontos redondos densos (passo 1) viram uma
+            // faixa contínua e limpa, em vez do visual "snake" de quadradinhos.
+            for (int i = 0; i < lane.Points.Length; i++)
             {
-                var d = Dot(_mapContainer, new Color(0.62f, 0.66f, 0.72f), 4f);
+                var d = Dot(_mapContainer, new Color(0.55f, 0.60f, 0.70f, 0.95f), 5.5f);
                 PlaceNorm(d, Norm(lane.Points[i]));
             }
-            // Linha de chegada.
-            var sf = Dot(_mapContainer, Color.white, 7f);
+            // Linha de chegada destacada.
+            var sf = Dot(_mapContainer, Color.white, 8f);
             PlaceNorm(sf, Norm(lane.Points[0]));
 
             // Pontos das bolinhas.
@@ -341,6 +348,8 @@ namespace MarbleGP.UI
             go.transform.SetParent(parent, false);
             var img = go.GetComponent<Image>();
             img.color = color;
+            if (UIFactory.CircleSprite != null) img.sprite = UIFactory.CircleSprite; // ponto redondo
+            img.raycastTarget = false;
             img.rectTransform.sizeDelta = new Vector2(sizePx, sizePx);
             return img;
         }
@@ -560,7 +569,7 @@ namespace MarbleGP.UI
                 {
                     row.logo.enabled = true;
                     row.logo.sprite = logoSp;
-                    row.chip.color = Color.white;
+                    row.chip.color = new Color(0f, 0f, 0f, 0f); // transparente: sem borda branca
                     row.number.gameObject.SetActive(false);
                 }
                 else

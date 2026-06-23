@@ -14,6 +14,7 @@ namespace MarbleGP.UI
     {
         private static Font _font;
         private static Sprite _rounded;
+        private static Sprite _circle;
         private static readonly Dictionary<string, Texture2D> _texCache = new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Sprite> _spriteCache = new Dictionary<string, Sprite>();
 
@@ -25,6 +26,39 @@ namespace MarbleGP.UI
                 if (_rounded == null) _rounded = BuildRoundedSprite(64, 18);
                 return _rounded;
             }
+        }
+
+        /// <summary>Circulo cheio antialiased (para pontos do minimapa, etc.).</summary>
+        public static Sprite CircleSprite
+        {
+            get
+            {
+                if (_circle == null) _circle = BuildCircleSprite(64);
+                return _circle;
+            }
+        }
+
+        private static Sprite BuildCircleSprite(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+            var px = new Color32[size * size];
+            float c = (size - 1) * 0.5f, r = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                    float a = Mathf.Clamp01(r - d);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
 
         public static Font DefaultFont

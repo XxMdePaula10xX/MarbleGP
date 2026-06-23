@@ -59,5 +59,43 @@ namespace MarbleGP.Track
             }
             return TotalLength > 0f ? bestArc / TotalLength : 0f;
         }
+
+        /// <summary>
+        /// Projecao restrita a uma janela de arco em torno de 'aroundArc' (0..1).
+        /// Em pistas que passam perto de si mesmas (S/figura), isso impede que a
+        /// projecao "mais proxima" salte para um trecho PARALELO distante da pista.
+        /// </summary>
+        public float ClosestArcFraction(Vector3 pos, float aroundArc, float window, out int nearestIndex)
+        {
+            float total = TotalLength > 0f ? TotalLength : 1f;
+            float bestSqr = float.MaxValue;
+            float bestArc = 0f;
+            nearestIndex = -1;
+
+            for (int i = 0; i < Count; i++)
+            {
+                float segArc = CumDist[i] / total;
+                // distancia circular de arco entre o segmento e a posicao esperada
+                float dArc = Mathf.Abs(Mathf.Repeat(segArc - aroundArc + 0.5f, 1f) - 0.5f);
+                if (dArc > window) continue;
+
+                Vector3 a = Points[i];
+                Vector3 b = Point(i + 1);
+                Vector3 ab = b - a;
+                float len2 = ab.sqrMagnitude;
+                float t = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(pos - a, ab) / len2) : 0f;
+                Vector3 proj = a + ab * t;
+                float d = (pos - proj).sqrMagnitude;
+                if (d < bestSqr)
+                {
+                    bestSqr = d;
+                    bestArc = CumDist[i] + Mathf.Sqrt(len2) * t;
+                    nearestIndex = i;
+                }
+            }
+
+            if (nearestIndex < 0) return ClosestArcFraction(pos, out nearestIndex); // fallback total
+            return bestArc / total;
+        }
     }
 }

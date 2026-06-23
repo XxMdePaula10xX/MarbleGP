@@ -20,6 +20,9 @@ namespace MarbleGP.Race
 
         // Estado de validacao por bolinha (PRD 9.3: ordem correta de checkpoints).
         private readonly Dictionary<MarbleRuntime, int> _nextCheckpoint = new();
+        // Ultimo arco "limpo" por bolinha (continuidade contra saltos de projecao).
+        private readonly Dictionary<MarbleRuntime, float> _lastArc = new();
+        private const float MaxArcStep = 0.08f; // maximo avanco de arco por frame
 
         public RacePositionSystem(TrackManager track, float baseSpeed)
         {
@@ -92,12 +95,30 @@ namespace MarbleGP.Race
             foreach (var c in field)
             {
                 var m = c.Runtime;
-                float arc = _track.ArcFraction(c.transform.position); // 0..1 ao longo da pista
+
+                // Continuidade: em pistas que passam perto de si mesmas (curvas em
+                // S/figura), a projecao "mais proxima" pode saltar para um trecho
+                // PARALELO da pista, teleportando o progresso (lider falso, gaps
+                // absurdos, ultrapassagens falsas). Restringimos a busca a uma
+                // janela de arco em torno da posicao anterior; e ainda limitamos o
+                // passo por frame ao maximo fisicamente possivel.
+                float arc;
+                if (_lastArc.TryGetValue(m, out float prevArc))
+                {
+                    arc = _track.ArcFraction(c.transform.position, prevArc, 0.12f);
+                    float d = Mathf.Repeat(arc - prevArc + 0.5f, 1f) - 0.5f; // [-0.5,0.5]
+                    if (Mathf.Abs(d) > MaxArcStep) d = Mathf.Sign(d) * MaxArcStep;
+                    arc = Mathf.Repeat(prevArc + d, 1f);
+                }
+                else
+                {
+                    arc = _track.ArcFraction(c.transform.position); // 0..1 ao longo da pista
+                }
+                _lastArc[m] = arc;
 
                 // Correcao do grid de largada: as bolinhas comecam LOGO ATRAS da
-                // linha (arc ~0.97). Sem isso elas parecem "quase terminando a
-                // volta" e o ultimo do grid vira lider. Enquanto nao cruzam a
-                // linha pela 1a vez, o arco alto conta como progresso negativo.
+                // linha (arc ~0.97). Enquanto nao cruzam a linha pela 1a vez, o
+                // arco alto conta como progresso negativo.
                 if (!m.startLineCrossed && arc < 0.5f) m.startLineCrossed = true;
                 float effArc = m.startLineCrossed ? arc : arc - 1f;
 
