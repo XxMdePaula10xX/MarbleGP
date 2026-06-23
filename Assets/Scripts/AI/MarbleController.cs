@@ -30,6 +30,8 @@ namespace MarbleGP.AI
         public event System.Action<MarbleController, MarbleController, float> Contact;
 
         private Rigidbody _rb;
+        private Collider _collider;
+        private bool _pitPhysics;
         private TrackManager _track;
         private GameBalance _bal;
         private float _radius = 0.5f;
@@ -38,6 +40,7 @@ namespace MarbleGP.AI
         private void Awake()
         {
             _rb = GetComponent<Rigidbody>();
+            _collider = GetComponent<Collider>();
             _rb.interpolation = RigidbodyInterpolation.Interpolate;
             _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _rb.constraints = RigidbodyConstraints.FreezeRotation; // rolagem e visual
@@ -57,6 +60,22 @@ namespace MarbleGP.AI
         {
             Vector3 pos = transform.position;
 
+            // No pit, as bolinhas se SOBREPOEM (sem bater) para evitar
+            // engavetamento: o colisor vira trigger e o eixo Y trava (senao
+            // cairia pelo chao sem colisao com o solo). PRD 18.
+            bool inPitFlow = Runtime.state == MarbleRaceState.EnteringPit
+                          || Runtime.state == MarbleRaceState.InPit
+                          || Runtime.state == MarbleRaceState.ExitingPit;
+            if (inPitFlow != _pitPhysics)
+            {
+                _pitPhysics = inPitFlow;
+                if (_collider != null) _collider.isTrigger = inPitFlow;
+                _rb.constraints = inPitFlow
+                    ? RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY
+                    : RigidbodyConstraints.FreezeRotation;
+                if (inPitFlow) _rb.velocity = new Vector3(_rb.velocity.x, 0f, _rb.velocity.z);
+            }
+
             // 1) Alvo de direcao.
             Vector3 target = UseExternalTarget
                 ? ExternalTarget
@@ -66,9 +85,18 @@ namespace MarbleGP.AI
             dir.y = 0f;
             if (dir.sqrMagnitude > 1e-4f) dir.Normalize();
 
-            // 2) Separacao suave de bolinhas proximas (steering, PRD 13.4).
-            Vector3 separation = ComputeSeparation(pos);
-            Vector3 steer = (dir + separation * 0.6f).normalized;
+            // 2) Steering. Em pista, separacao suave entre bolinhas (PRD 13.4);
+            //    no pit, segue o caminho exato (on-rails, sem desviar).
+            Vector3 steer;
+            if (inPitFlow)
+            {
+                steer = dir;
+            }
+            else
+            {
+                Vector3 separation = ComputeSeparation(pos);
+                steer = (dir + separation * 0.6f).normalized;
+            }
 
             // 3) Velocidade alvo -> velocidade horizontal (preserva gravidade em Y).
             Vector3 desiredVel = steer * DesiredSpeed;

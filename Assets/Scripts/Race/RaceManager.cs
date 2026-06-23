@@ -377,8 +377,8 @@ namespace MarbleGP.Race
                 if (prevA <= prevB) continue;
                 // Ignora churn de cruzamento de volta.
                 if (RecentLap(a) || RecentLap(b)) continue;
-                // Precisa estar realmente a frente (nao empate piscando).
-                if (mA.raceProgress - mB.raceProgress < 0.001f) continue;
+                // Precisa estar realmente a frente (nao empate piscando num pelotao).
+                if (mA.raceProgress - mB.raceProgress < 0.004f) continue;
 
                 string key = mA.DisplayName + ">" + mB.DisplayName;
                 if (_pairCooldown.TryGetValue(key, out float cd) && cd > 0f) continue;
@@ -483,6 +483,8 @@ namespace MarbleGP.Race
         {
             var ma = a.Runtime; var mb = b.Runtime;
             if (ma.state == MarbleRaceState.Finished || mb.state == MarbleRaceState.Finished) return;
+            // No pit as bolinhas se sobrepoem: nenhum contato conta ali.
+            if (InPitFlow(ma) || InPitFlow(mb)) return;
 
             // Faiscas sempre (feedback visual de contato).
             a.GetComponent<MarbleVisual>()?.PlayContactSpark();
@@ -505,6 +507,11 @@ namespace MarbleGP.Race
                 Log($"💥 {ma.DisplayName} e {mb.DisplayName} se tocaram.");
             }
         }
+
+        private static bool InPitFlow(MarbleRuntime m)
+            => m.state == MarbleRaceState.EnteringPit
+            || m.state == MarbleRaceState.InPit
+            || m.state == MarbleRaceState.ExitingPit;
 
         private void RollMarbleLapEvents(MarbleController ctrl, MarbleRuntime m)
         {
