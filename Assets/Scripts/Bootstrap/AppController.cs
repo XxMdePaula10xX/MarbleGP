@@ -182,24 +182,45 @@ namespace MarbleGP.Bootstrap
         {
             var canvas = NewCanvas("TrackSelect");
             UIFactory.Label(canvas.transform, "Escolha o Circuito", 40, TextAnchor.MiddleCenter,
-                new Vector2(0.1f, 0.85f), new Vector2(0.9f, 0.95f), Color.white);
+                new Vector2(0.1f, 0.89f), new Vector2(0.9f, 0.97f), Color.white);
 
+            // Grade de cards (2 colunas) com thumbnail do circuito (PRD 7.2).
             var tracks = _gm.Database.tracks;
-            int row = 0;
+            float top = 0.83f, h = 0.135f, gap = 0.022f;
+            int i = 0;
             foreach (var t in tracks)
             {
+                int col = i % 2;
+                int rowIdx = i / 2;
+                float yTop = top - rowIdx * (h + gap);
+                float yBot = yTop - h;
+                if (yBot < 0.05f) break; // nao desenha alem da tela (campeonato tem muitos)
+                float xMin = col == 0 ? 0.075f : 0.515f;
+                float xMax = col == 0 ? 0.485f : 0.925f;
+
                 bool locked = t.trackLocked;
-                float yMax = 0.78f - row * 0.11f;
-                string label = locked
-                    ? $"{t.trackName} (bloqueado)"
-                    : $"{t.trackName}  -  {t.difficulty}, {t.recommendedLaps} voltas";
-                var btn = UIFactory.Button(canvas.transform, label,
-                    locked ? new Color(0.3f, 0.3f, 0.3f, 0.6f) : new Color(0.25f, 0.45f, 0.6f, 0.95f),
-                    new Vector2(0.2f, yMax - 0.09f), new Vector2(0.8f, yMax), Vector2.zero, Vector2.zero);
-                btn.interactable = !locked;
+                var card = UIFactory.Button(canvas.transform, "",
+                    locked ? new Color(0.15f, 0.16f, 0.20f, 0.92f) : new Color(0.13f, 0.22f, 0.32f, 0.95f),
+                    new Vector2(xMin, yBot), new Vector2(xMax, yTop), Vector2.zero, Vector2.zero);
+                card.interactable = !locked;
                 var captured = t;
-                if (!locked) btn.onClick.AddListener(() => { _selectedTrack = captured; ShowStrategy(); });
-                row++;
+                if (!locked) card.onClick.AddListener(() => { _selectedTrack = captured; ShowStrategy(); });
+
+                UIFactory.Thumbnail(card.transform, t.trackId, new Vector2(0.02f, 0.12f), new Vector2(0.26f, 0.88f));
+
+                var title = UIFactory.Label(card.transform, t.trackName, 22, TextAnchor.LowerLeft,
+                    new Vector2(0.30f, 0.46f), new Vector2(0.98f, 0.9f), locked ? UITheme.TextDim : Color.white);
+                title.fontStyle = FontStyle.Bold;
+                title.raycastTarget = false;
+
+                string info = locked
+                    ? "Bloqueado · vence o campeonato"
+                    : $"{t.difficulty} · {t.recommendedLaps}v · chuva {Mathf.RoundToInt(t.rainChance * 100f)}%";
+                var lab = UIFactory.Label(card.transform, info, 16, TextAnchor.UpperLeft,
+                    new Vector2(0.30f, 0.12f), new Vector2(0.98f, 0.46f),
+                    locked ? new Color(0.6f, 0.62f, 0.7f) : UITheme.TextDim);
+                lab.raycastTarget = false;
+                i++;
             }
 
             BackButton(canvas.transform, ShowMainMenu);
@@ -222,6 +243,7 @@ namespace MarbleGP.Bootstrap
                 22, TextAnchor.MiddleCenter, new Vector2(0.08f, 0.8f), new Vector2(0.92f, 0.85f),
                 rainPct >= 30 ? new Color(0.5f, 0.7f, 1f) : new Color(0.8f, 0.85f, 0.9f));
 
+            UIFactory.Icon(canvas.transform, "tyre", new Vector2(0.045f, 0.72f), new Vector2(0.075f, 0.78f), Color.white);
             UIFactory.Label(canvas.transform, "Anel de aderencia:", 24, TextAnchor.MiddleLeft,
                 new Vector2(0.08f, 0.72f), new Vector2(0.4f, 0.78f), Color.white);
             GripButton(canvas.transform, GripType.Soft, "Soft", 0);
@@ -230,6 +252,7 @@ namespace MarbleGP.Bootstrap
             GripButton(canvas.transform, GripType.Intermediate, "Inter", 3);
             GripButton(canvas.transform, GripType.Rain, "Rain", 4);
 
+            UIFactory.Icon(canvas.transform, "mode", new Vector2(0.045f, 0.56f), new Vector2(0.075f, 0.62f), Color.white);
             UIFactory.Label(canvas.transform, "Modo inicial:", 24, TextAnchor.MiddleLeft,
                 new Vector2(0.08f, 0.56f), new Vector2(0.4f, 0.62f), Color.white);
             ModeButton(canvas.transform, RaceMode.Save, "Save", 0);
@@ -237,6 +260,7 @@ namespace MarbleGP.Bootstrap
             ModeButton(canvas.transform, RaceMode.Push, "Push", 2);
 
             // Duracao da corrida (PRD 3 / 13).
+            UIFactory.Icon(canvas.transform, "laps", new Vector2(0.045f, 0.46f), new Vector2(0.075f, 0.52f), Color.white);
             UIFactory.Label(canvas.transform, "Duracao:", 24, TextAnchor.MiddleLeft,
                 new Vector2(0.08f, 0.46f), new Vector2(0.4f, 0.52f), Color.white);
             LapButton(canvas.transform, 5, "Rapido (5)", 0);
@@ -396,6 +420,9 @@ namespace MarbleGP.Bootstrap
 
             UIFactory.Label(card, "★", 60, TextAnchor.MiddleCenter,
                 new Vector2(0.03f, 0.1f), new Vector2(0.16f, 0.9f), UITheme.Gold);
+
+            // Logo da equipe (Resources/Logos/{teamId}); nada se nao existir.
+            UIFactory.Logo(card, w.teamId, new Vector2(0.80f, 0.50f), new Vector2(0.96f, 0.92f));
 
             var name = UIFactory.Label(card, $"P1  {w.marbleName}", 30, TextAnchor.LowerLeft,
                 new Vector2(0.18f, 0.5f), new Vector2(0.98f, 0.95f), UITheme.Gold);

@@ -1,24 +1,28 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MarbleGP.UI
 {
     /// <summary>
-    /// Utilitarios para montar UI (uGUI legacy) por codigo, evitando depender
-    /// de prefabs/cenas feitos a mao. Usa Text legacy para nao exigir TMP.
+    /// Utilitarios para montar UI (uGUI) por codigo, evitando depender de
+    /// prefabs/cenas feitos a mao. Kit "9-slice" com sprite arredondado
+    /// procedural, gradiente (sheen), cantos suaves, animacao de clique e
+    /// suporte a imagens de Resources (icones, logos, thumbnails).
     /// </summary>
     public static class UIFactory
     {
         private static Font _font;
         private static Sprite _rounded;
+        private static readonly Dictionary<string, Texture2D> _texCache = new Dictionary<string, Texture2D>();
+        private static readonly Dictionary<string, Sprite> _spriteCache = new Dictionary<string, Sprite>();
 
-        /// <summary>Sprite arredondado built-in (9-slice) para cantos suaves.</summary>
+        /// <summary>Sprite arredondado gerado proceduralmente (9-slice, antialiased).</summary>
         public static Sprite RoundedSprite
         {
             get
             {
-                if (_rounded == null)
-                    _rounded = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+                if (_rounded == null) _rounded = BuildRoundedSprite(64, 18);
                 return _rounded;
             }
         }
@@ -35,6 +39,37 @@ namespace MarbleGP.UI
                 return _font;
             }
         }
+
+        // ---- Geracao do sprite arredondado --------------------------------
+
+        private static Sprite BuildRoundedSprite(int size, int radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float fx = x + 0.5f, fy = y + 0.5f;
+                    float cx = Mathf.Clamp(fx, radius, size - radius);
+                    float cy = Mathf.Clamp(fy, radius, size - radius);
+                    float d = Mathf.Sqrt((fx - cx) * (fx - cx) + (fy - cy) * (fy - cy));
+                    float a = Mathf.Clamp01(radius - d + 0.5f); // borda AA de ~1px
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            var border = new Vector4(radius, radius, radius, radius);
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f),
+                100f, 0, SpriteMeshType.FullRect, border);
+        }
+
+        // ---- Canvas / paineis / texto -------------------------------------
 
         public static Canvas CreateCanvas(string name)
         {
@@ -82,14 +117,108 @@ namespace MarbleGP.UI
             rt.anchorMax = anchorMax;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+
+            // Titulos (fonte grande) ganham contorno escuro para nitidez sobre
+            // fundos movimentados (substitui o ganho que o TMP daria).
+            if (size >= 28)
+            {
+                var ol = go.AddComponent<Outline>();
+                ol.effectColor = new Color(0f, 0f, 0f, 0.55f);
+                ol.effectDistance = new Vector2(1.4f, -1.4f);
+            }
             return t;
         }
 
+        // ---- Imagens de Resources (icones / logos / thumbnails) -----------
+
+        private static Texture2D LoadTexture(string path)
+        {
+            if (_texCache.TryGetValue(path, out var t)) return t;
+            t = Resources.Load<Texture2D>(path);
+            _texCache[path] = t;
+            return t;
+        }
+
+        /// <summary>Sprite a partir de uma textura em Resources (cacheado). Null se nao existir.</summary>
+        public static Sprite LoadSprite(string path)
+        {
+            if (_spriteCache.TryGetValue(path, out var s)) return s;
+            var tex = LoadTexture(path);
+            s = tex != null
+                ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f)
+                : null;
+            _spriteCache[path] = s;
+            return s;
+        }
+
+        private static void SetRect(GameObject go, Vector2 aMin, Vector2 aMax)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = aMin; rt.anchorMax = aMax;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>Icone de Resources/Icons/{key} (PNG transparente). Null se nao existir.</summary>
+        public static Image Icon(Transform parent, string key, Vector2 aMin, Vector2 aMax, Color tint)
+        {
+            var sp = LoadSprite("Icons/" + key);
+            if (sp == null) return null;
+            var go = new GameObject("Icon", typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = sp; img.color = tint; img.preserveAspect = true; img.raycastTarget = false;
+            SetRect(go, aMin, aMax);
+            return img;
+        }
+
+        /// <summary>Logo da equipe de Resources/Logos/{teamId} (PNG transparente). Null se nao existir.</summary>
+        public static Image Logo(Transform parent, string teamId, Vector2 aMin, Vector2 aMax)
+        {
+            var sp = LoadSprite("Logos/" + teamId);
+            if (sp == null) return null;
+            var go = new GameObject("Logo", typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = sp; img.color = Color.white; img.preserveAspect = true; img.raycastTarget = false;
+            SetRect(go, aMin, aMax);
+            return img;
+        }
+
+        /// <summary>Imagem cheia (RawImage) de Resources/{resourcePath}; cor de fallback se faltar.</summary>
+        public static RawImage Picture(Transform parent, string resourcePath, Vector2 aMin, Vector2 aMax, Color fallback)
+        {
+            var go = new GameObject("Picture", typeof(RawImage));
+            go.transform.SetParent(parent, false);
+            var ri = go.GetComponent<RawImage>();
+            ri.raycastTarget = false;
+            var tex = LoadTexture(resourcePath);
+            if (tex != null) { ri.texture = tex; ri.color = Color.white; }
+            else ri.color = fallback;
+            SetRect(go, aMin, aMax);
+            return ri;
+        }
+
+        /// <summary>Moldura com thumbnail do circuito (Resources/Thumbnails/{trackId}).</summary>
+        public static void Thumbnail(Transform parent, string trackId, Vector2 aMin, Vector2 aMax)
+        {
+            var frame = Panel(parent, aMin, aMax, Vector2.zero, Vector2.zero, new Color(0.02f, 0.03f, 0.05f, 1f));
+            frame.GetComponent<Image>().raycastTarget = false;
+            var border = frame.gameObject.AddComponent<Outline>();
+            border.effectColor = new Color(0.35f, 0.75f, 1f, 0.5f);
+            border.effectDistance = new Vector2(2f, 2f);
+
+            var pic = Picture(frame, "Thumbnails/" + trackId, Vector2.zero, Vector2.one,
+                new Color(0.12f, 0.14f, 0.20f, 1f));
+            pic.rectTransform.offsetMin = new Vector2(4f, 4f);
+            pic.rectTransform.offsetMax = new Vector2(-4f, -4f);
+        }
+
+        // ---- Fundo de tela -------------------------------------------------
+
         /// <summary>
-        /// Fundo de tela. Tenta carregar Resources/Backgrounds/{key} (Texture2D
-        /// importada como textura comum) e usa como imagem cheia; se nao existir,
-        /// usa uma cor solida escura. Adiciona um leve overlay para legibilidade.
-        /// Assim o jogador pode gerar artes e soltar em Assets/Resources/Backgrounds/.
+        /// Fundo de tela. Tenta carregar Resources/Backgrounds/{key} e usa como
+        /// imagem cheia; se nao existir, usa uma cor solida escura. Adiciona um
+        /// leve overlay para legibilidade.
         /// </summary>
         public static void Background(Transform parent, string key, Color fallback)
         {
@@ -101,12 +230,11 @@ namespace MarbleGP.UI
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
 
-            var tex = Resources.Load<Texture2D>("Backgrounds/" + key);
+            var tex = LoadTexture("Backgrounds/" + key);
             if (tex != null)
             {
                 ri.texture = tex;
                 ri.color = Color.white;
-                // Overlay escuro logo acima da imagem (indice 1) para legibilidade.
                 var overlay = Panel(parent, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                     new Color(0f, 0f, 0f, 0.45f));
                 overlay.SetSiblingIndex(1);
@@ -117,28 +245,35 @@ namespace MarbleGP.UI
             }
         }
 
+        // ---- Botoes --------------------------------------------------------
+
         public static Button Button(Transform parent, string text, Color bg,
             Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
         {
-            var go = new GameObject("Button", typeof(Image), typeof(Button));
+            var go = new GameObject("Button", typeof(Image), typeof(Button), typeof(UIButtonFx));
             go.transform.SetParent(parent, false);
+
             var img = go.GetComponent<Image>();
-            img.color = bg;
+            img.color = Color.white; // a cor vem do ColorBlock; branco deixa o gradiente limpo
             if (RoundedSprite != null) { img.sprite = RoundedSprite; img.type = Image.Type.Sliced; }
+
+            // Sheen vertical sutil (claro em cima, levemente escuro embaixo).
+            var grad = go.AddComponent<UIGradient>();
+            grad.top = Color.white;
+            grad.bottom = new Color(0.80f, 0.80f, 0.80f, 1f);
+
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
 
-            // Estados visuais (hover/pressed/disabled) via ColorTint.
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             btn.transition = Selectable.Transition.ColorTint;
             btn.colors = MakeColors(bg);
 
-            var label = Label(go.transform, text, 22, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, Color.white);
+            Label(go.transform, text, 22, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white);
             return btn;
         }
 
@@ -157,11 +292,11 @@ namespace MarbleGP.UI
             };
         }
 
-        /// <summary>Atualiza a cor base de um botao (mantendo estados).</summary>
+        /// <summary>Atualiza a cor base de um botao (mantendo estados/gradiente).</summary>
         public static void SetButtonColor(Button btn, Color baseColor)
         {
             var img = btn.targetGraphic as Image;
-            if (img != null) img.color = baseColor;
+            if (img != null) img.color = Color.white;
             btn.colors = MakeColors(baseColor);
         }
     }
