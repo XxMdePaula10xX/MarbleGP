@@ -442,37 +442,58 @@ namespace MarbleGP.Bootstrap
             var table = UIFactory.Panel(canvas, new Vector2(0.06f, 0.135f), new Vector2(0.94f, 0.66f),
                 Vector2.zero, Vector2.zero, UITheme.BackgroundPanel);
 
-            // Cabecalho fixo no topo.
-            UIFactory.Label(table, $" {"P",-3}{"Marble",-9}{"Equipe",-15}{"Tyre",-5}{"Pit",-4}{"Fuel",-6}{"Ener",-6}{"Status",-11}{"Pts",-4}",
-                17, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.92f), new Vector2(0.99f, 1f), UITheme.Neon);
+            // Cabecalho com colunas alinhadas (Text proprio por coluna, nao
+            // depende de fonte monoespacada).
+            var header = UIFactory.Panel(table, new Vector2(0.004f, 0.93f), new Vector2(0.996f, 0.996f),
+                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
+            Col(header, "P", 15, TextAnchor.MiddleCenter, 0.045f, 0.085f, UITheme.Neon);
+            Col(header, "MARBLE", 15, TextAnchor.MiddleLeft, 0.095f, 0.32f, UITheme.Neon);
+            Col(header, "EQUIPE", 15, TextAnchor.MiddleLeft, 0.32f, 0.52f, UITheme.Neon);
+            Col(header, "PNEU", 15, TextAnchor.MiddleCenter, 0.52f, 0.585f, UITheme.Neon);
+            Col(header, "PIT", 15, TextAnchor.MiddleCenter, 0.585f, 0.65f, UITheme.Neon);
+            Col(header, "COMB", 15, TextAnchor.MiddleCenter, 0.65f, 0.725f, UITheme.Neon);
+            Col(header, "ENER", 15, TextAnchor.MiddleCenter, 0.725f, 0.80f, UITheme.Neon);
+            Col(header, "STATUS", 15, TextAnchor.MiddleCenter, 0.80f, 0.92f, UITheme.Neon);
+            Col(header, "PTS", 15, TextAnchor.MiddleCenter, 0.92f, 0.985f, UITheme.Neon);
 
             int rows = result.entries.Count;
-            float area = 0.9f;                       // area abaixo do cabecalho (0..0.9)
-            float rowH = area / Mathf.Max(1, rows);
+            float top = 0.92f, bottom = 0.008f;
+            float rowH = (top - bottom) / Mathf.Max(1, rows);
             for (int i = 0; i < rows; i++)
             {
                 var e = result.entries[i];
-                float yTop = 0.9f - i * rowH;
-                float yBot = yTop - rowH + 0.002f;
+                float yTop = top - i * rowH;
+                float yBot = yTop - rowH + 0.003f;
 
                 Color bg = e.position == 1 ? new Color(0.22f, 0.18f, 0.05f, 0.95f)
                          : e.isPlayer ? new Color(0.06f, 0.12f, 0.22f, 0.95f)
-                         : (i % 2 == 0 ? new Color(0.10f, 0.11f, 0.15f, 0.6f) : new Color(0.07f, 0.08f, 0.12f, 0.6f));
-                var row = UIFactory.Panel(table, new Vector2(0.005f, yBot), new Vector2(0.995f, yTop),
+                         : (i % 2 == 0 ? new Color(0.11f, 0.12f, 0.16f, 0.92f) : new Color(0.07f, 0.08f, 0.12f, 0.92f));
+                var row = UIFactory.Panel(table, new Vector2(0.004f, yBot), new Vector2(0.996f, yTop),
                     Vector2.zero, Vector2.zero, bg);
 
-                // Barra lateral cor da equipe.
-                UIFactory.Panel(row, new Vector2(0f, 0.1f), new Vector2(0.012f, 0.9f),
+                // Barra de acento da equipe + logo (se houver).
+                var acc = UIFactory.Panel(row, new Vector2(0f, 0.12f), new Vector2(0.006f, 0.88f),
                     Vector2.zero, Vector2.zero, TeamColorOf(e));
+                acc.GetComponent<Image>().raycastTarget = false;
+                UIFactory.Logo(row, e.teamId, new Vector2(0.010f, 0.1f), new Vector2(0.042f, 0.9f));
 
                 Color txt = e.position == 1 ? UITheme.Gold : (e.isPlayer ? UITheme.PlayerHighlight : Color.white);
-                string line = $" {e.position,-3}{Trim(e.marbleName, 8),-9}{Trim(e.teamName, 14),-15}" +
-                              $"{e.finalTyre,-5}{e.pitStops,-4}{e.finalFuel,4:0}  {e.finalEnergy,4:0}  " +
-                              $"{Trim(e.statusText, 10),-11}{e.points,-4}";
-                UIFactory.Label(row, line, 15, TextAnchor.MiddleLeft,
-                    new Vector2(0.02f, 0f), new Vector2(0.99f, 1f), txt);
+                Col(row, e.position.ToString(), 16, TextAnchor.MiddleCenter, 0.045f, 0.085f, txt);
+                var nameCol = Col(row, Trim(e.marbleName, 16), 15, TextAnchor.MiddleLeft, 0.095f, 0.32f, txt);
+                if (e.position == 1) nameCol.fontStyle = FontStyle.Bold;
+                Col(row, Trim(e.teamName, 16), 14, TextAnchor.MiddleLeft, 0.32f, 0.52f, UITheme.TextDim);
+                Col(row, e.finalTyre, 15, TextAnchor.MiddleCenter, 0.52f, 0.585f, Color.white);
+                Col(row, e.pitStops.ToString(), 15, TextAnchor.MiddleCenter, 0.585f, 0.65f, Color.white);
+                Col(row, e.finalFuel.ToString("0"), 14, TextAnchor.MiddleCenter, 0.65f, 0.725f, UITheme.Fuel);
+                Col(row, e.finalEnergy.ToString("0"), 14, TextAnchor.MiddleCenter, 0.725f, 0.80f, UITheme.Energy);
+                Col(row, Trim(e.statusText, 11), 13, TextAnchor.MiddleCenter, 0.80f, 0.92f, UITheme.TextDim);
+                Col(row, e.points.ToString(), 16, TextAnchor.MiddleCenter, 0.92f, 0.985f, txt);
             }
         }
+
+        /// <summary>Coluna de texto da tabela (ancorada por fracao horizontal).</summary>
+        private Text Col(Transform parent, string text, int size, TextAnchor anchor, float xMin, float xMax, Color color)
+            => UIFactory.Label(parent, text, size, anchor, new Vector2(xMin, 0f), new Vector2(xMax, 1f), color);
 
         private void CleanupRace()
         {

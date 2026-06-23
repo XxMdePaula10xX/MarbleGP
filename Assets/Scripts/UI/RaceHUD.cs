@@ -27,7 +27,7 @@ namespace MarbleGP.UI
         // ---- Timing tower ----
         private class RankingRow
         {
-            public Image bg, accent, chip;
+            public Image bg, accent, chip, logo;
             public Outline glow;
             public Text pos, arrow, number, code, gap, grip, pit;
         }
@@ -57,6 +57,9 @@ namespace MarbleGP.UI
         private struct LogItem { public string msg; public Color color; public float age; }
         private readonly List<LogItem> _logItems = new();
         private Text[] _logRows;
+        private RectTransform _logPanel;
+        private Text _logToggleLabel;
+        private bool _logCollapsed;
         private const int LogRows = 5;
         private const float LogFadeStart = 4.5f, LogFadeEnd = 7f;
 
@@ -180,6 +183,7 @@ namespace MarbleGP.UI
             var bg = rowGo.GetComponent<Image>();
             bg.color = (index % 2 == 0) ? new Color(0.11f, 0.11f, 0.15f, 0.96f)
                                         : new Color(0.08f, 0.08f, 0.12f, 0.96f);
+            if (UIFactory.RoundedSprite != null) { bg.sprite = UIFactory.RoundedSprite; bg.type = Image.Type.Sliced; }
             var rt = rowGo.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
@@ -213,6 +217,18 @@ namespace MarbleGP.UI
                 Vector2.zero, Vector2.one, Color.white);
             row.number.fontStyle = FontStyle.Bold;
 
+            // Logo da equipe sobre o chip (preenchido dinamicamente; some se nao existir).
+            var logoGo = new GameObject("Logo", typeof(Image));
+            logoGo.transform.SetParent(chipRt, false);
+            row.logo = logoGo.GetComponent<Image>();
+            row.logo.raycastTarget = false;
+            row.logo.preserveAspect = true;
+            row.logo.enabled = false;
+            var logoRt = logoGo.GetComponent<RectTransform>();
+            logoRt.anchorMin = new Vector2(0.05f, 0.05f);
+            logoRt.anchorMax = new Vector2(0.95f, 0.95f);
+            logoRt.offsetMin = Vector2.zero; logoRt.offsetMax = Vector2.zero;
+
             row.code = UIFactory.Label(rowGo.transform, "", 21, TextAnchor.MiddleLeft,
                 new Vector2(0.31f, 0f), new Vector2(0.5f, 1f), Color.white);
             row.code.fontStyle = FontStyle.Bold;
@@ -235,15 +251,31 @@ namespace MarbleGP.UI
 
         private void BuildLog(Transform canvas)
         {
-            var panel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.135f),
+            _logPanel = UIFactory.Panel(canvas, new Vector2(0.24f, 0f), new Vector2(0.78f, 0.135f),
                 Vector2.zero, Vector2.zero, new Color(0.03f, 0.03f, 0.05f, 0.7f));
+
+            // Botao recolher/expandir o log (PRD 4).
+            var toggle = UIFactory.Button(_logPanel, "▼", new Color(0.2f, 0.25f, 0.4f, 0.95f),
+                new Vector2(0.94f, 0.6f), new Vector2(0.994f, 0.96f), Vector2.zero, Vector2.zero);
+            _logToggleLabel = toggle.GetComponentInChildren<Text>();
+            toggle.onClick.AddListener(ToggleLog);
+
             _logRows = new Text[LogRows];
             for (int i = 0; i < LogRows; i++)
             {
                 float yMin = 0.02f + i * 0.19f;
-                _logRows[i] = UIFactory.Label(panel, "", 18, TextAnchor.LowerLeft,
-                    new Vector2(0.02f, yMin), new Vector2(0.99f, yMin + 0.19f), Color.white);
+                _logRows[i] = UIFactory.Label(_logPanel, "", 18, TextAnchor.LowerLeft,
+                    new Vector2(0.02f, yMin), new Vector2(0.92f, yMin + 0.19f), Color.white);
             }
+        }
+
+        private void ToggleLog()
+        {
+            _logCollapsed = !_logCollapsed;
+            _logToggleLabel.text = _logCollapsed ? "▲" : "▼";
+            foreach (var r in _logRows) r.gameObject.SetActive(!_logCollapsed);
+            // Recolhido: o painel vira uma barra fina (so o botao aparece).
+            _logPanel.anchorMin = new Vector2(0.24f, _logCollapsed ? 0.105f : 0f);
         }
 
         // ---- Minimap ----
@@ -521,9 +553,24 @@ namespace MarbleGP.UI
                 row.pos.text = (i + 1).ToString();
                 row.code.text = m.driver != null ? m.driver.shortCode : "MAR";
                 row.accent.color = m.TeamPrimary;
-                row.chip.color = m.TeamPrimary;
-                row.number.text = m.driver != null ? m.driver.number.ToString() : "";
-                row.number.color = m.TeamSecondary;
+
+                // Logo da equipe no chip; sem logo, mostra o numero sobre a cor da equipe.
+                var logoSp = m.team != null ? UIFactory.LoadSprite("Logos/" + m.team.teamId) : null;
+                if (logoSp != null)
+                {
+                    row.logo.enabled = true;
+                    row.logo.sprite = logoSp;
+                    row.chip.color = Color.white;
+                    row.number.gameObject.SetActive(false);
+                }
+                else
+                {
+                    row.logo.enabled = false;
+                    row.chip.color = m.TeamPrimary;
+                    row.number.gameObject.SetActive(true);
+                    row.number.text = m.driver != null ? m.driver.number.ToString() : "";
+                    row.number.color = m.TeamSecondary;
+                }
                 row.gap.text = i == 0 ? "Leader" : $"+{m.gapToLeader:0.000}";
                 row.grip.text = m.grip != null ? m.grip.DisplayLetter : "?";
                 row.grip.color = m.grip != null ? m.grip.DisplayColor : Color.gray;

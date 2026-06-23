@@ -116,6 +116,31 @@ namespace MarbleGP.Race
                 return mb.raceProgress.CompareTo(ma.raceProgress);
             });
 
+            // Estabilizacao anti-flicker (PRD 1): bolinhas lado a lado (em linhas
+            // de corrida diferentes) tem arco quase igual e a ordem "piscava",
+            // gerando ultrapassagens falsas. Mantemos a ordem anterior enquanto a
+            // diferenca de progresso for menor que a histerese; uma bolinha so
+            // toma a posicao quando esta CLARAMENTE a frente.
+            const float hysteresis = 0.0035f;
+            for (int pass = 0; pass < field.Count; pass++)
+            {
+                bool swapped = false;
+                for (int i = 0; i + 1 < field.Count; i++)
+                {
+                    var ma = field[i].Runtime;
+                    var mb = field[i + 1].Runtime;
+                    if (ma.state == MarbleRaceState.Finished || mb.state == MarbleRaceState.Finished) continue;
+                    // Empate tecnico + ordem anterior invertida -> restaura anterior.
+                    if (mb.position != 0 && ma.position > mb.position
+                        && Mathf.Abs(ma.raceProgress - mb.raceProgress) < hysteresis)
+                    {
+                        (field[i], field[i + 1]) = (field[i + 1], field[i]);
+                        swapped = true;
+                    }
+                }
+                if (!swapped) break;
+            }
+
             var leader = field.Count > 0 ? field[0].Runtime : null;
             for (int i = 0; i < field.Count; i++)
             {
