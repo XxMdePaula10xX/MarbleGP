@@ -102,11 +102,15 @@ namespace MarbleGP.UI
             canvas.transform.SetParent(transform, false);
             _canvasT = canvas.transform;
 
-            BuildTopBar(canvas.transform);
-            BuildTimingTower(canvas.transform);
-            BuildLog(canvas.transform);
-            BuildPlayerCards(canvas.transform);
-            BuildBanner(canvas.transform);
+            // Conteudo da HUD vive dentro da safe area (notch / home indicator);
+            // o countdown e o tutorial modal cobrem a tela inteira.
+            var safe = UIFactory.SafeAreaRoot(canvas.transform);
+
+            BuildTopBar(safe);
+            BuildTimingTower(safe);
+            BuildLog(safe);
+            BuildPlayerCards(safe);
+            BuildBanner(safe);
 
             _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
                 new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));

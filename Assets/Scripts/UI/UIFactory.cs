@@ -118,6 +118,22 @@ namespace MarbleGP.UI
             return canvas;
         }
 
+        /// <summary>
+        /// Cria um RectTransform que preenche o pai mas se ajusta a Screen.safeArea
+        /// (notch / home indicator). Use como raiz do conteudo da HUD.
+        /// </summary>
+        public static RectTransform SafeAreaRoot(Transform canvas)
+        {
+            var go = new GameObject("SafeArea", typeof(RectTransform), typeof(SafeArea));
+            go.transform.SetParent(canvas, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            return rt;
+        }
+
         public static RectTransform Panel(Transform parent, Vector2 anchorMin, Vector2 anchorMax,
             Vector2 offsetMin, Vector2 offsetMax, Color color)
         {
