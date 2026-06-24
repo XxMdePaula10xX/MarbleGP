@@ -16,8 +16,8 @@ namespace MarbleGP.Track
         private const int SamplesPerSegment = 10;
 
         // Paleta do circuito (Marble Park: grama verde, asfalto azulado).
-        private static readonly Color Grass = new Color(0.20f, 0.45f, 0.22f);
-        private static readonly Color GrassDark = new Color(0.16f, 0.38f, 0.18f);
+        private static readonly Color Grass = new Color(0.13f, 0.21f, 0.15f);
+        private static readonly Color GrassDark = new Color(0.10f, 0.16f, 0.12f);
         private static readonly Color Asphalt = new Color(0.22f, 0.23f, 0.27f);
         private static readonly Color CurbRed = new Color(0.85f, 0.16f, 0.16f);
         private static readonly Color CurbWhite = new Color(0.95f, 0.95f, 0.95f);
@@ -144,7 +144,7 @@ namespace MarbleGP.Track
             // Tiling 40 => ~10 unidades por tile. Tint dessatura/escurece a grama ~18%
             // para nao cansar a vista e dar mais contraste com a pista (PRD 8).
             ground.GetComponent<MeshRenderer>().sharedMaterial =
-                MaterialFactory.CreateTextured(grassTex, Grass, 40f, new Color(0.78f, 0.82f, 0.78f));
+                MaterialFactory.CreateTextured(grassTex, Grass, 40f, new Color(0.42f, 0.48f, 0.42f));
         }
 
         // ---- Mesh de pista -----------------------------------------------

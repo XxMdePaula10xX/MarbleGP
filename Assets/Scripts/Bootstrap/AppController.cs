@@ -195,7 +195,7 @@ namespace MarbleGP.Bootstrap
         private void ShowTrackSelect()
         {
             var canvas = NewCanvas("TrackSelect");
-            UIFactory.Label(canvas.transform, "SELECT CIRCUIT", 44, TextAnchor.UpperLeft,
+            UIFactory.Label(canvas.transform, "SELECIONAR CIRCUITO", 44, TextAnchor.UpperLeft,
                 new Vector2(0.04f, 0.9f), new Vector2(0.6f, 0.99f), Color.white).fontStyle = FontStyle.Bold;
             UIFactory.Label(canvas.transform, "Escolha o circuito da sua próxima corrida.", 18, TextAnchor.UpperLeft,
                 new Vector2(0.045f, 0.85f), new Vector2(0.6f, 0.9f), UITheme.TextDim);
@@ -346,14 +346,14 @@ namespace MarbleGP.Bootstrap
             var top = UIFactory.GlassPanel(canvas.transform, new Vector2(0.02f, 0.885f), new Vector2(0.98f, 0.985f));
             UIFactory.Label(top, $"Estratégia — {t.trackName}", 24, TextAnchor.LowerLeft,
                 new Vector2(0.025f, 0.46f), new Vector2(0.7f, 0.95f), Color.white).fontStyle = FontStyle.Bold;
-            UIFactory.Label(top, "PRE-RACE STRATEGY", 11, TextAnchor.UpperLeft,
+            UIFactory.Label(top, "ESTRATÉGIA PRÉ-CORRIDA", 11, TextAnchor.UpperLeft,
                 new Vector2(0.027f, 0.08f), new Vector2(0.5f, 0.4f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             UIFactory.Label(top, $"{(rainPct >= 30 ? "INSTÁVEL" : "SECO")}   ·   chuva {rainPct}%", 18,
                 TextAnchor.MiddleRight, new Vector2(0.55f, 0f), new Vector2(0.97f, 1f), UITheme.TextDim);
 
             // ---- Track blueprint (esquerda) ----
             var bp = UIFactory.GlassPanel(canvas.transform, new Vector2(0.03f, 0.46f), new Vector2(0.47f, 0.88f));
-            UIFactory.Label(bp, "TRACK BLUEPRINT", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(bp, "MAPA DO CIRCUITO", 14, TextAnchor.UpperLeft,
                 new Vector2(0.04f, 0.9f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             UIFactory.Thumbnail(bp, t.trackId, new Vector2(0.04f, 0.13f), new Vector2(0.96f, 0.88f));
             UIFactory.Label(bp, $"{t.difficulty}  ·  {t.recommendedLaps} voltas recomendadas  ·  {Mathf.RoundToInt(t.trackLength)} m",
@@ -361,7 +361,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Weather forecast ----
             var wf = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.715f), new Vector2(0.78f, 0.88f));
-            UIFactory.Label(wf, "WEATHER FORECAST", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(wf, "PREVISÃO DO CLIMA", 14, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.86f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             string[] times = { "NOW", "+15", "+30", "+45", "+60", "+90" };
             for (int i = 0; i < 6; i++)
@@ -381,7 +381,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Tyre selection ----
             var ts = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.55f), new Vector2(0.78f, 0.705f));
-            UIFactory.Label(ts, "TYRE SELECTION", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(ts, "PNEUS", 14, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.82f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             TyreCard(ts, GripType.Soft, "SOFT", "Mais aderência", 0);
             TyreCard(ts, GripType.Medium, "MEDIUM", "Equilibrado", 1);
@@ -391,7 +391,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Drive mode ----
             var dm = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.43f), new Vector2(0.78f, 0.54f));
-            UIFactory.Label(dm, "DRIVE MODE", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(dm, "MODO DE CORRIDA", 14, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.78f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             ModeCard(dm, RaceMode.Save, "SAVE", "Economiza energia", MarbleUITheme.NeonGreen, 0);
             ModeCard(dm, RaceMode.Normal, "NORMAL", "Equilíbrio", MarbleUITheme.NeonBlue, 1);
@@ -399,7 +399,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Race duration ----
             var rd = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.31f), new Vector2(0.78f, 0.42f));
-            UIFactory.Label(rd, "RACE DURATION", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(rd, "DURAÇÃO DA CORRIDA", 14, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.78f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             DurationCard(rd, 5, "QUICK", "5 voltas", 0);
             DurationCard(rd, 12, "NORMAL", "12 voltas", 1);
@@ -408,7 +408,7 @@ namespace MarbleGP.Bootstrap
             // ---- Strategy summary (direita) ----
             var sm = UIFactory.GlassPanel(canvas.transform, new Vector2(0.80f, 0.31f), new Vector2(0.98f, 0.88f),
                 null, MarbleUITheme.NeonOrange);
-            UIFactory.Label(sm, "STRATEGY SUMMARY", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(sm, "RESUMO DA ESTRATÉGIA", 14, TextAnchor.UpperLeft,
                 new Vector2(0.06f, 0.93f), new Vector2(0.94f, 0.99f), MarbleUITheme.NeonOrange).fontStyle = FontStyle.Bold;
             int stops = _selectedLaps >= 18 ? 2 : 1;
             SummaryRow(sm, "PARADAS PREVISTAS", $"{stops}", "parada(s) no pit", 0.78f, MarbleUITheme.NeonOrange);
@@ -560,7 +560,7 @@ namespace MarbleGP.Bootstrap
             var canvas = NewCanvas("Results");
 
             // Titulo + subtitulo (PRD 4).
-            var title = UIFactory.Label(canvas.transform, "RACE RESULTS", 52, TextAnchor.MiddleCenter,
+            var title = UIFactory.Label(canvas.transform, "RESULTADO DA CORRIDA", 52, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.91f), new Vector2(0.95f, 0.99f), UITheme.Gold);
             title.fontStyle = FontStyle.Bold;
             UIFactory.Label(canvas.transform, $"{result.trackName}  ·  {result.laps} voltas", 22,
@@ -638,7 +638,7 @@ namespace MarbleGP.Bootstrap
             var wb = UIFactory.Panel(card, new Vector2(0.83f, 0.6f), new Vector2(0.985f, 0.93f),
                 Vector2.zero, Vector2.zero, new Color32(44, 35, 9, 240));
             UIFactory.NeonBorder(wb.gameObject, MarbleUITheme.NeonGold, 0.85f, 1.6f);
-            UIFactory.Label(wb, "WINNER", 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one,
+            UIFactory.Label(wb, "VENCEDOR", 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one,
                 MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
 
             // Faixa de estatisticas (parte inferior).
@@ -649,7 +649,7 @@ namespace MarbleGP.Bootstrap
             var tc = TyreColorByLetter(w.finalTyre);
             tb.ring.color = tc; tb.letter.text = w.finalTyre; tb.letter.color = tc;
             BannerStat(card, "PITS", w.pitStops.ToString(), Color.white, 0.47f, 0.57f);
-            BannerStat(card, "FUEL", $"{w.finalFuel:0}%", MarbleUITheme.Fuel, 0.58f, 0.7f);
+            BannerStat(card, "COMBUST.", $"{w.finalFuel:0}%", MarbleUITheme.Fuel, 0.58f, 0.7f);
             BannerStat(card, "ENERGIA", $"{w.finalEnergy:0}%", MarbleUITheme.Energy, 0.71f, 0.83f);
             BannerStat(card, "PONTOS", $"+{w.points}", MarbleUITheme.NeonGold, 0.84f, 0.97f);
         }
@@ -666,7 +666,7 @@ namespace MarbleGP.Bootstrap
         private void BuildRaceStats(Transform canvas, RaceResult result)
         {
             var panel = UIFactory.GlassPanel(canvas, new Vector2(0.035f, 0.63f), new Vector2(0.205f, 0.87f));
-            UIFactory.Label(panel, "RACE STATS", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(panel, "ESTATÍSTICAS", 14, TextAnchor.UpperLeft,
                 new Vector2(0.08f, 0.9f), new Vector2(0.92f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
 
             var winner = result.entries.Count > 0 ? result.entries[0] : null;

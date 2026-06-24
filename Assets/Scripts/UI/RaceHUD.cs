@@ -45,6 +45,7 @@ namespace MarbleGP.UI
             public MarbleController ctrl;
             public GripType nextGrip;
             public Text title, tyre, mode, status, wearLabel, energyLabel, fuelLabel, pitLabel;
+            public Text wearVal, energyVal, fuelVal;
             public RectTransform wearFill, energyFill, fuelFill;
             public Button pitBtn;
             public Outline pitGlow;
@@ -106,7 +107,7 @@ namespace MarbleGP.UI
 
         private void BuildBottomNav(Transform canvas)
         {
-            string[] labels = { "DATA", "STRAT", "TIMING", "MENU" };
+            string[] labels = { "DADOS", "ESTRAT", "TEMPOS", "MENU" };
             System.Action[] acts =
             {
                 () => { },                              // DATA (reservado)
@@ -234,7 +235,7 @@ namespace MarbleGP.UI
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
-            var htxt = UIFactory.Label(header, "TIMING", 22, TextAnchor.MiddleLeft,
+            var htxt = UIFactory.Label(header, "CLASSIFICAÇÃO", 17, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0f), new Vector2(0.7f, 1f), new Color(0.8f, 0.85f, 1f));
             htxt.fontStyle = FontStyle.Bold;
 
@@ -513,17 +514,23 @@ namespace MarbleGP.UI
                 new Vector2(0.5f, 0.74f), new Vector2(0.96f, 0.85f), new Color(0.9f, 1f, 0.9f));
 
             // Barras: desgaste, energia e combustivel (PRD 7).
-            card.wearLabel = UIFactory.Label(panel, "Wear", 14, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.61f), new Vector2(0.3f, 0.73f), Color.white);
-            card.wearFill = BuildBar(panel, 0.61f, 0.73f, new Color(0.9f, 0.35f, 0.3f));
+            card.wearLabel = UIFactory.Label(panel, "Desgaste", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.61f), new Vector2(0.34f, 0.73f), MarbleUITheme.TextSecondary);
+            card.wearFill = BuildBar(panel, 0.61f, 0.73f, MarbleUITheme.TyreWear);
+            card.wearVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+                new Vector2(0.37f, 0.61f), new Vector2(0.94f, 0.73f), Color.white);
 
-            card.energyLabel = UIFactory.Label(panel, "Energy", 14, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.48f), new Vector2(0.3f, 0.60f), Color.white);
-            card.energyFill = BuildBar(panel, 0.48f, 0.60f, new Color(0.3f, 0.8f, 0.95f));
+            card.energyLabel = UIFactory.Label(panel, "Energia", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.48f), new Vector2(0.34f, 0.60f), MarbleUITheme.TextSecondary);
+            card.energyFill = BuildBar(panel, 0.48f, 0.60f, MarbleUITheme.Energy);
+            card.energyVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+                new Vector2(0.37f, 0.48f), new Vector2(0.94f, 0.60f), Color.white);
 
-            card.fuelLabel = UIFactory.Label(panel, "Fuel", 14, TextAnchor.MiddleLeft,
-                new Vector2(0.05f, 0.35f), new Vector2(0.3f, 0.47f), Color.white);
-            card.fuelFill = BuildBar(panel, 0.35f, 0.47f, new Color(0.4f, 0.85f, 0.4f));
+            card.fuelLabel = UIFactory.Label(panel, "Combust.", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.35f), new Vector2(0.34f, 0.47f), MarbleUITheme.TextSecondary);
+            card.fuelFill = BuildBar(panel, 0.35f, 0.47f, MarbleUITheme.Fuel);
+            card.fuelVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+                new Vector2(0.37f, 0.35f), new Vector2(0.94f, 0.47f), Color.white);
 
             card.status = UIFactory.Label(panel, "", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.33f), new Color(0.85f, 0.85f, 0.9f));
@@ -564,8 +571,8 @@ namespace MarbleGP.UI
 
         private RectTransform BuildBar(Transform parent, float yMin, float yMax, Color fillColor)
         {
-            var bg = UIFactory.Panel(parent, new Vector2(0.3f, yMin), new Vector2(0.96f, yMax),
-                Vector2.zero, Vector2.zero, new Color(0.15f, 0.15f, 0.18f, 1f));
+            var bg = UIFactory.Panel(parent, new Vector2(0.35f, yMin), new Vector2(0.96f, yMax),
+                Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
             var fill = UIFactory.Panel(bg, new Vector2(0f, 0f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero, fillColor);
             return fill;
@@ -728,27 +735,27 @@ namespace MarbleGP.UI
             {
                 var m = card.ctrl.Runtime;
                 card.title.text = $"{m.DisplayName}   P{m.position}";
-                card.tyre.text = $"Pneu: {(m.grip != null ? m.grip.gripId.ToString() : "-")}  (pit: {card.nextGrip})";
+                MarbleUITheme.TyreInfo(m.grip != null ? m.grip.gripId.ToString() : "", out var curL, out _);
+                MarbleUITheme.TyreInfo(card.nextGrip.ToString(), out var nxtL, out _);
+                card.tyre.text = $"Atual: {curL}    ·    Próx: {nxtL}";
                 card.mode.text = $"Modo: {m.mode}";
 
                 SetBar(card.wearFill, m.wear / 100f);
-                card.wearFill.GetComponent<Image>().color = m.wear > 70f
-                    ? new Color(1f, 0.4f, 0.3f) : new Color(0.85f, 0.55f, 0.3f);
-                card.wearLabel.text = $"Wear {m.wear:0}%";
+                card.wearFill.GetComponent<Image>().color = m.wear > 70f ? MarbleUITheme.NeonRed : MarbleUITheme.TyreWear;
+                card.wearVal.text = $"{m.wear:0}%";
 
                 SetBar(card.energyFill, m.energy / 100f);
-                card.energyFill.GetComponent<Image>().color = m.energy < 20f
-                    ? new Color(1f, 0.85f, 0.25f) : new Color(0.3f, 0.8f, 0.95f);
-                card.energyLabel.text = $"Energy {m.energy:0}";
+                card.energyFill.GetComponent<Image>().color = m.energy < 20f ? MarbleUITheme.Warning : MarbleUITheme.Energy;
+                card.energyVal.text = $"{m.energy:0}%";
 
                 // Combustivel: verde > amarelo > vermelho (PRD 7).
                 SetBar(card.fuelFill, m.fuel / 100f);
-                Color fuelColor = m.fuel <= 0f ? new Color(1f, 0.2f, 0.2f)
+                Color fuelColor = m.fuel <= 0f ? MarbleUITheme.NeonRed
                     : m.fuel < 10f ? new Color(1f, 0.35f, 0.25f)
-                    : m.fuel < 25f ? new Color(1f, 0.85f, 0.3f) : new Color(0.4f, 0.85f, 0.4f);
+                    : m.fuel < 25f ? MarbleUITheme.Warning : MarbleUITheme.Fuel;
                 card.fuelFill.GetComponent<Image>().color = fuelColor;
-                card.fuelLabel.text = m.FuelEmpty ? "FUEL EMPTY" : $"Fuel {m.fuel:0}";
-                card.fuelLabel.color = m.fuel < 25f ? new Color(1f, 0.8f, 0.3f) : Color.white;
+                card.fuelVal.text = m.FuelEmpty ? "VAZIO" : $"{m.fuel:0}%";
+                card.fuelVal.color = m.fuel < 25f ? MarbleUITheme.Warning : Color.white;
 
                 // Status + alertas.
                 string alert = "";
@@ -834,6 +841,15 @@ namespace MarbleGP.UI
                 it.age += Time.deltaTime;
                 _logItems[i] = it;
                 if (it.age > LogFadeEnd) _logItems.RemoveAt(i);
+            }
+
+            // Placeholder quando nao ha eventos ainda.
+            if (_logItems.Count == 0)
+            {
+                for (int r = 0; r < LogRows; r++) _logRows[r].text = "";
+                _logRows[LogRows - 1].text = "Aguardando eventos da corrida…";
+                _logRows[LogRows - 1].color = MarbleUITheme.TextMuted;
+                return;
             }
 
             // Mostra os ultimos N de baixo para cima.
