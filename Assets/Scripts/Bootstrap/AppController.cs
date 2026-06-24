@@ -272,7 +272,7 @@ namespace MarbleGP.Bootstrap
             var ct = t;
             card.onClick.AddListener(() => { _previewTrack = ct; ShowTrackSelect(); });
 
-            UIFactory.Thumbnail(card.transform, t.trackId, new Vector2(0.015f, 0.12f), new Vector2(0.2f, 0.88f));
+            UIFactory.Thumbnail(card.transform, t.trackId, new Vector2(0.02f, 0.13f), new Vector2(0.125f, 0.87f));
             var nb = UIFactory.Panel(card.transform, new Vector2(0.215f, 0.55f), new Vector2(0.275f, 0.9f),
                 Vector2.zero, Vector2.zero, sel ? MarbleUITheme.NeonBlue : MarbleUITheme.PanelSoft);
             UIFactory.Label(nb, num.ToString(), 17, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
@@ -298,7 +298,7 @@ namespace MarbleGP.Bootstrap
                 Vector2.zero, Vector2.zero, MarbleUITheme.NeonBlue);
             UIFactory.Label(nb, num.ToString(), 22, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
 
-            UIFactory.Thumbnail(panel, t.trackId, new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.82f));
+            UIFactory.Thumbnail(panel, t.trackId, new Vector2(0.34f, 0.47f), new Vector2(0.66f, 0.82f));
 
             // 3 indicadores EMPILHADOS (largura cheia) com espaco proprio — sem
             // sobreposicao de label com as bolinhas.
@@ -356,7 +356,7 @@ namespace MarbleGP.Bootstrap
             var bp = UIFactory.GlassPanel(canvas.transform, new Vector2(0.03f, 0.46f), new Vector2(0.47f, 0.88f));
             UIFactory.Label(bp, "MAPA DO CIRCUITO", 14, TextAnchor.UpperLeft,
                 new Vector2(0.04f, 0.9f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
-            UIFactory.Thumbnail(bp, t.trackId, new Vector2(0.04f, 0.13f), new Vector2(0.96f, 0.88f));
+            UIFactory.Thumbnail(bp, t.trackId, new Vector2(0.30f, 0.13f), new Vector2(0.70f, 0.88f));
             UIFactory.Label(bp, $"{t.difficulty}  ·  {t.recommendedLaps} voltas recomendadas  ·  {Mathf.RoundToInt(t.trackLength)} m",
                 13, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.12f), UITheme.TextDim);
 

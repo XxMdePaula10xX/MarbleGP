@@ -266,16 +266,33 @@ namespace MarbleGP.UI
             return ri;
         }
 
-        /// <summary>Moldura com thumbnail do circuito (Resources/Thumbnails/{trackId}).</summary>
+        /// <summary>
+        /// Moldura com thumbnail do circuito (Resources/Thumbnails/{trackId}).
+        /// As thumbnails sao SEMPRE quadradas (512x512). Para nunca distorcer, a
+        /// moldura e mantida 1:1 e centralizada dentro do espaco reservado
+        /// (AspectRatioFitter.FitInParent), independente do formato da caixa.
+        /// Assim o tamanho fica padronizado em qualquer tela.
+        /// </summary>
         public static void Thumbnail(Transform parent, string trackId, Vector2 aMin, Vector2 aMax)
         {
-            var frame = Panel(parent, aMin, aMax, Vector2.zero, Vector2.zero, new Color(0.02f, 0.03f, 0.05f, 1f));
-            frame.GetComponent<Image>().raycastTarget = false;
-            var border = frame.gameObject.AddComponent<Outline>();
+            // Container transparente que apenas delimita o espaco reservado.
+            var holder = Panel(parent, aMin, aMax, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0f));
+            holder.GetComponent<Image>().raycastTarget = false;
+
+            // Moldura quadrada centralizada (mantem 1:1 dentro do holder).
+            var frameGo = new GameObject("Thumb", typeof(Image), typeof(AspectRatioFitter));
+            frameGo.transform.SetParent(holder, false);
+            var frame = frameGo.GetComponent<Image>();
+            frame.color = new Color(0.02f, 0.03f, 0.05f, 1f);
+            frame.raycastTarget = false;
+            var fitter = frameGo.GetComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fitter.aspectRatio = 1f; // thumbnails 512x512
+            var border = frameGo.AddComponent<Outline>();
             border.effectColor = new Color(0.35f, 0.75f, 1f, 0.5f);
             border.effectDistance = new Vector2(2f, 2f);
 
-            var pic = Picture(frame, "Thumbnails/" + trackId, Vector2.zero, Vector2.one,
+            var pic = Picture(frame.transform, "Thumbnails/" + trackId, Vector2.zero, Vector2.one,
                 new Color(0.12f, 0.14f, 0.20f, 1f));
             pic.rectTransform.offsetMin = new Vector2(4f, 4f);
             pic.rectTransform.offsetMax = new Vector2(-4f, -4f);
