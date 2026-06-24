@@ -51,7 +51,21 @@ namespace MarbleGP.Core
                 Debug.LogWarning("[GameManager] GameDatabase nao atribuido. " +
                     "Rode Tools > Marble GP > Gerar Dados do MVP e arraste o asset, " +
                     "ou coloque-o em Resources/GameDatabase.");
+
+            // Notificacoes locais (lembretes) + limpa o badge ao abrir o app.
+            StartCoroutine(GameNotifications.Setup());
+            GameNotifications.ClearBadgeAndDelivered();
         }
+
+        // Ciclo de vida do app: ao minimizar/fechar agenda os lembretes; ao voltar
+        // limpa o badge e as notificacoes ja entregues (badge "some ao entrar").
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) GameNotifications.ScheduleReminders();
+            else GameNotifications.ClearBadgeAndDelivered();
+        }
+
+        private void OnApplicationQuit() => GameNotifications.ScheduleReminders();
 
         public void SaveProfile() => SaveManager.SaveProfile(Profile);
 

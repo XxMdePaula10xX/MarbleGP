@@ -1,0 +1,117 @@
+using System;
+using System.Collections;
+using UnityEngine;
+#if UNITY_IOS
+using Unity.Notifications.iOS;
+#endif
+#if UNITY_ANDROID
+using Unity.Notifications.Android;
+#endif
+
+namespace MarbleGP.Core
+{
+    /// <summary>
+    /// Lembretes locais ("volte a jogar") + badge no ícone que some ao abrir o app.
+    /// Usa o pacote com.unity.mobile.notifications (iOS + Android). Em outras
+    /// plataformas (editor desktop) os métodos viram no-op, então o jogo compila
+    /// e roda normalmente sem o pacote.
+    /// Chamado pelo GameManager no ciclo de vida do app.
+    /// </summary>
+    public static class GameNotifications
+    {
+        private const string AndroidChannel = "marblegp_reminders";
+
+        // Lembretes escalonados: (título, corpo, dias até disparar).
+        private static readonly (string title, string body, int days)[] Reminders =
+        {
+            ("🏁 As pistas chamam!",        "Sua equipe está pronta. Bora competir?",    1),
+            ("🏎️ A grid sente sua falta",   "Volte e brigue pelo pódio.",                3),
+            ("🏆 O campeonato não para",    "Já faz uma semana! Acelere de volta.",      7),
+        };
+
+        /// <summary>
+        /// Pede permissão (iOS / Android 13+) e registra o canal (Android).
+        /// Rode via StartCoroutine no boot do jogo.
+        /// </summary>
+        public static IEnumerator Setup()
+        {
+#if UNITY_IOS
+            var opt = AuthorizationOption.Alert | AuthorizationOption.Badge | AuthorizationOption.Sound;
+            using (var req = new AuthorizationRequest(opt, true))
+                while (!req.IsFinished) yield return null;
+#elif UNITY_ANDROID
+            var channel = new AndroidNotificationChannel
+            {
+                Id = AndroidChannel,
+                Name = "Lembretes de corrida",
+                Importance = Importance.Default,
+                Description = "Lembra você de voltar a correr no Marble GP."
+            };
+            AndroidNotificationCenter.RegisterNotificationChannel(channel);
+            // Android 13+ exige permissão POST_NOTIFICATIONS (ignora retorno).
+            AndroidNotificationCenter.RequestNotificationPermission();
+            yield break;
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// (Re)agenda os lembretes a partir de agora. Chamado quando o app vai
+        /// para segundo plano / fecha, para lembrar relativo à última sessão.
+        /// </summary>
+        public static void ScheduleReminders()
+        {
+#if UNITY_IOS
+            iOSNotificationCenter.RemoveAllScheduledNotifications();
+            for (int i = 0; i < Reminders.Length; i++)
+            {
+                var r = Reminders[i];
+                var n = new iOSNotification
+                {
+                    Identifier = "marblegp_reminder_" + i,
+                    Title = r.title,
+                    Body = r.body,
+                    ShowInForeground = false,
+                    Badge = i + 1,
+                    Trigger = new iOSNotificationTimeIntervalTrigger
+                    {
+                        TimeInterval = TimeSpan.FromDays(r.days),
+                        Repeats = false
+                    }
+                };
+                iOSNotificationCenter.ScheduleNotification(n);
+            }
+#elif UNITY_ANDROID
+            AndroidNotificationCenter.CancelAllScheduledNotifications();
+            for (int i = 0; i < Reminders.Length; i++)
+            {
+                var r = Reminders[i];
+                var n = new AndroidNotification
+                {
+                    Title = r.title,
+                    Text = r.body,
+                    FireTime = DateTime.Now.AddDays(r.days),
+                    Number = i + 1,            // badge/contador no ícone
+                    ShouldAutoCancel = true
+                };
+                AndroidNotificationCenter.SendNotification(n, AndroidChannel);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Zera o badge do ícone e limpa o que já foi entregue. Chamado ao abrir /
+        /// voltar para o app (badge "some ao entrar").
+        /// </summary>
+        public static void ClearBadgeAndDelivered()
+        {
+#if UNITY_IOS
+            iOSNotificationCenter.ApplicationBadge = 0;
+            iOSNotificationCenter.RemoveAllDeliveredNotifications();
+#elif UNITY_ANDROID
+            AndroidNotificationCenter.CancelAllDisplayedNotifications();
+#endif
+        }
+    }
+}
