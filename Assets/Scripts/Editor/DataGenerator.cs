@@ -237,20 +237,44 @@ namespace MarbleGP.EditorTools
             list.Add(MakeTrack("spiral_canyon", "Spiral Canyon", Difficulty.Hard, 5, 1.4f, 0.4f, 0.25f, 7f, false,
                 "Muitas curvas, desgaste alto.", SpiralPoints()));
 
-            // Placeholders bloqueados do campeonato completo (PRD 21.2).
-            string[] locked = {
-                "sakura_speedway:Sakura Speedway", "desert_loop:Desert Loop", "ice_bowl:Ice Bowl",
-                "volcano_ring:Volcano Ring", "rainforest_gp:Rainforest GP", "metro_marble:Metro Marble Circuit",
-                "royal_garden:Royal Garden", "skybridge:Skybridge Circuit", "factory_run:Factory Run",
-                "moonbase_gp:Moonbase GP", "atlantis_drift:Atlantis Drift", "final_orbit:Final Orbit"
-            };
-            foreach (var entry in locked)
-            {
-                var parts = entry.Split(':');
-                var t = MakeTrack(parts[0], parts[1], Difficulty.Medium, 5, 1.0f, 0.5f, 0.2f, 8f, true,
-                    "Placeholder do campeonato completo.", OvalPoints());
-                list.Add(t);
-            }
+            // Campeonato completo — 12 circuitos com geometria propria (PRD 21.2).
+            // Cada traçado usa Loop() (curva radial estrela => nunca se auto-cruza).
+            list.Add(MakeTrack("sakura_speedway", "Sakura Speedway", Difficulty.Medium, 6, 1.05f, 0.70f, 0.25f, 8f, false,
+                "Curvas fluidas sob as cerejeiras; ritmo constante e médio desgaste.",
+                Loop(14, 40f, 26f, 0.14f, 3, 0.40f, 0.10f)));
+            list.Add(MakeTrack("desert_loop", "Desert Loop", Difficulty.Easy, 6, 1.30f, 0.85f, 0.05f, 8f, false,
+                "Retas longuíssimas no deserto; vácuo e ultrapassagens fáceis, asfalto abrasivo.",
+                Loop(14, 50f, 20f, 0.0f, 0, 0f, 0f)));
+            list.Add(MakeTrack("ice_bowl", "Ice Bowl", Difficulty.Medium, 5, 0.70f, 0.55f, 0.40f, 9f, false,
+                "Tigela de gelo larga e escorregadia; baixo desgaste, mas pouca aderência.",
+                Loop(14, 34f, 32f, 0.16f, 5, 0f, 0f)));
+            list.Add(MakeTrack("volcano_ring", "Volcano Ring", Difficulty.Hard, 5, 1.50f, 0.45f, 0.15f, 7f, false,
+                "Anel vulcânico estreito e quente; desgaste altíssimo, ultrapassar é difícil.",
+                Loop(14, 30f, 30f, 0.22f, 2, 1.57f, 0f)));
+            list.Add(MakeTrack("rainforest_gp", "Rainforest GP", Difficulty.Hard, 5, 1.20f, 0.50f, 0.60f, 7f, false,
+                "Traçado sinuoso e muito úmido; o pneu de chuva costuma decidir a corrida.",
+                Loop(14, 42f, 22f, 0.28f, 2, 0f, 0f)));
+            list.Add(MakeTrack("metro_marble", "Metro Marble Circuit", Difficulty.Medium, 6, 1.10f, 0.60f, 0.30f, 7f, false,
+                "Circuito urbano de cantos retos; muros próximos exigem precisão.",
+                Loop(14, 34f, 32f, 0.16f, 4, 0f, 0.785f)));
+            list.Add(MakeTrack("royal_garden", "Royal Garden", Difficulty.Medium, 6, 1.00f, 0.55f, 0.25f, 7f, false,
+                "Jardim real técnico e elegante; três grandes setores de curvas.",
+                Loop(14, 32f, 30f, 0.20f, 3, 1.57f, 0f)));
+            list.Add(MakeTrack("skybridge", "Skybridge Circuit", Difficulty.Medium, 6, 1.00f, 0.85f, 0.20f, 8f, false,
+                "Pontes suspensas rápidas; curvas amplas e muita ultrapassagem.",
+                Loop(14, 46f, 22f, 0.10f, 4, 0.30f, 0f)));
+            list.Add(MakeTrack("factory_run", "Factory Run", Difficulty.Hard, 5, 1.30f, 0.50f, 0.20f, 7f, false,
+                "Linha de montagem apertada; muitas curvas e desgaste elevado.",
+                Loop(14, 36f, 28f, 0.18f, 6, 0f, 0f)));
+            list.Add(MakeTrack("moonbase_gp", "Moonbase GP", Difficulty.Medium, 6, 0.90f, 0.70f, 0.0f, 8f, false,
+                "Base lunar de baixa gravidade; pista limpa, ampla e sem chuva.",
+                Loop(14, 38f, 36f, 0.0f, 0, 0f, 0f)));
+            list.Add(MakeTrack("atlantis_drift", "Atlantis Drift", Difficulty.Hard, 5, 1.10f, 0.60f, 0.50f, 8f, false,
+                "Cidade submersa ondulante; aderência variável e clima instável.",
+                Loop(14, 42f, 24f, 0.13f, 5, 0.60f, 0f)));
+            list.Add(MakeTrack("final_orbit", "Final Orbit", Difficulty.Hard, 7, 1.40f, 0.75f, 0.30f, 8f, false,
+                "Palco final do campeonato; longa, veloz e impiedosa com os pneus.",
+                Loop(14, 46f, 28f, 0.16f, 3, 0.30f, 0.20f)));
             return list;
         }
 
@@ -296,6 +320,25 @@ namespace MarbleGP.EditorTools
             new(14,2), new(-2,-8), new(-16,4), new(0,16),
             new(24,18), new(34,30), new(0,34), new(-34,26), new(-40,2)
         };
+
+        /// <summary>
+        /// Gera um traçado fechado a partir de uma curva radial r(θ)=1+amp·sin(lobes·θ+phase)
+        /// escalada por (rx, ry) e girada por rot. Como o ângulo cresce de forma monótona
+        /// e r>0 (amp&lt;1), a curva é "estrela" e NUNCA se auto-intersecta — seguro mesmo
+        /// sem teste visual. lobes controla o nº de "ondas"/cantos do circuito.
+        /// </summary>
+        private static List<Vector2> Loop(int n, float rx, float ry, float amp, int lobes, float phase, float rot)
+        {
+            var pts = new List<Vector2>(n);
+            for (int i = 0; i < n; i++)
+            {
+                float t = (i / (float)n) * Mathf.PI * 2f;
+                float r = 1f + amp * Mathf.Sin(lobes * t + phase);
+                float a = t + rot;
+                pts.Add(new Vector2(Mathf.Cos(a) * rx * r, Mathf.Sin(a) * ry * r));
+            }
+            return pts;
+        }
 
         // ---- Util -------------------------------------------------------
 

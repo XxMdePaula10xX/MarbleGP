@@ -52,9 +52,15 @@ namespace MarbleGP.UI
             public Button pitBtn;
             public Outline pitGlow;
             public GameObject modeSelector, tyreSelector;
+            public RectTransform panel;        // painel do card (re-ancorado ao recolher)
+            public GameObject content;         // tudo que some no modo recolhido
+            public Text mini;                  // resumo vertical no modo recolhido
+            public float yMin, yMax;           // ancoras verticais originais
             public readonly List<GameObject> detail = new(); // reservado p/ recolher futuro
         }
         private readonly List<PlayerCard> _cards = new();
+        private Text _cardsToggleLabel;
+        private bool _cardsCollapsed;
 
         // ---- Log ----
         private struct LogItem { public string msg; public Color color; public float age; }
@@ -75,11 +81,6 @@ namespace MarbleGP.UI
         private string _lastWeather;
         private bool _safetyWas, _lastLapBanner;
         private const float BannerTotal = 2.8f;
-
-        // ---- Minimap ----
-        private Vector2 _mapMin, _mapMax;
-        private RectTransform _mapContainer;
-        private readonly List<(RectTransform rt, MarbleController ctrl)> _mapDots = new();
 
         public void Bind(RaceManager race, CameraController cam)
         {
@@ -104,7 +105,6 @@ namespace MarbleGP.UI
             BuildTopBar(canvas.transform);
             BuildTimingTower(canvas.transform);
             BuildLog(canvas.transform);
-            BuildMinimap(canvas.transform);
             BuildPlayerCards(canvas.transform);
             BuildBanner(canvas.transform);
 
@@ -231,14 +231,14 @@ namespace MarbleGP.UI
 
             string tips =
                 "Você é o ESTRATEGISTA — as bolinhas correm sozinhas.\n\n" +
-                "•  TIMING (esquerda): posições ao vivo, gap e pneu. Recolha com «.\n" +
-                "•  Cards (direita): suas bolinhas, com PIT / MODE / TYRE.\n" +
+                "•  CLASSIFICAÇÃO (esquerda): posições ao vivo, gap e pneu. Recolha com «.\n" +
+                "•  Cards (direita): suas bolinhas, com PIT / MODO / PNEU. Recolha com ▶.\n" +
                 "     –  PIT: chama a parada (troca pneu + reabastece).\n" +
-                "     –  MODE: Save (poupa) · Normal · Push (mais rápido, arrisca).\n" +
-                "     –  TYRE: escolhe o próximo pneu do pit.\n" +
+                "     –  MODO: Save (poupa) · Normal · Push (mais rápido, arrisca).\n" +
+                "     –  PNEU: escolhe o próximo pneu do pit.\n" +
                 "•  O combustível NÃO chega ao fim: ao menos 1 pit é obrigatório.\n" +
                 "•  Desgaste e chuva mudam o ritmo — o pneu certo importa!\n" +
-                "•  Minimapa (canto inferior esq.) e log de eventos (embaixo).\n" +
+                "•  Log de eventos da corrida (embaixo).\n" +
                 "•  Botão Pausa (no topo) para pausar ou sair da corrida.";
             UIFactory.Label(card, tips, 18, TextAnchor.UpperLeft,
                 new Vector2(0.06f, 0.17f), new Vector2(0.95f, 0.83f), UITheme.TextDim);
@@ -298,28 +298,30 @@ namespace MarbleGP.UI
         private void BuildTimingTower(Transform canvas)
         {
             int count = _race.Field.Count;
-            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.222f, 0.99f),
+            // Compacto: ~290px de largura (era ~410px), para liberar a pista.
+            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.158f, 0.99f),
                 Vector2.zero, Vector2.zero, new Color32(3, 9, 18, 255)); // opaco: pista nao vaza
             UIFactory.NeonBorder(container.gameObject, MarbleUITheme.NeonCyan, 0.35f, 1.4f);
             _towerContainer = container;
 
-            const float headerH = 48f;
+            const float headerH = 42f;
             var header = UIFactory.Panel(container, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero, MarbleUITheme.PanelSoft);
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
-            var htxt = UIFactory.Label(header, "CLASSIFICAÇÃO", 17, TextAnchor.MiddleLeft,
-                new Vector2(0.06f, 0f), new Vector2(0.7f, 1f), new Color(0.8f, 0.85f, 1f));
+            var htxt = UIFactory.Label(header, "CLASSIFICAÇÃO", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.06f, 0f), new Vector2(0.78f, 1f), new Color(0.8f, 0.85f, 1f));
             htxt.fontStyle = FontStyle.Bold;
 
             // Botao recolher/expandir (PRD 4.1).
             var toggle = UIFactory.Button(header, "«", new Color(0.2f, 0.25f, 0.4f, 0.95f),
-                new Vector2(0.74f, 0.15f), new Vector2(0.97f, 0.85f), Vector2.zero, Vector2.zero);
+                new Vector2(0.78f, 0.15f), new Vector2(0.97f, 0.85f), Vector2.zero, Vector2.zero);
             _towerToggleLabel = toggle.GetComponentInChildren<Text>();
+            toggle.GetComponentInChildren<Text>().fontSize = 14;
             toggle.onClick.AddListener(ToggleTower);
 
-            float rowH = Mathf.Clamp(880f / Mathf.Max(1, count), 30f, 58f);
+            float rowH = Mathf.Clamp(840f / Mathf.Max(1, count), 28f, 48f);
             for (int i = 0; i < count; i++)
                 _rows.Add(CreateRow(container, i, rowH, headerH));
         }
@@ -329,7 +331,7 @@ namespace MarbleGP.UI
             _towerCollapsed = !_towerCollapsed;
             _towerToggleLabel.text = _towerCollapsed ? "»" : "«";
             // Recolhido: estreita o painel e mostra so posicao + chip + sigla.
-            _towerContainer.anchorMax = new Vector2(_towerCollapsed ? 0.095f : 0.235f, 0.99f);
+            _towerContainer.anchorMax = new Vector2(_towerCollapsed ? 0.072f : 0.158f, 0.99f);
             foreach (var row in _rows)
             {
                 bool show = !_towerCollapsed;
@@ -374,17 +376,17 @@ namespace MarbleGP.UI
             accentRt.anchorMax = new Vector2(0.022f, 0.92f);
             accentRt.offsetMin = Vector2.zero; accentRt.offsetMax = Vector2.zero;
 
-            row.pos = UIFactory.Label(rowGo.transform, "", 22, TextAnchor.MiddleCenter,
-                new Vector2(0.04f, 0f), new Vector2(0.15f, 1f), Color.white);
+            row.pos = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleCenter,
+                new Vector2(0.03f, 0f), new Vector2(0.15f, 1f), Color.white);
             row.pos.fontStyle = FontStyle.Bold;
 
-            row.arrow = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleCenter,
+            row.arrow = UIFactory.Label(rowGo.transform, "", 13, TextAnchor.MiddleCenter,
                 new Vector2(0.15f, 0f), new Vector2(0.21f, 1f), Color.white);
 
-            var chipRt = UIFactory.Panel(rowGo.transform, new Vector2(0.22f, 0.18f), new Vector2(0.29f, 0.82f),
+            var chipRt = UIFactory.Panel(rowGo.transform, new Vector2(0.22f, 0.2f), new Vector2(0.30f, 0.8f),
                 Vector2.zero, Vector2.zero, Color.gray);
             row.chip = chipRt.GetComponent<Image>();
-            row.number = UIFactory.Label(chipRt, "", 15, TextAnchor.MiddleCenter,
+            row.number = UIFactory.Label(chipRt, "", 12, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Color.white);
             row.number.fontStyle = FontStyle.Bold;
 
@@ -400,25 +402,25 @@ namespace MarbleGP.UI
             logoRt.anchorMax = new Vector2(0.95f, 0.95f);
             logoRt.offsetMin = Vector2.zero; logoRt.offsetMax = Vector2.zero;
 
-            row.code = UIFactory.Label(rowGo.transform, "", 21, TextAnchor.MiddleLeft,
-                new Vector2(0.31f, 0f), new Vector2(0.5f, 1f), Color.white);
+            row.code = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleLeft,
+                new Vector2(0.32f, 0f), new Vector2(0.52f, 1f), Color.white);
             row.code.fontStyle = FontStyle.Bold;
 
-            row.gap = UIFactory.Label(rowGo.transform, "", 18, TextAnchor.MiddleRight,
-                new Vector2(0.49f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
+            row.gap = UIFactory.Label(rowGo.transform, "", 13, TextAnchor.MiddleRight,
+                new Vector2(0.46f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
             // Badge de pneu (anel colorido + letra), estilo transmissao.
             // Badge QUADRADO (anchor central + sizeDelta), senao a linha larga
             // deixava o circulo oval.
-            var tb = UIFactory.TyreBadge(rowGo.transform, new Vector2(0.8f, 0.5f), new Vector2(0.8f, 0.5f));
-            float badge = Mathf.Min(rowH * 0.62f, 26f);
+            var tb = UIFactory.TyreBadge(rowGo.transform, new Vector2(0.81f, 0.5f), new Vector2(0.81f, 0.5f));
+            float badge = Mathf.Min(rowH * 0.55f, 22f);
             tb.ring.rectTransform.sizeDelta = new Vector2(badge, badge);
             row.gripRing = tb.ring;
             row.gripLetter = tb.letter;
 
             // Pit stops (PRD 4.2).
-            row.pit = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleCenter,
-                new Vector2(0.85f, 0f), new Vector2(0.99f, 1f), new Color(0.7f, 0.78f, 0.9f));
+            row.pit = UIFactory.Label(rowGo.transform, "", 13, TextAnchor.MiddleCenter,
+                new Vector2(0.88f, 0f), new Vector2(0.99f, 1f), new Color(0.7f, 0.78f, 0.9f));
 
             return row;
         }
@@ -461,100 +463,6 @@ namespace MarbleGP.UI
             _logPanel.anchorMax = new Vector2(0.78f, _logCollapsed ? 0.035f : 0.15f);
         }
 
-        // ---- Minimap ----
-
-        private void BuildMinimap(Transform canvas)
-        {
-            _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.16f),
-                Vector2.zero, Vector2.zero, new Color32(3, 9, 18, 255));
-            var border = _mapContainer.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.45f);
-            border.effectDistance = new Vector2(1.4f, 1.4f);
-
-            // Cabecalho do minimapa.
-            var mapHdr = UIFactory.Panel(_mapContainer, new Vector2(0f, 0.83f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
-            UIFactory.Label(mapHdr, "MAPA", 13, TextAnchor.MiddleLeft,
-                new Vector2(0.08f, 0f), new Vector2(0.7f, 1f), UITheme.Neon).fontStyle = FontStyle.Bold;
-            UIFactory.Divider(mapHdr, new Vector2(0f, 0f), new Vector2(1f, 0.05f),
-                new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.5f));
-
-            var lane = _race.Track != null ? _race.Track.IdealLine : null;
-            if (lane == null) return;
-
-            Vector3 min = lane.Points[0], max = lane.Points[0];
-            foreach (var p in lane.Points) { min = Vector3.Min(min, p); max = Vector3.Max(max, p); }
-            Vector2 margin = new Vector2((max.x - min.x) * 0.08f + 1f, (max.z - min.z) * 0.08f + 1f);
-            _mapMin = new Vector2(min.x - margin.x, min.z - margin.y);
-            _mapMax = new Vector2(max.x + margin.x, max.z + margin.y);
-
-            // Tracado da pista em 2 camadas: corpo escuro largo (asfalto) +
-            // linha central fina clara. Da aparencia de "estrada", nao de pontos.
-            for (int i = 0; i < lane.Points.Length; i++)
-            {
-                var road = Dot(_mapContainer, new Color(0.16f, 0.21f, 0.30f, 1f), 8.5f);
-                PlaceNorm(road, Norm(lane.Points[i]));
-            }
-            for (int i = 0; i < lane.Points.Length; i++)
-            {
-                var line = Dot(_mapContainer, new Color(0.42f, 0.52f, 0.66f, 0.9f), 3f);
-                PlaceNorm(line, Norm(lane.Points[i]));
-            }
-
-            // Pit lane em ciano.
-            var pit = _race.Track.PitPath;
-            if (pit != null)
-                for (int i = 0; i < pit.Count; i++)
-                {
-                    var pd = Dot(_mapContainer, new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.8f), 3.5f);
-                    PlaceNorm(pd, Norm(pit[i]));
-                }
-
-            // Linha de chegada.
-            var sf = Dot(_mapContainer, Color.white, 7f);
-            PlaceNorm(sf, Norm(lane.Points[0]));
-
-            // Pontos das bolinhas (menores, jogador com contorno branco).
-            foreach (var c in _race.Field)
-            {
-                float size = c.Runtime.isPlayer ? 8f : 6f;
-                var dot = Dot(_mapContainer, c.Runtime.MarbleColor, size);
-                if (c.Runtime.isPlayer)
-                {
-                    var o = dot.gameObject.AddComponent<Outline>();
-                    o.effectColor = Color.white; o.effectDistance = new Vector2(1.3f, 1.3f);
-                }
-                _mapDots.Add((dot.rectTransform, c));
-            }
-        }
-
-        private Vector2 Norm(Vector3 world)
-        {
-            float nx = Mathf.InverseLerp(_mapMin.x, _mapMax.x, world.x);
-            float ny = Mathf.InverseLerp(_mapMin.y, _mapMax.y, world.z);
-            // Insere o tracado na area abaixo do cabecalho (deixa o topo livre).
-            return new Vector2(Mathf.Lerp(0.07f, 0.93f, nx), Mathf.Lerp(0.05f, 0.80f, ny));
-        }
-
-        private static Image Dot(Transform parent, Color color, float sizePx)
-        {
-            var go = new GameObject("Dot", typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.color = color;
-            if (UIFactory.CircleSprite != null) img.sprite = UIFactory.CircleSprite; // ponto redondo
-            img.raycastTarget = false;
-            img.rectTransform.sizeDelta = new Vector2(sizePx, sizePx);
-            return img;
-        }
-
-        private static void PlaceNorm(Image img, Vector2 n) => PlaceNorm(img.rectTransform, n);
-        private static void PlaceNorm(RectTransform rt, Vector2 n)
-        {
-            rt.anchorMin = rt.anchorMax = n;
-            rt.anchoredPosition = Vector2.zero;
-        }
-
         // ---- Cards da equipe ----
 
         private void BuildPlayerCards(Transform canvas)
@@ -568,6 +476,37 @@ namespace MarbleGP.UI
                 float yMax = top - i * (h + gap);
                 BuildCard(canvas, players[i], yMax - h, yMax);
             }
+
+            // Botao recolher/expandir o painel direito (fica no vao, sempre visivel,
+            // abaixo da top bar e a esquerda dos cards).
+            var toggle = UIFactory.Button(canvas, "▶", new Color(0.2f, 0.25f, 0.4f, 0.95f),
+                new Vector2(0.754f, 0.86f), new Vector2(0.783f, 0.905f), Vector2.zero, Vector2.zero);
+            _cardsToggleLabel = toggle.GetComponentInChildren<Text>();
+            _cardsToggleLabel.fontSize = 16;
+            toggle.onClick.AddListener(ToggleCards);
+        }
+
+        private void ToggleCards()
+        {
+            _cardsCollapsed = !_cardsCollapsed;
+            _cardsToggleLabel.text = _cardsCollapsed ? "◀" : "▶";
+            foreach (var card in _cards)
+            {
+                var p = card.panel;
+                if (_cardsCollapsed)
+                {
+                    p.anchorMin = new Vector2(0.963f, card.yMin);
+                    p.anchorMax = new Vector2(0.998f, card.yMax);
+                }
+                else
+                {
+                    p.anchorMin = new Vector2(0.785f, card.yMin);
+                    p.anchorMax = new Vector2(0.995f, card.yMax);
+                }
+                p.offsetMin = Vector2.zero; p.offsetMax = Vector2.zero;
+                if (card.content != null) card.content.SetActive(!_cardsCollapsed);
+                if (card.mini != null) card.mini.gameObject.SetActive(_cardsCollapsed);
+            }
         }
 
         private void BuildCard(Transform canvas, MarbleController ctrl, float yMin, float yMax)
@@ -576,48 +515,61 @@ namespace MarbleGP.UI
                 Vector2.zero, Vector2.zero, MarbleUITheme.PanelDark);
             UIFactory.NeonBorder(panel.gameObject, ctrl.Runtime.TeamPrimary, 0.7f, 1.8f);
 
+            // Container com todo o conteudo detalhado (some no modo recolhido).
+            var content = UIFactory.Panel(panel, Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0f));
+            content.GetComponent<Image>().raycastTarget = false;
+
             // Header escuro com faixa fina da cor da equipe a esquerda (texto sempre legivel).
-            var headRt = UIFactory.Panel(panel, new Vector2(0f, 0.86f), new Vector2(1f, 1f),
+            var headRt = UIFactory.Panel(content, new Vector2(0f, 0.86f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
             var sideAcc = UIFactory.Panel(headRt, new Vector2(0f, 0.12f), new Vector2(0.022f, 0.88f),
                 Vector2.zero, Vector2.zero, ctrl.Runtime.TeamPrimary);
             sideAcc.GetComponent<Image>().raycastTarget = false;
 
-            var card = new PlayerCard { ctrl = ctrl, nextGrip = ctrl.Runtime.grip != null ? ctrl.Runtime.grip.gripId : GripType.Medium };
+            var card = new PlayerCard { ctrl = ctrl, panel = panel, content = content.gameObject,
+                yMin = yMin, yMax = yMax,
+                nextGrip = ctrl.Runtime.grip != null ? ctrl.Runtime.grip.gripId : GripType.Medium };
+
+            // Resumo vertical exibido quando o painel esta recolhido.
+            card.mini = UIFactory.Label(panel, "", 15, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, Color.white);
+            card.mini.fontStyle = FontStyle.Bold;
+            card.mini.gameObject.SetActive(false);
 
             card.title = UIFactory.Label(headRt, "", 20, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0f), new Vector2(1f, 1f), Color.white);
             card.title.fontStyle = FontStyle.Bold;
 
-            card.tyre = UIFactory.Label(panel, "", 16, TextAnchor.MiddleLeft,
+            card.tyre = UIFactory.Label(content, "", 16, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.74f), new Vector2(0.55f, 0.85f), new Color(0.9f, 0.9f, 1f));
-            card.mode = UIFactory.Label(panel, "", 16, TextAnchor.MiddleRight,
+            card.mode = UIFactory.Label(content, "", 16, TextAnchor.MiddleRight,
                 new Vector2(0.5f, 0.74f), new Vector2(0.96f, 0.85f), new Color(0.9f, 1f, 0.9f));
 
             // Barras: desgaste, energia e combustivel (PRD 7).
-            card.wearLabel = UIFactory.Label(panel, "Desgaste", 13, TextAnchor.MiddleLeft,
+            card.wearLabel = UIFactory.Label(content, "Desgaste", 13, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.61f), new Vector2(0.34f, 0.73f), MarbleUITheme.TextSecondary);
-            card.wearFill = BuildBar(panel, 0.61f, 0.73f, MarbleUITheme.TyreWear);
-            card.wearVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+            card.wearFill = BuildBar(content, 0.61f, 0.73f, MarbleUITheme.TyreWear);
+            card.wearVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,
                 new Vector2(0.37f, 0.61f), new Vector2(0.94f, 0.73f), Color.white);
 
-            card.energyLabel = UIFactory.Label(panel, "Energia", 13, TextAnchor.MiddleLeft,
+            card.energyLabel = UIFactory.Label(content, "Energia", 13, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.48f), new Vector2(0.34f, 0.60f), MarbleUITheme.TextSecondary);
-            card.energyFill = BuildBar(panel, 0.48f, 0.60f, MarbleUITheme.Energy);
-            card.energyVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+            card.energyFill = BuildBar(content, 0.48f, 0.60f, MarbleUITheme.Energy);
+            card.energyVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,
                 new Vector2(0.37f, 0.48f), new Vector2(0.94f, 0.60f), Color.white);
 
-            card.fuelLabel = UIFactory.Label(panel, "Combust.", 13, TextAnchor.MiddleLeft,
+            card.fuelLabel = UIFactory.Label(content, "Combust.", 13, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.35f), new Vector2(0.34f, 0.47f), MarbleUITheme.TextSecondary);
-            card.fuelFill = BuildBar(panel, 0.35f, 0.47f, MarbleUITheme.Fuel);
-            card.fuelVal = UIFactory.Label(panel, "", 12, TextAnchor.MiddleRight,
+            card.fuelFill = BuildBar(content, 0.35f, 0.47f, MarbleUITheme.Fuel);
+            card.fuelVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,
                 new Vector2(0.37f, 0.35f), new Vector2(0.94f, 0.47f), Color.white);
 
-            card.status = UIFactory.Label(panel, "", 15, TextAnchor.MiddleLeft,
+            card.status = UIFactory.Label(content, "", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.33f), new Color(0.85f, 0.85f, 0.9f));
 
             // Botoes de acao (so texto, sem icone para nao sobrepor a palavra).
-            card.pitBtn = UIFactory.Button(panel, "PIT", UITheme.PrimaryButton,
+            card.pitBtn = UIFactory.Button(content, "PIT", UITheme.PrimaryButton,
                 new Vector2(0.04f, 0.03f), new Vector2(0.34f, 0.2f), Vector2.zero, Vector2.zero);
             card.pitLabel = card.pitBtn.GetComponentInChildren<Text>();
             card.pitLabel.fontSize = 16;
@@ -628,18 +580,18 @@ namespace MarbleGP.UI
             card.pitBtn.onClick.AddListener(() =>
                 _race.RequestPit(capturedCard.ctrl, capturedCard.nextGrip, true, 60f));
 
-            var modeBtn = UIFactory.Button(panel, "MODO", UITheme.SecondaryButton,
+            var modeBtn = UIFactory.Button(content, "MODO", UITheme.SecondaryButton,
                 new Vector2(0.36f, 0.03f), new Vector2(0.66f, 0.2f), Vector2.zero, Vector2.zero);
             modeBtn.GetComponentInChildren<Text>().fontSize = 16;
             modeBtn.onClick.AddListener(() => ToggleSelector(capturedCard, true));
 
-            var tyreBtn = UIFactory.Button(panel, "PNEU", new Color(0.46f, 0.30f, 0.70f),
+            var tyreBtn = UIFactory.Button(content, "PNEU", new Color(0.46f, 0.30f, 0.70f),
                 new Vector2(0.68f, 0.03f), new Vector2(0.96f, 0.2f), Vector2.zero, Vector2.zero);
             tyreBtn.GetComponentInChildren<Text>().fontSize = 16;
             tyreBtn.onClick.AddListener(() => ToggleSelector(capturedCard, false));
 
-            BuildModeSelector(panel, card);
-            BuildTyreSelector(panel, card);
+            BuildModeSelector(content, card);
+            BuildTyreSelector(content, card);
 
             // Elementos escondidos no modo recolhido (mantem titulo + barras).
             card.detail.Add(card.pitBtn.gameObject);
@@ -733,7 +685,6 @@ namespace MarbleGP.UI
             UpdateTimingTower();
             UpdateCards();
             UpdateLog();
-            UpdateMinimap();
             UpdateBanner();
         }
 
@@ -829,6 +780,15 @@ namespace MarbleGP.UI
             {
                 var m = card.ctrl.Runtime;
                 card.title.text = $"{m.DisplayName}   P{m.position}";
+
+                // Resumo compacto (modo recolhido): P# / sigla / pneu / combust.
+                if (card.mini != null && _cardsCollapsed)
+                {
+                    MarbleUITheme.TyreInfo(m.grip != null ? m.grip.gripId.ToString() : "", out var mL, out var mC);
+                    string code = m.driver != null ? m.driver.shortCode : "MAR";
+                    card.mini.text = $"P{m.position}\n{code}\n<color=#{ColorUtility.ToHtmlStringRGB(mC)}>{mL}</color>\n{m.fuel:0}%";
+                }
+
                 MarbleUITheme.TyreInfo(m.grip != null ? m.grip.gripId.ToString() : "", out var curL, out _);
                 MarbleUITheme.TyreInfo(card.nextGrip.ToString(), out var nxtL, out _);
                 card.tyre.text = $"Atual: {curL}    ·    Próx: {nxtL}";
@@ -897,23 +857,6 @@ namespace MarbleGP.UI
                 case MarbleRaceState.ExitingPit: return "Saindo do pit";
                 case MarbleRaceState.Finished: return "Terminou";
                 default: return s.ToString();
-            }
-        }
-
-        private void UpdateMinimap()
-        {
-            var leader = _race.Field.Count > 0 ? _race.Field[0] : null;
-            foreach (var (rt, c) in _mapDots)
-            {
-                PlaceNorm(rt, Norm(c.transform.position));
-                var img = rt.GetComponent<Image>();
-                if (img == null) continue;
-                var m = c.Runtime;
-                bool inPit = m.state == MarbleRaceState.InPit || m.state == MarbleRaceState.EnteringPit
-                          || m.state == MarbleRaceState.ExitingPit;
-                if (c == leader) img.color = UITheme.Gold;
-                else if (inPit) img.color = new Color(0.25f, 0.7f, 0.95f);
-                else img.color = m.MarbleColor;
             }
         }
 

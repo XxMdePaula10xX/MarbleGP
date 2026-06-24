@@ -298,26 +298,27 @@ namespace MarbleGP.Bootstrap
                 Vector2.zero, Vector2.zero, MarbleUITheme.NeonBlue);
             UIFactory.Label(nb, num.ToString(), 22, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
 
-            UIFactory.Thumbnail(panel, t.trackId, new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.81f));
+            UIFactory.Thumbnail(panel, t.trackId, new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.82f));
 
-            PreviewStat(panel, "DIFICULDADE", DifficultyDots(t.difficulty), 5, MarbleUITheme.NeonGreen, 0.05f, 0.34f);
-            PreviewStat(panel, "ULTRAPASSAGEM", Mathf.RoundToInt(t.overtakeLevel * 8f), 8, MarbleUITheme.NeonCyan, 0.52f, 0.34f);
-            PreviewStat(panel, "DESGASTE DE PNEU", Mathf.RoundToInt((t.abrasionLevel - 0.5f) / 1.5f * 8f), 8, MarbleUITheme.NeonOrange, 0.05f, 0.26f);
+            // 3 indicadores EMPILHADOS (largura cheia) com espaco proprio — sem
+            // sobreposicao de label com as bolinhas.
+            PreviewStat(panel, "DIFICULDADE", DifficultyDots(t.difficulty), 5, MarbleUITheme.NeonGreen, 0.385f);
+            PreviewStat(panel, "ULTRAPASSAGEM", Mathf.RoundToInt(t.overtakeLevel * 8f), 8, MarbleUITheme.NeonCyan, 0.305f);
+            PreviewStat(panel, "DESGASTE DE PNEU", Mathf.RoundToInt((t.abrasionLevel - 0.5f) / 1.5f * 8f), 8, MarbleUITheme.NeonOrange, 0.225f);
 
             UIFactory.Label(panel, Trim(t.description, 160), 14, TextAnchor.UpperLeft,
                 new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.2f), UITheme.TextDim);
         }
 
-        private void PreviewStat(Transform parent, string label, int filled, int total, Color color, float xMin, float y)
+        private void PreviewStat(Transform parent, string label, int filled, int total, Color color, float yBase)
         {
-            float w = xMin + 0.43f;
-            UIFactory.Label(parent, label, 12, TextAnchor.UpperLeft,
-                new Vector2(xMin, y + 0.05f), new Vector2(w, y + 0.1f), UITheme.TextDim).fontStyle = FontStyle.Bold;
-            float pipW = (w - xMin) / total;
+            UIFactory.Label(parent, label, 12, TextAnchor.LowerLeft,
+                new Vector2(0.05f, yBase + 0.03f), new Vector2(0.95f, yBase + 0.075f), UITheme.TextDim).fontStyle = FontStyle.Bold;
+            float pipW = 0.9f / total;
             for (int i = 0; i < total; i++)
             {
-                float px = xMin + i * pipW;
-                var pip = UIFactory.Panel(parent, new Vector2(px, y), new Vector2(px + pipW - 0.006f, y + 0.04f),
+                float px = 0.05f + i * pipW;
+                var pip = UIFactory.Panel(parent, new Vector2(px, yBase), new Vector2(px + pipW - 0.008f, yBase + 0.025f),
                     Vector2.zero, Vector2.zero, i < filled ? color : new Color(0.18f, 0.22f, 0.3f, 0.9f));
                 pip.GetComponent<Image>().raycastTarget = false;
             }
