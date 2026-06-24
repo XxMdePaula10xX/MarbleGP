@@ -204,16 +204,38 @@ namespace MarbleGP.Bootstrap
             if (_previewTrack == null || !tracks.Contains(_previewTrack))
                 _previewTrack = tracks.FirstOrDefault(t => !t.trackLocked) ?? tracks.FirstOrDefault();
 
-            // Lista de circuitos (esquerda).
-            float top = 0.82f, h = 0.135f, gap = 0.016f;
-            int i = 0;
-            foreach (var t in tracks)
+            // Lista de circuitos (esquerda) com SCROLL para caber todas as pistas.
+            var scrollGo = new GameObject("CircuitScroll", typeof(RectTransform), typeof(ScrollRect));
+            scrollGo.transform.SetParent(canvas.transform, false);
+            var srt = scrollGo.GetComponent<RectTransform>();
+            srt.anchorMin = new Vector2(0.035f, 0.13f); srt.anchorMax = new Vector2(0.56f, 0.84f);
+            srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false; scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 45f;
+
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+            viewportGo.transform.SetParent(scrollGo.transform, false);
+            var vrt = viewportGo.GetComponent<RectTransform>();
+            vrt.anchorMin = Vector2.zero; vrt.anchorMax = Vector2.one; vrt.offsetMin = Vector2.zero; vrt.offsetMax = Vector2.zero;
+            viewportGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.002f); // quase invisivel, recebe o arrasto
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewportGo.transform, false);
+            var crt = contentGo.GetComponent<RectTransform>();
+            crt.anchorMin = new Vector2(0f, 1f); crt.anchorMax = new Vector2(1f, 1f); crt.pivot = new Vector2(0.5f, 1f);
+            int n = tracks.Count;
+            crt.sizeDelta = new Vector2(0f, n * 150f);
+            crt.anchoredPosition = Vector2.zero;
+            scroll.viewport = vrt; scroll.content = crt;
+
+            for (int i = 0; i < n; i++)
             {
-                float yTop = top - i * (h + gap);
-                float yBot = yTop - h;
-                if (yBot < 0.13f) break;
-                BuildCircuitListItem(canvas.transform, t, i + 1, new Vector2(0.04f, yBot), new Vector2(0.55f, yTop));
-                i++;
+                float yTop = 1f - i / (float)n;
+                float yBot = 1f - (i + 1) / (float)n;
+                BuildCircuitListItem(contentGo.transform, tracks[i], i + 1,
+                    new Vector2(0.01f, yBot + 0.004f), new Vector2(0.99f, yTop - 0.004f));
             }
 
             // Preview (direita).
@@ -321,13 +343,13 @@ namespace MarbleGP.Bootstrap
             int rainPct = Mathf.RoundToInt(t.rainChance * 100f);
 
             // ---- Top bar ----
-            var top = UIFactory.GlassPanel(canvas.transform, new Vector2(0.02f, 0.905f), new Vector2(0.98f, 0.985f));
-            UIFactory.Label(top, "PRE-RACE STRATEGY", 14, TextAnchor.UpperLeft,
-                new Vector2(0.02f, 0.08f), new Vector2(0.55f, 0.5f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
-            UIFactory.Label(top, $"Estratégia — {t.trackName}", 26, TextAnchor.LowerLeft,
-                new Vector2(0.02f, 0.42f), new Vector2(0.65f, 0.96f), Color.white).fontStyle = FontStyle.Bold;
+            var top = UIFactory.GlassPanel(canvas.transform, new Vector2(0.02f, 0.885f), new Vector2(0.98f, 0.985f));
+            UIFactory.Label(top, $"Estratégia — {t.trackName}", 24, TextAnchor.LowerLeft,
+                new Vector2(0.025f, 0.46f), new Vector2(0.7f, 0.95f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(top, "PRE-RACE STRATEGY", 11, TextAnchor.UpperLeft,
+                new Vector2(0.027f, 0.08f), new Vector2(0.5f, 0.4f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             UIFactory.Label(top, $"{(rainPct >= 30 ? "INSTÁVEL" : "SECO")}   ·   chuva {rainPct}%", 18,
-                TextAnchor.MiddleRight, new Vector2(0.55f, 0f), new Vector2(0.98f, 1f), UITheme.TextDim);
+                TextAnchor.MiddleRight, new Vector2(0.55f, 0f), new Vector2(0.97f, 1f), UITheme.TextDim);
 
             // ---- Track blueprint (esquerda) ----
             var bp = UIFactory.GlassPanel(canvas.transform, new Vector2(0.03f, 0.46f), new Vector2(0.47f, 0.88f));

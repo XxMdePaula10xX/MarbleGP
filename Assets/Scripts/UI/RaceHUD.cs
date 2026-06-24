@@ -333,7 +333,11 @@ namespace MarbleGP.UI
                 new Vector2(0.49f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
             // Badge de pneu (anel colorido + letra), estilo transmissao.
-            var tb = UIFactory.TyreBadge(rowGo.transform, new Vector2(0.745f, 0.16f), new Vector2(0.85f, 0.84f));
+            // Badge QUADRADO (anchor central + sizeDelta), senao a linha larga
+            // deixava o circulo oval.
+            var tb = UIFactory.TyreBadge(rowGo.transform, new Vector2(0.8f, 0.5f), new Vector2(0.8f, 0.5f));
+            float badge = Mathf.Min(rowH * 0.62f, 26f);
+            tb.ring.rectTransform.sizeDelta = new Vector2(badge, badge);
             row.gripRing = tb.ring;
             row.gripLetter = tb.letter;
 

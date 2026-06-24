@@ -67,6 +67,7 @@ namespace MarbleGP.Race
         private bool _winnerDeclared;
         private float _finishTimer;
         private const float FinishTimeout = 45f; // tempo p/ retardatarios cruzarem a linha
+        private const float FinishCoastTime = 2.6f; // desaceleracao apos a bandeirada
 
         private float _countdownTimer;
         private int _lastCountValue = -1;
@@ -256,7 +257,21 @@ namespace MarbleGP.Race
             foreach (var ctrl in _field)
             {
                 var m = ctrl.Runtime;
-                if (m.state == MarbleRaceState.Finished) continue;
+                if (m.state == MarbleRaceState.Finished)
+                {
+                    // Pos-bandeirada: cruza a linha e DESACELERA suave por alguns
+                    // segundos, em vez de parar no lugar (PRD 2).
+                    if (!m.finishHandled) { m.finishHandled = true; m.finishCoastTimer = FinishCoastTime; }
+                    if (m.finishCoastTimer > 0f)
+                    {
+                        m.finishCoastTimer -= dt;
+                        ctrl.Line = RacingLine.Ideal;
+                        ctrl.DesiredSpeed = _bal.baseSpeed * 0.6f * Mathf.Clamp01(m.finishCoastTimer / FinishCoastTime);
+                        ctrl.PhysicsStep(dt);
+                        if (m.finishCoastTimer <= 0f) ctrl.Freeze();
+                    }
+                    continue;
+                }
 
                 bool pitting = _pitManager.IsPitting(ctrl);
 
@@ -312,9 +327,8 @@ namespace MarbleGP.Race
                         if (_winnerDeclared && m.state != MarbleRaceState.Finished)
                         {
                             // Apos a bandeirada, cada bolinha termina ao CRUZAR a
-                            // linha (nao para no meio da pista). PRD 2.
+                            // linha; a desaceleracao acontece no bloco Finished. PRD 2.
                             m.state = MarbleRaceState.Finished;
-                            ctrl.Freeze();
                             Log($"🏁 {m.DisplayName} cruzou a linha.");
                         }
                         else if (m.pitRequested)
