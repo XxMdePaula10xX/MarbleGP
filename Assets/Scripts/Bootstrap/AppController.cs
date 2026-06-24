@@ -168,7 +168,8 @@ namespace MarbleGP.Bootstrap
             MenuButton(canvas.transform, "Corrida Rápida", "flag", 0, () => ShowTrackSelect(), MarbleUITheme.NeonOrange);
             MenuButton(canvas.transform, "Campeonato", "trophy", 1, () => ShowChampionshipHub(), new Color32(18, 60, 105, 235));
             MenuButton(canvas.transform, "Garagem", "settings", 2, () => ShowGarage(), MarbleUITheme.NeonPurple);
-            MenuButton(canvas.transform, "Sair", "", 3, () =>
+            MenuButton(canvas.transform, "Conquistas", "trophy", 3, () => ShowAchievements(), MarbleUITheme.NeonGold);
+            MenuButton(canvas.transform, "Sair", "", 4, () =>
             {
 #if UNITY_EDITOR
                 UnityEditor.EditorApplication.isPlaying = false;
@@ -191,6 +192,99 @@ namespace MarbleGP.Bootstrap
             if (!string.IsNullOrEmpty(icon))
                 UIFactory.Icon(btn.transform, icon, new Vector2(0.06f, 0.22f), new Vector2(0.15f, 0.78f), Color.white);
             if (onClick != null) btn.onClick.AddListener(onClick);
+        }
+
+        // ---- Tela: Conquistas (PRD 32) ----------------------------------
+
+        private void ShowAchievements()
+        {
+            var canvas = NewCanvas("Achievements");
+            var cat = AchievementManager.Catalog;
+            var data = AchievementManager.Data;
+            int unlocked = AchievementManager.UnlockedCount();
+
+            UIFactory.Label(canvas.transform, "CONQUISTAS", 44, TextAnchor.UpperLeft,
+                new Vector2(0.04f, 0.9f), new Vector2(0.6f, 0.99f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(canvas.transform, $"{unlocked} de {cat.Count} desbloqueadas", 20, TextAnchor.UpperLeft,
+                new Vector2(0.045f, 0.85f), new Vector2(0.6f, 0.9f), MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
+
+            // Barra geral de progresso.
+            var pbBg = UIFactory.Panel(canvas.transform, new Vector2(0.55f, 0.865f), new Vector2(0.96f, 0.9f),
+                Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
+            var pbFill = UIFactory.Panel(pbBg, new Vector2(0f, 0f),
+                new Vector2(cat.Count > 0 ? (float)unlocked / cat.Count : 0f, 1f),
+                Vector2.zero, Vector2.zero, MarbleUITheme.NeonGold);
+            pbFill.GetComponent<Image>().raycastTarget = false;
+
+            // Scroll (grade de 2 colunas).
+            var scrollGo = new GameObject("AchScroll", typeof(RectTransform), typeof(ScrollRect));
+            scrollGo.transform.SetParent(canvas.transform, false);
+            var srt = scrollGo.GetComponent<RectTransform>();
+            srt.anchorMin = new Vector2(0.04f, 0.12f); srt.anchorMax = new Vector2(0.96f, 0.83f);
+            srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false; scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 45f;
+
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+            viewportGo.transform.SetParent(scrollGo.transform, false);
+            var vrt = viewportGo.GetComponent<RectTransform>();
+            vrt.anchorMin = Vector2.zero; vrt.anchorMax = Vector2.one; vrt.offsetMin = Vector2.zero; vrt.offsetMax = Vector2.zero;
+            viewportGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.002f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewportGo.transform, false);
+            var crt = contentGo.GetComponent<RectTransform>();
+            crt.anchorMin = new Vector2(0f, 1f); crt.anchorMax = new Vector2(1f, 1f); crt.pivot = new Vector2(0.5f, 1f);
+
+            const int cols = 2;
+            int rows = Mathf.CeilToInt(cat.Count / (float)cols);
+            crt.sizeDelta = new Vector2(0f, rows * 165f);
+            crt.anchoredPosition = Vector2.zero;
+            scroll.viewport = vrt; scroll.content = crt;
+
+            for (int i = 0; i < cat.Count; i++)
+            {
+                int r = i / cols, c = i % cols;
+                float x0 = c / (float)cols, x1 = (c + 1) / (float)cols;
+                float yTop = 1f - r / (float)rows, yBot = 1f - (r + 1) / (float)rows;
+                BuildAchievementCard(contentGo.transform, cat[i], data,
+                    new Vector2(x0 + 0.006f, yBot + 0.006f), new Vector2(x1 - 0.006f, yTop - 0.006f));
+            }
+
+            BackButton(canvas.transform, ShowMainMenu);
+        }
+
+        private void BuildAchievementCard(Transform parent, Achievement a, AchievementData data,
+            Vector2 aMin, Vector2 aMax)
+        {
+            bool done = a.IsUnlocked(data);
+            var card = UIFactory.Panel(parent, aMin, aMax, Vector2.zero, Vector2.zero,
+                done ? new Color(0.11f, 0.12f, 0.06f, 0.96f) : MarbleUITheme.PanelDark);
+            UIFactory.NeonBorder(card.gameObject, done ? MarbleUITheme.NeonGold : MarbleUITheme.PanelSoft,
+                done ? 0.85f : 0.3f, done ? 2f : 1f);
+
+            // Selo de status (✓ desbloqueada / cadeado simples).
+            var seal = UIFactory.Label(card, done ? "✓" : "·", 34, TextAnchor.MiddleCenter,
+                new Vector2(0.03f, 0.4f), new Vector2(0.16f, 0.95f),
+                done ? MarbleUITheme.NeonGold : UITheme.TextDim);
+            seal.fontStyle = FontStyle.Bold;
+
+            UIFactory.Label(card, a.title, 19, TextAnchor.UpperLeft,
+                new Vector2(0.18f, 0.58f), new Vector2(0.97f, 0.94f),
+                done ? Color.white : new Color(0.72f, 0.76f, 0.85f)).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, a.desc, 13, TextAnchor.UpperLeft,
+                new Vector2(0.18f, 0.32f), new Vector2(0.97f, 0.6f), UITheme.TextDim);
+
+            // Barra de progresso + contador.
+            var bg = UIFactory.Panel(card, new Vector2(0.18f, 0.14f), new Vector2(0.78f, 0.26f),
+                Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
+            var fill = UIFactory.Panel(bg, new Vector2(0f, 0f), new Vector2(a.Progress(data), 1f),
+                Vector2.zero, Vector2.zero, done ? MarbleUITheme.NeonGold : MarbleUITheme.NeonBlue);
+            fill.GetComponent<Image>().raycastTarget = false;
+            UIFactory.Label(card, $"{a.Current(data)}/{a.target}", 13, TextAnchor.MiddleRight,
+                new Vector2(0.79f, 0.13f), new Vector2(0.97f, 0.27f),
+                done ? MarbleUITheme.NeonGold : UITheme.TextDim);
         }
 
         // ---- Tela: Selecao de pista (PRD 7.3 / 23.3) --------------------
@@ -561,6 +655,9 @@ namespace MarbleGP.Bootstrap
 
         private void ShowResults(RaceResult result, bool returnToChampionship)
         {
+            // Registra estatísticas e descobre conquistas novas (PRD 32).
+            var newAchievements = AchievementManager.RecordRace(result);
+
             var canvas = NewCanvas("Results");
 
             // Titulo + subtitulo (PRD 4).
@@ -574,6 +671,19 @@ namespace MarbleGP.Bootstrap
             if (winner != null) BuildWinnerBanner(canvas.transform, winner);
             BuildRaceStats(canvas.transform, result);
             BuildResultTable(canvas.transform, result);
+
+            // Aviso de conquista nova (faixa dourada na area livre central).
+            if (newAchievements.Count > 0)
+            {
+                string txt = newAchievements.Count == 1
+                    ? $"★  Nova conquista: {newAchievements[0].title}"
+                    : $"★  {newAchievements.Count} novas conquistas desbloqueadas!";
+                var ban = UIFactory.Panel(canvas.transform, new Vector2(0.24f, 0.615f), new Vector2(0.76f, 0.69f),
+                    Vector2.zero, Vector2.zero, new Color(0.12f, 0.11f, 0.04f, 0.96f));
+                UIFactory.NeonBorder(ban.gameObject, MarbleUITheme.NeonGold, 0.85f, 2f);
+                UIFactory.Label(ban, txt, 20, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one,
+                    MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
+            }
 
             // Rodape (PRD 4).
             var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", UITheme.SecondaryButton,
@@ -1005,6 +1115,7 @@ namespace MarbleGP.Bootstrap
                 {
                     string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
                     champ.StartNewSeason(playerTeamId);
+                    AchievementManager.NoteSeasonStart();   // reseta o "claim" do título
                     ShowChampionshipHub();
                 });
                 BackButton(canvas.transform, ShowMainMenu);
@@ -1019,6 +1130,13 @@ namespace MarbleGP.Bootstrap
                 UIFactory.Label(canvas.transform, $"Temporada encerrada! Campeao: {champName}", 26,
                     TextAnchor.MiddleCenter, new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.9f),
                     new Color(1f, 0.85f, 0.3f));
+
+                // Conquista de campeonato: conta uma vez se o campeao for do jogador.
+                string ptid = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+                var pdrivers = _gm.Database.GetTeamDrivers(ptid);
+                bool playerChamp = topDriver != null && pdrivers != null
+                    && pdrivers.Exists(dr => dr.driverId == topDriver.driverId);
+                AchievementManager.NoteChampionResult(playerChamp);
             }
             else
             {

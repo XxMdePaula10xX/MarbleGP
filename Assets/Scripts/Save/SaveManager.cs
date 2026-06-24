@@ -13,6 +13,7 @@ namespace MarbleGP.Save
     {
         private static string ProfilePath => Path.Combine(Application.persistentDataPath, "profile.json");
         private static string ChampionshipPath => Path.Combine(Application.persistentDataPath, "championship.json");
+        private static string AchievementsPath => Path.Combine(Application.persistentDataPath, "achievements.json");
 
         // ---- Perfil -----------------------------------------------------
 
@@ -60,10 +61,34 @@ namespace MarbleGP.Save
             return null;
         }
 
+        // ---- Conquistas (PRD 32) ----------------------------------------
+
+        public static void SaveAchievements(AchievementData data)
+        {
+            try { File.WriteAllText(AchievementsPath, JsonUtility.ToJson(data, true)); }
+            catch (Exception e) { Debug.LogError($"[SaveManager] Falha ao salvar conquistas: {e.Message}"); }
+        }
+
+        public static AchievementData LoadAchievements()
+        {
+            try
+            {
+                if (File.Exists(AchievementsPath))
+                    return JsonUtility.FromJson<AchievementData>(File.ReadAllText(AchievementsPath))
+                           ?? new AchievementData();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SaveManager] Falha ao carregar conquistas: {e.Message}");
+            }
+            return new AchievementData();
+        }
+
         public static void DeleteAll()
         {
             if (File.Exists(ProfilePath)) File.Delete(ProfilePath);
             if (File.Exists(ChampionshipPath)) File.Delete(ChampionshipPath);
+            if (File.Exists(AchievementsPath)) File.Delete(AchievementsPath);
         }
     }
 }

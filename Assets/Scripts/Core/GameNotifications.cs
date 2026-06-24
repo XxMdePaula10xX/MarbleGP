@@ -82,6 +82,16 @@ namespace MarbleGP.Core
                 };
                 iOSNotificationCenter.ScheduleNotification(n);
             }
+            // Lembrete recorrente diario as 19h ("hora da corrida!").
+            iOSNotificationCenter.ScheduleNotification(new iOSNotification
+            {
+                Identifier = "marblegp_daily",
+                Title = "🏎️ Hora da corrida!",
+                Body = "Bora dar umas voltas no Marble GP?",
+                ShowInForeground = false,
+                Badge = 1,
+                Trigger = new iOSNotificationCalendarTrigger { Hour = 19, Minute = 0, Repeats = true }
+            });
 #elif UNITY_ANDROID
             AndroidNotificationCenter.CancelAllScheduledNotifications();
             for (int i = 0; i < Reminders.Length; i++)
@@ -97,6 +107,18 @@ namespace MarbleGP.Core
                 };
                 AndroidNotificationCenter.SendNotification(n, AndroidChannel);
             }
+            // Lembrete recorrente diario as 19h.
+            var fire = DateTime.Now.Date.AddHours(19);
+            if (fire < DateTime.Now) fire = fire.AddDays(1);
+            AndroidNotificationCenter.SendNotification(new AndroidNotification
+            {
+                Title = "🏎️ Hora da corrida!",
+                Text = "Bora dar umas voltas no Marble GP?",
+                FireTime = fire,
+                RepeatInterval = TimeSpan.FromDays(1),
+                Number = 1,
+                ShouldAutoCancel = true
+            }, AndroidChannel);
 #endif
         }
 
