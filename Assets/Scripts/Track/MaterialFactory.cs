@@ -20,6 +20,8 @@ namespace MarbleGP.Track
                     _litShader = Shader.Find("Universal Render Pipeline/Lit");
                     if (_litShader == null) _litShader = Shader.Find("Standard");
                     if (_litShader == null) _litShader = Shader.Find("Diffuse");
+                    // Ultimo recurso: nunca devolver null (new Material(null) crasha).
+                    if (_litShader == null) _litShader = Shader.Find("Sprites/Default");
                 }
                 return _litShader;
             }
@@ -34,6 +36,8 @@ namespace MarbleGP.Track
                     _unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
                     if (_unlitShader == null) _unlitShader = Shader.Find("Unlit/Color");
                     if (_unlitShader == null) _unlitShader = Shader.Find("Sprites/Default");
+                    // Ultimo recurso: nunca devolver null.
+                    if (_unlitShader == null) _unlitShader = Shader.Find("UI/Default");
                 }
                 return _unlitShader;
             }

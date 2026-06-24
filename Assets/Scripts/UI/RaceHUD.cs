@@ -676,7 +676,7 @@ namespace MarbleGP.UI
 
             int leaderLap = 1;
             if (_race.Field.Count > 0)
-                leaderLap = Mathf.Clamp(_race.Field[0].Runtime.completedLaps + 1, 1, _race.TotalLaps);
+                leaderLap = Mathf.Clamp(_race.Field[0].Runtime.completedLaps + 1, 1, Mathf.Max(1, _race.TotalLaps));
             _topCircuit.text = _race.Config.track.trackName;
             _topLap.text = $"VOLTA {leaderLap}/{_race.TotalLaps}";
             _topWeather.text = $"Clima: {_race.WeatherLabelCurrent()}";
@@ -717,7 +717,9 @@ namespace MarbleGP.UI
                 {
                     row.logo.enabled = false;
                     row.chip.color = m.TeamPrimary;
-                    row.number.gameObject.SetActive(true);
+                    // No modo recolhido a coluna do numero some (painel estreito);
+                    // nao reativar aqui, senao o numero "volta" todo frame.
+                    row.number.gameObject.SetActive(!_towerCollapsed);
                     row.number.text = m.driver != null ? m.driver.number.ToString() : "";
                     row.number.color = m.TeamSecondary;
                 }

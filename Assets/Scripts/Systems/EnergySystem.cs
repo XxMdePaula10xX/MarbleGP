@@ -31,7 +31,9 @@ namespace MarbleGP.Systems
             float changePerLap = RaceFormulas.EnergyChangePerLap(m);
             float lapFraction = distanceTraveled / trackLength;
             float prev = m.energy;
-            m.energy = Mathf.Clamp(m.energy + changePerLap * lapFraction, 0f, 100f);
+            // Mesmo teto do Refill (bal.maxEnergy), evitando divergencia se o
+            // balanceamento mudar o maximo de energia.
+            m.energy = Mathf.Clamp(m.energy + changePerLap * lapFraction, 0f, bal.maxEnergy);
 
             if (prev >= 20f && m.energy < 20f)
                 OnLowEnergyAlert?.Invoke(m);

@@ -16,6 +16,12 @@ namespace MarbleGP.Systems
         /// </summary>
         public static float FinalSpeed(MarbleRuntime m, GameBalance bal, Weather weather, float trackCond = 1f)
         {
+            // Defesa: se algum dado-base nao foi atribuido (config invalida), evita
+            // um NullReferenceException por frame e devolve uma velocidade neutra.
+            if (bal == null) return 0f;
+            if (m.driver == null || m.grip == null || m.surface == null)
+                return bal.baseSpeed * m.upgSpeedFactor * m.aiSpeedMult;
+
             float baseSpeed = bal.baseSpeed;
             float driver = m.driver.SpeedMultiplier;
             float grip = m.grip.speedMultiplier * m.grip.PerformanceForWeather(weather);

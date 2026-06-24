@@ -684,9 +684,8 @@ namespace MarbleGP.Race
             {
                 var winnerVisual = ordered[0].GetComponent<MarbleVisual>();
                 if (winnerVisual != null) winnerVisual.SetWinner();
+                Log($"🏁 {ordered[0].Runtime.DisplayName} venceu em {Config.track.trackName}!");
             }
-
-            Log($"🏁 {ordered[0].Runtime.DisplayName} venceu em {Config.track.trackName}!");
             Log("🏆 Corrida encerrada!");
             OnRaceFinished?.Invoke(Result);
         }

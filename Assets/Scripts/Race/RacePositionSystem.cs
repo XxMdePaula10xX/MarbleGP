@@ -42,6 +42,11 @@ namespace MarbleGP.Race
             int n = _track.CheckpointCount;
             float arc = _track.ArcFraction(ctrl.transform.position);
             int idx = Mathf.RoundToInt(arc * n) % n;       // checkpoint logo a frente
+            // O pit so e iniciado ao FECHAR uma volta, entao a bolinha sai do pit
+            // ja numa volta nova. Se o arco caiu exatamente na linha (idx==0), nao
+            // deixe o proximo checkpoint ser 0 — senao um cruzamento imediato da
+            // linha contaria uma volta-fantasma (a volta ja foi contada na entrada).
+            if (idx == 0) idx = 1 % n;
             _nextCheckpoint[ctrl.Runtime] = idx;
             // Mantem currentCheckpoint adjacente ao proximo (progresso coerente
             // apos o pit, que usa cp + fracao ate o proximo).
