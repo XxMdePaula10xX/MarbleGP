@@ -94,7 +94,6 @@ namespace MarbleGP.UI
             BuildLog(canvas.transform);
             BuildMinimap(canvas.transform);
             BuildPlayerCards(canvas.transform);
-            BuildBottomNav(canvas.transform);
 
             _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
                 new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));
@@ -224,9 +223,9 @@ namespace MarbleGP.UI
         private void BuildTimingTower(Transform canvas)
         {
             int count = _race.Field.Count;
-            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.235f, 0.99f),
-                Vector2.zero, Vector2.zero, MarbleUITheme.BackgroundDark);
-            UIFactory.NeonBorder(container.gameObject, MarbleUITheme.NeonCyan, 0.5f, 1.8f);
+            var container = UIFactory.Panel(canvas, new Vector2(0.008f, 0.14f), new Vector2(0.222f, 0.99f),
+                Vector2.zero, Vector2.zero, new Color32(3, 9, 18, 255)); // opaco: pista nao vaza
+            UIFactory.NeonBorder(container.gameObject, MarbleUITheme.NeonCyan, 0.35f, 1.4f);
             _towerContainer = container;
 
             const float headerH = 48f;
@@ -382,8 +381,9 @@ namespace MarbleGP.UI
             _logCollapsed = !_logCollapsed;
             _logToggleLabel.text = _logCollapsed ? "▲" : "▼";
             foreach (var r in _logRows) r.gameObject.SetActive(!_logCollapsed);
-            // Recolhido: o painel vira so o cabecalho.
-            _logPanel.anchorMin = new Vector2(0.24f, _logCollapsed ? 0.12f : 0f);
+            // Recolhe PRA BAIXO: o topo do painel desce, o cabecalho fica no rodape.
+            _logPanel.anchorMin = new Vector2(0.24f, 0f);
+            _logPanel.anchorMax = new Vector2(0.78f, _logCollapsed ? 0.035f : 0.15f);
         }
 
         // ---- Minimap ----
@@ -535,11 +535,11 @@ namespace MarbleGP.UI
             card.status = UIFactory.Label(panel, "", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.22f), new Vector2(0.96f, 0.33f), new Color(0.85f, 0.85f, 0.9f));
 
-            // Botoes de acao (icone + texto, cores do tema).
+            // Botoes de acao (so texto, sem icone para nao sobrepor a palavra).
             card.pitBtn = UIFactory.Button(panel, "PIT", UITheme.PrimaryButton,
                 new Vector2(0.04f, 0.03f), new Vector2(0.34f, 0.2f), Vector2.zero, Vector2.zero);
             card.pitLabel = card.pitBtn.GetComponentInChildren<Text>();
-            UIFactory.Icon(card.pitBtn.transform, "pit", new Vector2(0.08f, 0.2f), new Vector2(0.32f, 0.8f), Color.white);
+            card.pitLabel.fontSize = 16;
             card.pitGlow = card.pitBtn.gameObject.AddComponent<Outline>();
             card.pitGlow.effectColor = new Color(1f, 0.7f, 0.2f, 0f);
             card.pitGlow.effectDistance = new Vector2(2.5f, 2.5f);
@@ -547,14 +547,14 @@ namespace MarbleGP.UI
             card.pitBtn.onClick.AddListener(() =>
                 _race.RequestPit(capturedCard.ctrl, capturedCard.nextGrip, true, 60f));
 
-            var modeBtn = UIFactory.Button(panel, "MODE", UITheme.SecondaryButton,
+            var modeBtn = UIFactory.Button(panel, "MODO", UITheme.SecondaryButton,
                 new Vector2(0.36f, 0.03f), new Vector2(0.66f, 0.2f), Vector2.zero, Vector2.zero);
-            UIFactory.Icon(modeBtn.transform, "mode", new Vector2(0.06f, 0.2f), new Vector2(0.3f, 0.8f), Color.white);
+            modeBtn.GetComponentInChildren<Text>().fontSize = 16;
             modeBtn.onClick.AddListener(() => ToggleSelector(capturedCard, true));
 
-            var tyreBtn = UIFactory.Button(panel, "TYRE", new Color(0.50f, 0.32f, 0.78f),
+            var tyreBtn = UIFactory.Button(panel, "PNEU", new Color(0.46f, 0.30f, 0.70f),
                 new Vector2(0.68f, 0.03f), new Vector2(0.96f, 0.2f), Vector2.zero, Vector2.zero);
-            UIFactory.Icon(tyreBtn.transform, "tyre", new Vector2(0.05f, 0.2f), new Vector2(0.29f, 0.8f), Color.white);
+            tyreBtn.GetComponentInChildren<Text>().fontSize = 16;
             tyreBtn.onClick.AddListener(() => ToggleSelector(capturedCard, false));
 
             BuildModeSelector(panel, card);

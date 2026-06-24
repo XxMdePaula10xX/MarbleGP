@@ -24,7 +24,7 @@ namespace MarbleGP.Race
         public RacePositionSystem(TrackManager track, float baseSpeed)
         {
             _track = track;
-            _checkpointRadius = Mathf.Max(2.5f, track.Data.trackWidth * 0.8f);
+            _checkpointRadius = Mathf.Max(2.2f, track.Data.trackWidth * 0.5f);
             // Tempo de volta de referencia para estimar gaps (timing tower).
             _refLapTime = track.Data.trackLength / Mathf.Max(1f, baseSpeed);
         }

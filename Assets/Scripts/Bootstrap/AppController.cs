@@ -401,9 +401,9 @@ namespace MarbleGP.Bootstrap
             var rd = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.31f), new Vector2(0.78f, 0.42f));
             UIFactory.Label(rd, "DURAÇÃO DA CORRIDA", 14, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.78f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
-            DurationCard(rd, 5, "QUICK", "5 voltas", 0);
+            DurationCard(rd, 5, "RÁPIDA", "5 voltas", 0);
             DurationCard(rd, 12, "NORMAL", "12 voltas", 1);
-            DurationCard(rd, 20, "LONG", "20 voltas", 2);
+            DurationCard(rd, 20, "LONGA", "20 voltas", 2);
 
             // ---- Strategy summary (direita) ----
             var sm = UIFactory.GlassPanel(canvas.transform, new Vector2(0.80f, 0.31f), new Vector2(0.98f, 0.88f),
@@ -438,7 +438,7 @@ namespace MarbleGP.Bootstrap
                 Vector2.zero, Vector2.zero, sel ? new Color32(45, 30, 10, 240) : MarbleUITheme.PanelDark);
             UIFactory.NeonBorder(card.gameObject, sel ? MarbleUITheme.NeonOrange : MarbleUITheme.NeonCyan,
                 sel ? 0.95f : 0.3f, sel ? 2.2f : 1.1f);
-            UIFactory.TyreBadge(card, g.ToString(), new Vector2(0.3f, 0.46f), new Vector2(0.7f, 0.92f));
+            UIFactory.TyreBadgeSquare(card, g.ToString(), new Vector2(0.5f, 0.69f), 40f);
             UIFactory.Label(card, name, 14, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.26f), new Vector2(0.98f, 0.44f),
                 sel ? MarbleUITheme.NeonOrange : Color.white).fontStyle = FontStyle.Bold;
             UIFactory.Label(card, desc, 10, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.04f), new Vector2(0.98f, 0.24f),
@@ -645,9 +645,7 @@ namespace MarbleGP.Bootstrap
             BannerStat(card, "TEMPO", FormatTime(w.totalTime), MarbleUITheme.NeonGold, 0.22f, 0.36f);
             UIFactory.Label(card, "PNEU", 11, TextAnchor.LowerCenter,
                 new Vector2(0.37f, 0.04f), new Vector2(0.47f, 0.2f), UITheme.TextDim);
-            var tb = UIFactory.TyreBadge(card, new Vector2(0.385f, 0.2f), new Vector2(0.455f, 0.44f));
-            var tc = TyreColorByLetter(w.finalTyre);
-            tb.ring.color = tc; tb.letter.text = w.finalTyre; tb.letter.color = tc;
+            UIFactory.TyreBadgeSquare(card, w.finalTyre, TyreColorByLetter(w.finalTyre), new Vector2(0.42f, 0.32f), 34f);
             BannerStat(card, "PITS", w.pitStops.ToString(), Color.white, 0.47f, 0.57f);
             BannerStat(card, "COMBUST.", $"{w.finalFuel:0}%", MarbleUITheme.Fuel, 0.58f, 0.7f);
             BannerStat(card, "ENERGIA", $"{w.finalEnergy:0}%", MarbleUITheme.Energy, 0.71f, 0.83f);
@@ -858,7 +856,7 @@ namespace MarbleGP.Bootstrap
             UIFactory.NeonBorder(box.gameObject, MarbleUITheme.NeonCyan, 0.6f, 2.2f);
 
             // Coluna esquerda: titulo + botoes.
-            UIFactory.Label(box, "PAUSED", 50, TextAnchor.UpperLeft,
+            UIFactory.Label(box, "PAUSADO", 50, TextAnchor.UpperLeft,
                 new Vector2(0.05f, 0.78f), new Vector2(0.5f, 0.96f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             UIFactory.Label(box, "Corrida suspensa", 18, TextAnchor.UpperLeft,
                 new Vector2(0.055f, 0.71f), new Vector2(0.5f, 0.78f), UITheme.TextDim);
@@ -915,9 +913,9 @@ namespace MarbleGP.Bootstrap
                 Col(row, (i + 1).ToString(), 16, TextAnchor.MiddleCenter, 0.02f, 0.13f, pcol);
                 var lg = UIFactory.Logo(row, m.team != null ? m.team.teamId : "", new Vector2(0.15f, 0.12f), new Vector2(0.27f, 0.88f));
                 Col(row, m.driver != null ? m.driver.shortCode : "MAR", 16, TextAnchor.MiddleLeft, 0.3f, 0.62f, Color.white);
-                UIFactory.TyreBadge(row, m.grip != null ? m.grip.gripId.ToString() : "",
-                    new Vector2(0.66f, 0.18f), new Vector2(0.78f, 0.82f));
-                Col(row, $"{m.fuel:0}%", 14, TextAnchor.MiddleRight, 0.8f, 0.97f, MarbleUITheme.Fuel);
+                UIFactory.TyreBadgeSquare(row, m.grip != null ? m.grip.gripId.ToString() : "",
+                    new Vector2(0.72f, 0.5f), 26f);
+                Col(row, $"Combust. {m.fuel:0}%", 13, TextAnchor.MiddleRight, 0.78f, 0.97f, MarbleUITheme.Fuel);
             }
         }
 

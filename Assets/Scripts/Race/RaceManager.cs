@@ -442,7 +442,9 @@ namespace MarbleGP.Race
             if (!_winnerDeclared) return;
 
             _finishTimer += dt;
-            if (AllFinished() || _finishTimer >= FinishTimeout)
+            // So encerra quando todos cruzaram a linha E concluiram a
+            // desaceleracao (ou no timeout de seguranca). PRD 2.
+            if ((AllFinished() && AllCoastDone()) || _finishTimer >= FinishTimeout)
             {
                 ClassifyRemaining();
                 FinishRace();
@@ -600,6 +602,18 @@ namespace MarbleGP.Race
                 if (c.Runtime.state != MarbleRaceState.Finished &&
                     c.Runtime.state != MarbleRaceState.Retired)
                     return false;
+            return true;
+        }
+
+        /// <summary>true quando todos terminaram E desaceleraram (cruzaram a linha).</summary>
+        private bool AllCoastDone()
+        {
+            foreach (var c in _field)
+            {
+                var m = c.Runtime;
+                if (m.state == MarbleRaceState.Finished && (!m.finishHandled || m.finishCoastTimer > 0f))
+                    return false;
+            }
             return true;
         }
 

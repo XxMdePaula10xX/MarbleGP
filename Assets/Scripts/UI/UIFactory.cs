@@ -402,6 +402,21 @@ namespace MarbleGP.UI
             b.ring.color = c; b.letter.text = l; b.letter.color = c;
         }
 
+        /// <summary>Badge de pneu SEMPRE redondo (anchor central + lado fixo em px).
+        /// Evita o circulo "oval" quando o rect do pai e largo/baixo.</summary>
+        public static void TyreBadgeSquare(Transform parent, string letter, Color color, Vector2 center, float sizePx)
+        {
+            var b = TyreBadge(parent, center, center);
+            b.ring.rectTransform.sizeDelta = new Vector2(sizePx, sizePx);
+            b.ring.color = color; b.letter.text = letter; b.letter.color = color;
+        }
+
+        public static void TyreBadgeSquare(Transform parent, string gripId, Vector2 center, float sizePx)
+        {
+            MarbleUITheme.TyreInfo(gripId, out var l, out var c);
+            TyreBadgeSquare(parent, l, c, center, sizePx);
+        }
+
         /// <summary>ColorBlock coerente a partir da cor base do botao.</summary>
         public static ColorBlock MakeColors(Color baseColor)
         {
