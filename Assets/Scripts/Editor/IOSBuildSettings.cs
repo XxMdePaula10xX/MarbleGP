@@ -21,6 +21,9 @@ namespace MarbleGP.EditorTools
         private const string Product  = "Marble GP Manager";
         private const string MinIOS   = "13.0"; // mínimo aceito por submissões atuais
 
+        // Ícone do app: coloque um PNG 1024x1024 (SEM transparência) aqui.
+        private const string IconPath = "Assets/AppIcon/appicon.png";
+
         [MenuItem("Tools/Marble GP/Configurar iOS", priority = 20)]
         public static void Configure()
         {
@@ -56,9 +59,42 @@ namespace MarbleGP.EditorTools
             // Texto de uso só é necessário se acessar câmera/micro/localização.
             // O jogo não usa nenhum, então deixamos em branco (sem chaves de privacidade).
 
+            TryAssignIcon(quiet: true);  // aplica o ícone se o PNG existir
+
             AssetDatabase.SaveAssets();
             Debug.Log($"[Marble GP] iOS configurado: {BundleId} | iOS {MinIOS}+ | paisagem | IL2CPP/ARM64/Metal. " +
                       "Defina a assinatura no Xcode/Codemagic (não é feita aqui).");
+        }
+
+        [MenuItem("Tools/Marble GP/Definir Ícone do App", priority = 21)]
+        public static void SetAppIcon()
+        {
+            if (TryAssignIcon(quiet: false))
+            {
+                AssetDatabase.SaveAssets();
+                Debug.Log("[Marble GP] Ícone do app definido (padrão — o Unity gera os tamanhos de iOS e Android).");
+            }
+        }
+
+        /// <summary>
+        /// Define o "Default Icon" a partir de IconPath. O Unity usa esse ícone
+        /// padrão para gerar automaticamente todos os tamanhos de iOS e Android
+        /// quando não há ícones específicos de plataforma.
+        /// </summary>
+        private static bool TryAssignIcon(bool quiet)
+        {
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+            if (tex == null)
+            {
+                string msg = $"[Marble GP] Ícone não encontrado em {IconPath}. " +
+                             "Coloque um PNG 1024x1024 (sem transparência) nesse caminho e rode " +
+                             "Tools > Marble GP > Definir Ícone do App.";
+                if (quiet) Debug.Log(msg); else Debug.LogError(msg);
+                return false;
+            }
+            // BuildTargetGroup.Unknown = "Default Icon" (vale para todas as plataformas).
+            PlayerSettings.SetIconsForTargetGroup(BuildTargetGroup.Unknown, new[] { tex });
+            return true;
         }
     }
 }
