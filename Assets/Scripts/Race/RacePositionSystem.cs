@@ -59,7 +59,7 @@ namespace MarbleGP.Race
             if (_track.CheckpointCount == 0) return false;
             if (m.state == MarbleRaceState.Finished) return false;
 
-            int next = _nextCheckpoint[m];
+            if (!_nextCheckpoint.TryGetValue(m, out int next)) return false;
             Vector3 cpPos = _track.Checkpoints[next];
             Vector3 pos = ctrl.transform.position;
             pos.y = cpPos.y;
@@ -93,7 +93,8 @@ namespace MarbleGP.Race
         /// <summary>Recalcula raceProgress e ordena o campo, setando position (1-based).</summary>
         public void UpdatePositions(List<MarbleController> field)
         {
-            int n = Mathf.Max(1, _track.CheckpointCount);
+            if (_track.CheckpointCount == 0) return; // sem checkpoints, nada a ordenar
+            int n = _track.CheckpointCount;
             foreach (var c in field)
             {
                 var m = c.Runtime;

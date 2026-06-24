@@ -49,10 +49,8 @@ namespace MarbleGP.UI
             public Button pitBtn;
             public Outline pitGlow;
             public GameObject modeSelector, tyreSelector;
-            public readonly List<GameObject> detail = new(); // escondido quando recolhido
+            public readonly List<GameObject> detail = new(); // reservado p/ recolher futuro
         }
-        private bool _rightCollapsed;
-        private Text _rightToggleLabel;
         private readonly List<PlayerCard> _cards = new();
 
         // ---- Log ----
@@ -499,7 +497,7 @@ namespace MarbleGP.UI
                 Vector2.zero, Vector2.zero, ctrl.Runtime.TeamPrimary);
             sideAcc.GetComponent<Image>().raycastTarget = false;
 
-            var card = new PlayerCard { ctrl = ctrl, nextGrip = ctrl.Runtime.grip.gripId };
+            var card = new PlayerCard { ctrl = ctrl, nextGrip = ctrl.Runtime.grip != null ? ctrl.Runtime.grip.gripId : GripType.Medium };
 
             card.title = UIFactory.Label(headRt, "", 20, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0f), new Vector2(1f, 1f), Color.white);
@@ -558,22 +556,6 @@ namespace MarbleGP.UI
             card.detail.Add(card.status.gameObject);
 
             _cards.Add(card);
-        }
-
-        private void ToggleRightPanel()
-        {
-            _rightCollapsed = !_rightCollapsed;
-            _rightToggleLabel.text = _rightCollapsed ? "‹" : "›";
-            foreach (var card in _cards)
-            {
-                foreach (var go in card.detail) go.SetActive(!_rightCollapsed);
-                // selectores sempre escondidos ao recolher
-                if (_rightCollapsed)
-                {
-                    if (card.modeSelector != null) card.modeSelector.SetActive(false);
-                    if (card.tyreSelector != null) card.tyreSelector.SetActive(false);
-                }
-            }
         }
 
         private RectTransform BuildBar(Transform parent, float yMin, float yMax, Color fillColor)
@@ -742,7 +724,7 @@ namespace MarbleGP.UI
             {
                 var m = card.ctrl.Runtime;
                 card.title.text = $"{m.DisplayName}   P{m.position}";
-                card.tyre.text = $"Pneu: {m.grip.gripId}  (pit: {card.nextGrip})";
+                card.tyre.text = $"Pneu: {(m.grip != null ? m.grip.gripId.ToString() : "-")}  (pit: {card.nextGrip})";
                 card.mode.text = $"Modo: {m.mode}";
 
                 SetBar(card.wearFill, m.wear / 100f);
