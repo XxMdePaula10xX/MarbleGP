@@ -31,9 +31,11 @@ namespace MarbleGP.UI
             public Image bg, accent, chip, logo, gripRing;
             public Outline glow;
             public Text pos, arrow, number, code, gap, gripLetter, pit;
+            public float flash; // >0 subiu (verde), <0 caiu (vermelho)
         }
         private readonly List<RankingRow> _rows = new();
         private readonly Dictionary<MarbleRuntime, int> _posSnapshot = new();
+        private readonly Dictionary<MarbleRuntime, int> _framePos = new();
         private float _snapshotTimer;
         private RectTransform _towerContainer;
         private Text _towerToggleLabel;
@@ -63,6 +65,16 @@ namespace MarbleGP.UI
         private bool _logCollapsed;
         private const int LogRows = 5;
         private const float LogFadeStart = 4.5f, LogFadeEnd = 7f;
+
+        // ---- Banner de broadcast (eventos importantes) ----
+        private RectTransform _banner;
+        private CanvasGroup _bannerCg;
+        private Text _bannerText;
+        private Outline _bannerGlow;
+        private float _bannerTimer;
+        private string _lastWeather;
+        private bool _safetyWas, _lastLapBanner;
+        private const float BannerTotal = 2.8f;
 
         // ---- Minimap ----
         private Vector2 _mapMin, _mapMax;
@@ -94,6 +106,7 @@ namespace MarbleGP.UI
             BuildLog(canvas.transform);
             BuildMinimap(canvas.transform);
             BuildPlayerCards(canvas.transform);
+            BuildBanner(canvas.transform);
 
             _countdownText = UIFactory.Label(canvas.transform, "", 130, TextAnchor.MiddleCenter,
                 new Vector2(0.3f, 0.35f), new Vector2(0.7f, 0.75f), new Color(1f, 0.92f, 0.3f));
@@ -128,6 +141,68 @@ namespace MarbleGP.UI
                 b.GetComponentInChildren<Text>().fontSize = 12;
                 var act = acts[i];
                 b.onClick.AddListener(() => act());
+            }
+        }
+
+        // ---- Banner de broadcast ----
+
+        private void BuildBanner(Transform canvas)
+        {
+            var go = new GameObject("Banner", typeof(Image), typeof(CanvasGroup));
+            go.transform.SetParent(canvas, false);
+            _banner = go.GetComponent<RectTransform>();
+            _banner.anchorMin = new Vector2(0.33f, 0.78f);
+            _banner.anchorMax = new Vector2(0.67f, 0.865f);
+            _banner.offsetMin = Vector2.zero; _banner.offsetMax = Vector2.zero;
+            var img = go.GetComponent<Image>();
+            img.color = new Color32(6, 14, 26, 242);
+            if (UIFactory.RoundedSprite != null) { img.sprite = UIFactory.RoundedSprite; img.type = Image.Type.Sliced; }
+            img.raycastTarget = false;
+            _bannerGlow = go.AddComponent<Outline>();
+            _bannerGlow.effectColor = MarbleUITheme.NeonCyan;
+            _bannerGlow.effectDistance = new Vector2(2.5f, 2.5f);
+            _bannerCg = go.GetComponent<CanvasGroup>();
+            _bannerCg.alpha = 0f;
+            _bannerCg.blocksRaycasts = false;
+            _bannerText = UIFactory.Label(_banner, "", 28, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white);
+            _bannerText.fontStyle = FontStyle.Bold;
+        }
+
+        private void ShowBanner(string text, Color color)
+        {
+            if (_banner == null) return;
+            _bannerText.text = text;
+            _bannerText.color = color;
+            _bannerGlow.effectColor = new Color(color.r, color.g, color.b, 0.9f);
+            _bannerTimer = BannerTotal;
+        }
+
+        private void UpdateBanner()
+        {
+            // Deteccao de eventos importantes.
+            string w = _race.WeatherLabelCurrent();
+            if (!string.IsNullOrEmpty(_lastWeather) && w != _lastWeather)
+                ShowBanner($"CLIMA: {w.ToUpper()}", MarbleUITheme.NeonBlue);
+            _lastWeather = w;
+
+            bool sm = _race.SafetyMarbleActive;
+            if (sm && !_safetyWas) ShowBanner("SAFETY MARBLE", MarbleUITheme.Warning);
+            _safetyWas = sm;
+
+            int leaderLap = _race.Field.Count > 0 ? _race.Field[0].Runtime.completedLaps + 1 : 1;
+            if (!_lastLapBanner && _race.TotalLaps > 1 && leaderLap >= _race.TotalLaps)
+            { ShowBanner("ÚLTIMA VOLTA", MarbleUITheme.NeonGold); _lastLapBanner = true; }
+
+            // Animacao (fade + leve pop).
+            if (_bannerTimer > 0f && _banner != null)
+            {
+                _bannerTimer -= Time.deltaTime;
+                float elapsed = BannerTotal - _bannerTimer;
+                float a = elapsed < 0.25f ? elapsed / 0.25f
+                        : _bannerTimer < 0.45f ? _bannerTimer / 0.45f : 1f;
+                _bannerCg.alpha = Mathf.Clamp01(a);
+                _banner.localScale = Vector3.one * Mathf.Min(1f, 0.86f + elapsed * 0.9f);
+                if (_bannerTimer <= 0f) _bannerCg.alpha = 0f;
             }
         }
 
@@ -391,18 +466,18 @@ namespace MarbleGP.UI
         private void BuildMinimap(Transform canvas)
         {
             _mapContainer = UIFactory.Panel(canvas, new Vector2(0.008f, 0.005f), new Vector2(0.16f, 0.16f),
-                Vector2.zero, Vector2.zero, new Color(0.05f, 0.07f, 0.12f, 0.96f));
-            // Borda neon.
+                Vector2.zero, Vector2.zero, new Color32(3, 9, 18, 255));
             var border = _mapContainer.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0.35f, 0.75f, 1f, 0.9f);
-            border.effectDistance = new Vector2(2.5f, 2.5f);
+            border.effectColor = new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.45f);
+            border.effectDistance = new Vector2(1.4f, 1.4f);
 
             // Cabecalho do minimapa.
             var mapHdr = UIFactory.Panel(_mapContainer, new Vector2(0f, 0.83f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
-            UIFactory.Label(mapHdr, "PISTA", 13, TextAnchor.MiddleLeft,
+            UIFactory.Label(mapHdr, "MAPA", 13, TextAnchor.MiddleLeft,
                 new Vector2(0.08f, 0f), new Vector2(0.7f, 1f), UITheme.Neon).fontStyle = FontStyle.Bold;
-            UIFactory.Divider(mapHdr, new Vector2(0f, 0f), new Vector2(1f, 0.06f), UITheme.Neon);
+            UIFactory.Divider(mapHdr, new Vector2(0f, 0f), new Vector2(1f, 0.05f),
+                new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.5f));
 
             var lane = _race.Track != null ? _race.Track.IdealLine : null;
             if (lane == null) return;
@@ -413,35 +488,41 @@ namespace MarbleGP.UI
             _mapMin = new Vector2(min.x - margin.x, min.z - margin.y);
             _mapMax = new Vector2(max.x + margin.x, max.z + margin.y);
 
-            // Pit lane em ciano (PRD 11) — pontos densos formam uma linha suave.
+            // Tracado da pista em 2 camadas: corpo escuro largo (asfalto) +
+            // linha central fina clara. Da aparencia de "estrada", nao de pontos.
+            for (int i = 0; i < lane.Points.Length; i++)
+            {
+                var road = Dot(_mapContainer, new Color(0.16f, 0.21f, 0.30f, 1f), 8.5f);
+                PlaceNorm(road, Norm(lane.Points[i]));
+            }
+            for (int i = 0; i < lane.Points.Length; i++)
+            {
+                var line = Dot(_mapContainer, new Color(0.42f, 0.52f, 0.66f, 0.9f), 3f);
+                PlaceNorm(line, Norm(lane.Points[i]));
+            }
+
+            // Pit lane em ciano.
             var pit = _race.Track.PitPath;
             if (pit != null)
                 for (int i = 0; i < pit.Count; i++)
                 {
-                    var pd = Dot(_mapContainer, new Color(0.25f, 0.7f, 0.95f, 0.85f), 4f);
+                    var pd = Dot(_mapContainer, new Color(MarbleUITheme.NeonCyan.r, MarbleUITheme.NeonCyan.g, MarbleUITheme.NeonCyan.b, 0.8f), 3.5f);
                     PlaceNorm(pd, Norm(pit[i]));
                 }
 
-            // Tracado da pista: pontos redondos densos (passo 1) viram uma
-            // faixa contínua e limpa, em vez do visual "snake" de quadradinhos.
-            for (int i = 0; i < lane.Points.Length; i++)
-            {
-                var d = Dot(_mapContainer, new Color(0.55f, 0.60f, 0.70f, 0.95f), 5.5f);
-                PlaceNorm(d, Norm(lane.Points[i]));
-            }
-            // Linha de chegada destacada.
-            var sf = Dot(_mapContainer, Color.white, 8f);
+            // Linha de chegada.
+            var sf = Dot(_mapContainer, Color.white, 7f);
             PlaceNorm(sf, Norm(lane.Points[0]));
 
-            // Pontos das bolinhas.
+            // Pontos das bolinhas (menores, jogador com contorno branco).
             foreach (var c in _race.Field)
             {
-                float size = c.Runtime.isPlayer ? 12f : 8f;
+                float size = c.Runtime.isPlayer ? 8f : 6f;
                 var dot = Dot(_mapContainer, c.Runtime.MarbleColor, size);
                 if (c.Runtime.isPlayer)
                 {
                     var o = dot.gameObject.AddComponent<Outline>();
-                    o.effectColor = Color.white; o.effectDistance = new Vector2(1.5f, 1.5f);
+                    o.effectColor = Color.white; o.effectDistance = new Vector2(1.3f, 1.3f);
                 }
                 _mapDots.Add((dot.rectTransform, c));
             }
@@ -653,6 +734,7 @@ namespace MarbleGP.UI
             UpdateCards();
             UpdateLog();
             UpdateMinimap();
+            UpdateBanner();
         }
 
         private void UpdateTimingTower()
@@ -725,6 +807,18 @@ namespace MarbleGP.UI
                     row.bg.color = (i % 2 == 0) ? new Color(0.11f, 0.11f, 0.15f, 0.96f)
                                                 : new Color(0.08f, 0.08f, 0.12f, 0.96f);
                     row.glow.effectColor = new Color(0f, 0f, 0f, 0f);
+                }
+
+                // Flash quando muda de posicao (microinteracao broadcast).
+                int framePrev = _framePos.TryGetValue(m, out var fp) ? fp : (i + 1);
+                if (i + 1 < framePrev) row.flash = 1f;
+                else if (i + 1 > framePrev) row.flash = -1f;
+                _framePos[m] = i + 1;
+                if (Mathf.Abs(row.flash) > 0.02f)
+                {
+                    Color fc = row.flash > 0f ? MarbleUITheme.NeonGreen : MarbleUITheme.NeonRed;
+                    row.bg.color = Color.Lerp(row.bg.color, fc, Mathf.Abs(row.flash) * 0.45f);
+                    row.flash = Mathf.MoveTowards(row.flash, 0f, Time.deltaTime * 2.2f);
                 }
             }
         }
@@ -831,6 +925,9 @@ namespace MarbleGP.UI
         {
             _logItems.Add(new LogItem { msg = msg, color = ClassifyLog(msg), age = 0f });
             if (_logItems.Count > LogRows + 3) _logItems.RemoveAt(0);
+
+            // Banner para eventos fortes vindos do log.
+            if (msg.Contains("bateu forte")) ShowBanner("BATIDA FORTE", MarbleUITheme.NeonRed);
         }
 
         private void UpdateLog()

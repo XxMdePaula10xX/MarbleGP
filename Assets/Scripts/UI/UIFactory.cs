@@ -107,7 +107,8 @@ namespace MarbleGP.UI
 
         public static Canvas CreateCanvas(string name)
         {
-            var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster),
+                typeof(CanvasGroup), typeof(UIFadeIn));
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = go.GetComponent<CanvasScaler>();
