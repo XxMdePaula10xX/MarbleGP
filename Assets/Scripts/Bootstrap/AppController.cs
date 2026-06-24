@@ -87,14 +87,17 @@ namespace MarbleGP.Bootstrap
             if (_uiRoot != null) Destroy(_uiRoot);
         }
 
-        private Canvas NewCanvas(string name)
+        private Transform NewCanvas(string name)
         {
             ClearMenuUI();
             var canvas = UIFactory.CreateCanvas(name);
             _uiRoot = canvas.gameObject;
-            // Fundo da tela (imagem opcional em Resources/Backgrounds/<key> + fallback escuro).
+            // Fundo cobre a tela inteira (sangra ate as bordas, atras do notch).
             UIFactory.Background(canvas.transform, BackgroundKey(name), new Color(0.06f, 0.07f, 0.11f, 1f));
-            return canvas;
+            // O conteudo da tela respeita a safe area (notch / home indicator).
+            // Como Transform.transform devolve a si mesmo, os chamadores podem
+            // continuar usando "canvas.transform" sem alteracoes.
+            return UIFactory.SafeAreaRoot(canvas.transform);
         }
 
         private static string BackgroundKey(string canvasName)
@@ -850,10 +853,12 @@ namespace MarbleGP.Bootstrap
             Time.timeScale = 0f;
             var canvas = UIFactory.CreateCanvas("PauseMenu");
             _pausePanel = canvas.gameObject;
+            // Overlay escuro cobre a tela inteira; o conteudo respeita a safe area.
             UIFactory.Panel(canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 new Color(0.01f, 0.02f, 0.04f, 0.82f));
+            var safe = UIFactory.SafeAreaRoot(canvas.transform);
 
-            var box = UIFactory.GlassPanel(canvas.transform, new Vector2(0.2f, 0.18f), new Vector2(0.8f, 0.84f));
+            var box = UIFactory.GlassPanel(safe, new Vector2(0.2f, 0.18f), new Vector2(0.8f, 0.84f));
             UIFactory.NeonBorder(box.gameObject, MarbleUITheme.NeonCyan, 0.6f, 2.2f);
 
             // Coluna esquerda: titulo + botoes.
@@ -949,8 +954,9 @@ namespace MarbleGP.Bootstrap
             _infoPanel = canvas.gameObject;
             var overlay = UIFactory.Panel(canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 new Color(0f, 0f, 0f, 0.82f));
+            var safe = UIFactory.SafeAreaRoot(overlay);
 
-            var card = UIFactory.Panel(overlay, new Vector2(0.26f, 0.18f), new Vector2(0.74f, 0.82f),
+            var card = UIFactory.Panel(safe, new Vector2(0.26f, 0.18f), new Vector2(0.74f, 0.82f),
                 Vector2.zero, Vector2.zero, UITheme.CardPanel);
             var glow = card.gameObject.AddComponent<Outline>();
             glow.effectColor = UITheme.Neon; glow.effectDistance = new Vector2(2f, 2f);

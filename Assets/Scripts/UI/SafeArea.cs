@@ -18,7 +18,12 @@ namespace MarbleGP.UI
         private void Awake()
         {
             _rt = GetComponent<RectTransform>();
-            Apply();
+            // Forca o primeiro Update a aplicar. NAO aplicamos aqui de proposito:
+            // Awake roda antes do SetParent/ancoragem do helper, entao deixamos o
+            // primeiro Update (ja parenteado) cuidar disso, evitando ser
+            // sobrescrito logo apos a criacao.
+            _lastSafe = new Rect(-1f, -1f, -1f, -1f);
+            _lastRes = Vector2Int.zero;
         }
 
         private void Update()
@@ -31,6 +36,7 @@ namespace MarbleGP.UI
 
         private void Apply()
         {
+            if (_rt == null) _rt = GetComponent<RectTransform>();
             int w = Screen.width, h = Screen.height;
             if (w <= 0 || h <= 0) return;
 

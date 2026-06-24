@@ -224,8 +224,9 @@ namespace MarbleGP.UI
                 new Color(0f, 0f, 0f, 0.82f));
             overlay.SetAsLastSibling();
             _tutorialPanel = overlay.gameObject;
+            var safe = UIFactory.SafeAreaRoot(overlay);
 
-            var card = UIFactory.Panel(overlay, new Vector2(0.27f, 0.16f), new Vector2(0.73f, 0.84f),
+            var card = UIFactory.Panel(safe, new Vector2(0.27f, 0.16f), new Vector2(0.73f, 0.84f),
                 Vector2.zero, Vector2.zero, UITheme.CardPanel);
             var glow = card.gameObject.AddComponent<Outline>();
             glow.effectColor = UITheme.Neon; glow.effectDistance = new Vector2(2f, 2f);
