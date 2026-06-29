@@ -66,8 +66,8 @@ namespace MarbleGP.Race
         // Fim de corrida (PRD 2).
         private bool _winnerDeclared;
         private float _finishTimer;
-        private const float FinishTimeout = 45f; // tempo p/ retardatarios cruzarem a linha
-        private const float FinishCoastTime = 2.6f; // desaceleracao apos a bandeirada
+        private const float FinishTimeout = 25f; // tempo-limite apos a bandeirada (evita arrastar)
+        private const float FinishCoastTime = 2.6f; // desaceleracao ate o cruzeiro pos-chegada
 
         private float _countdownTimer;
         private int _lastCountValue = -1;
@@ -259,17 +259,17 @@ namespace MarbleGP.Race
                 var m = ctrl.Runtime;
                 if (m.state == MarbleRaceState.Finished)
                 {
-                    // Pos-bandeirada: cruza a linha e DESACELERA suave por alguns
-                    // segundos, em vez de parar no lugar (PRD 2).
+                    // Pos-bandeirada (PRD 2): desacelera suave para uma velocidade de
+                    // cruzeiro e CONTINUA rodando no tracado, em vez de parar na linha
+                    // (o que causava aglomeracao). So congela quando a corrida inteira
+                    // encerra (FinishRace) — ai todas param ja espalhadas pela pista.
                     if (!m.finishHandled) { m.finishHandled = true; m.finishCoastTimer = FinishCoastTime; }
-                    if (m.finishCoastTimer > 0f)
-                    {
-                        m.finishCoastTimer -= dt;
-                        ctrl.Line = RacingLine.Ideal;
-                        ctrl.DesiredSpeed = _bal.baseSpeed * 0.6f * Mathf.Clamp01(m.finishCoastTimer / FinishCoastTime);
-                        ctrl.PhysicsStep(dt);
-                        if (m.finishCoastTimer <= 0f) ctrl.Freeze();
-                    }
+                    float ct = m.finishCoastTimer > 0f ? Mathf.Clamp01(m.finishCoastTimer / FinishCoastTime) : 0f;
+                    if (m.finishCoastTimer > 0f) m.finishCoastTimer -= dt;
+                    ctrl.Line = RacingLine.Ideal;
+                    // De ~0.5x ate um cruzeiro de ~0.32x da velocidade base; nunca para.
+                    ctrl.DesiredSpeed = _bal.baseSpeed * Mathf.Lerp(0.32f, 0.5f, ct);
+                    ctrl.PhysicsStep(dt);
                     continue;
                 }
 
