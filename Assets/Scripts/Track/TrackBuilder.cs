@@ -108,14 +108,17 @@ namespace MarbleGP.Track
                 (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
         }
 
-        private static Vector3[] ComputeNormals(Vector3[] pts)
+        private static Vector3[] ComputeNormals(Vector3[] pts, bool closed = true)
         {
             int n = pts.Length;
             var normals = new Vector3[n];
             for (int i = 0; i < n; i++)
             {
-                Vector3 prev = pts[(i - 1 + n) % n];
-                Vector3 next = pts[(i + 1) % n];
+                // Caminho FECHADO usa vizinhos com wrap; caminho ABERTO (pit lane)
+                // usa diferencas de um lado so nas pontas, senao a secao das
+                // extremidades fica torcida (PIT IN / PIT OUT).
+                Vector3 prev = closed ? pts[(i - 1 + n) % n] : pts[Mathf.Max(0, i - 1)];
+                Vector3 next = closed ? pts[(i + 1) % n] : pts[Mathf.Min(n - 1, i + 1)];
                 Vector3 tangent = (next - prev).normalized;
                 normals[i] = new Vector3(tangent.z, 0f, -tangent.x).normalized;
             }
@@ -156,6 +159,20 @@ namespace MarbleGP.Track
             var verts = new Vector3[n * 2];
             var uvs = new Vector2[n * 2];
             Vector3 up = Vector3.up * y;
+
+            // Comprimento total (inclui o segmento de fechamento se for loop) e fator
+            // de U. Em loop fechado, arredonda para um numero INTEIRO de repeticoes
+            // para a textura encontrar sem costura na linha de largada/chegada.
+            float total = 0f;
+            for (int i = 1; i < n; i++) total += Vector3.Distance(center[i - 1], center[i]);
+            if (closed) total += Vector3.Distance(center[n - 1], center[0]);
+            float uScale = uvTile > 0f ? 1f / uvTile : 0f; // escala de mundo (faixa aberta)
+            if (uvTile > 0f && closed && total > 0.001f)
+            {
+                int tiles = Mathf.Max(1, Mathf.RoundToInt(total / uvTile));
+                uScale = tiles / total; // U vai de 0 a 'tiles' (inteiro) ao redor do loop
+            }
+
             float dist = 0f;
             for (int i = 0; i < n; i++)
             {
@@ -164,8 +181,7 @@ namespace MarbleGP.Track
                 verts[i * 2 + 1] = center[i] - normals[i] * halfW + up;
                 if (uvTile > 0f)
                 {
-                    // UVs em escala de mundo: textura repete a cada 'uvTile' unidades.
-                    float u = dist / uvTile;
+                    float u = dist * uScale;
                     float vEdge = (2f * halfW) / uvTile;
                     uvs[i * 2] = new Vector2(u, 0f);
                     uvs[i * 2 + 1] = new Vector2(u, vEdge);
@@ -415,7 +431,7 @@ namespace MarbleGP.Track
             tm.PitPath = new List<Vector3>(path);
 
             // Malha do pit lane (faixa aberta).
-            var pitNormals = ComputeNormals(path);
+            var pitNormals = ComputeNormals(path, closed: false);
             BuildRoadMesh(parent, path, pitNormals, 1.7f, MaterialFactory.Create(PitAsphalt),
                 "PitLane", 0.02f, 0f, false);
 

@@ -17,18 +17,8 @@ namespace MarbleGP.Core
 
         [Header("Energia (PRD 15 / 28)")]
         public float maxEnergy = 100f;
-        public float energyConsumptionNormal = 18f;
-        public float energyConsumptionPush = 24f;
-        public float energyConsumptionSave = 12f;
-
-        [Header("Penalidade de velocidade por carga de energia (PRD 28)")]
-        [Tooltip("Energia acima deste valor aplica penaltyHighCharge.")]
-        public float highChargeThreshold = 80f;
-        public float midChargeThreshold = 50f;
+        [Tooltip("Abaixo desta carga a IA passa a economizar (perde um pouco de ritmo).")]
         public float lowChargeThreshold = 20f;
-        [Range(0f, 0.2f)] public float penaltyHighCharge = 0.04f;  // -4%
-        [Range(0f, 0.2f)] public float penaltyMidCharge = 0.02f;   // -2%
-        [Range(0f, 0.2f)] public float penaltyLowCharge = 0.06f;   // -6%
 
         [Header("Desgaste - limiares de efeito (PRD 14)")]
         public float wearWarnThreshold = 50f;   // comeca a perder desempenho
@@ -37,10 +27,7 @@ namespace MarbleGP.Core
         [Tooltip("Penalidade maxima de velocidade quando desgaste = 100.")]
         [Range(0f, 0.6f)] public float maxWearSpeedPenalty = 0.35f;
 
-        [Header("Modos de corrida (PRD 28)")]
-        public ModeSettings normalMode = new ModeSettings { speed = 1.00f, wear = 1.00f, energy = 1.00f, errorMod = 0.00f };
-        public ModeSettings pushMode = new ModeSettings { speed = 1.07f, wear = 1.25f, energy = 1.30f, errorMod = 0.10f };
-        public ModeSettings saveMode = new ModeSettings { speed = 0.92f, wear = 0.75f, energy = 0.70f, errorMod = -0.05f };
+        // Modos de corrida agora vivem em ModeTuning.cs (fonte unica).
 
         [Header("Erros (PRD 13.6 / 41)")]
         public float baseErrorChance = 0.01f;
@@ -68,26 +55,6 @@ namespace MarbleGP.Core
         public float cornerLookAhead = 2.5f;
         [Tooltip("Distancia para detectar bolinha a frente para ultrapassagem.")]
         public float overtakeDetectDistance = 3.0f;
-
-        [System.Serializable]
-        public struct ModeSettings
-        {
-            public float speed;
-            public float wear;
-            public float energy;
-            public float errorMod;
-        }
-
-        public ModeSettings GetMode(RaceMode mode)
-        {
-            switch (mode)
-            {
-                case RaceMode.Push: return pushMode;
-                case RaceMode.Save: return saveMode;
-                // Modos fora do MVP usam Normal como base ate serem implementados.
-                default: return normalMode;
-            }
-        }
 
         /// <summary>Pontos para uma posicao (1-based). Fora da tabela => 0.</summary>
         public int PointsForPosition(int position)

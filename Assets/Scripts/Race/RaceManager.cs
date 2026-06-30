@@ -169,13 +169,18 @@ namespace MarbleGP.Race
                     grip = database.GetGrip(strat.grip),
                     surface = database.GetSurface(strat.surface),
                     mode = strat.startMode,
-                    energy = 100f,   // bateria cheia (PRD 4.2)
+                    // Carga inicial da estrategia (default cheio); tanque sempre cheio.
+                    energy = strat.startEnergy <= 0f ? 100f : Mathf.Clamp(strat.startEnergy, 0f, _bal.maxEnergy),
                     fuel = 100f,     // tanque cheio (PRD 4.1)
                     pitTargetGrip = strat.grip,
                     pitRefillAmount = 100f,
                     GameBalanceRef = _bal,
                     state = MarbleRaceState.OnGrid
                 };
+                // Defesa: se o banco nao tiver o composto/superficie pedido, usa um
+                // padrao (evita null nas formulas).
+                if (runtime.grip == null) runtime.grip = database.GetGrip(GripType.Medium);
+                if (runtime.surface == null) runtime.surface = database.GetSurface(SurfaceType.MicroGrooved);
 
                 // Aplica customizacoes da garagem nas bolinhas do jogador (PRD 31).
                 if (runtime.isPlayer && profile != null)

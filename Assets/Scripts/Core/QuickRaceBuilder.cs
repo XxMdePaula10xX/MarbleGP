@@ -17,7 +17,7 @@ namespace MarbleGP.Core
         public static RaceConfig Build(GameDatabase db, TrackDataSO track, string playerTeamId,
             int maxMarbles = 20, GripType defaultGrip = GripType.Medium,
             SurfaceType defaultSurface = SurfaceType.MicroGrooved,
-            float startEnergy = 70f, RaceMode startMode = RaceMode.Normal)
+            float startEnergy = 100f, RaceMode startMode = RaceMode.Normal)
         {
             var config = new RaceConfig
             {
@@ -33,14 +33,17 @@ namespace MarbleGP.Core
                 foreach (var driver in db.GetTeamDrivers(team.teamId))
                 {
                     if (count >= maxMarbles) break;
+                    bool isPlayer = team.teamId == playerTeamId;
                     config.entries.Add(new MarbleStrategy
                     {
                         driver = driver,
-                        grip = defaultGrip,
+                        // Bolinhas do jogador usam a estrategia escolhida; a IA recebe
+                        // pneu/modo variados por personalidade, dando um grid diverso.
+                        grip = isPlayer ? defaultGrip : AiGrip(driver),
                         surface = defaultSurface,
                         startEnergy = startEnergy,
-                        startMode = startMode,
-                        isPlayerControlled = team.teamId == playerTeamId
+                        startMode = isPlayer ? startMode : AiMode(driver),
+                        isPlayerControlled = isPlayer
                     });
                     count++;
                 }
@@ -48,6 +51,32 @@ namespace MarbleGP.Core
             }
 
             return config;
+        }
+
+        /// <summary>Pneu inicial da IA conforme o perfil do piloto (seco; MVP).</summary>
+        private static GripType AiGrip(MarbleDriverSO d)
+        {
+            switch (d != null ? d.personality : Personality.Balanced)
+            {
+                case Personality.Aggressive:
+                case Personality.RiskTaker: return GripType.Soft;   // rapido, gasta mais
+                case Personality.Conservative:
+                case Personality.Veteran:   return GripType.Hard;   // durавel
+                case Personality.Smooth:    return GripType.Medium;
+                default:                    return GripType.Medium;
+            }
+        }
+
+        /// <summary>Modo inicial da IA conforme o perfil do piloto.</summary>
+        private static RaceMode AiMode(MarbleDriverSO d)
+        {
+            switch (d != null ? d.personality : Personality.Balanced)
+            {
+                case Personality.Aggressive:
+                case Personality.RiskTaker: return RaceMode.Push;
+                case Personality.Conservative: return RaceMode.Save;
+                default: return RaceMode.Normal;
+            }
         }
     }
 }

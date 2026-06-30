@@ -12,7 +12,7 @@ namespace MarbleGP.Core
         public MarbleDriverSO driver;
         public GripType grip = GripType.Medium;
         public SurfaceType surface = SurfaceType.MicroGrooved;
-        public float startEnergy = 70f;        // carga inicial (PRD 8)
+        public float startEnergy = 100f;       // carga inicial (PRD 4.2: bateria cheia)
         public RaceMode startMode = RaceMode.Normal;
         public bool isPlayerControlled = false; // true para as 2 bolinhas do jogador
     }

@@ -60,6 +60,7 @@ namespace MarbleGP.Systems
         public static float FuelUsePerLap(MarbleRuntime m, float baseFuelPerLap)
         {
             float mode = ModeTuning.Get(m.mode).fuel;
+            if (m.grip == null) return baseFuelPerLap * mode;
             float tyre = m.grip.FuelMult;
             return baseFuelPerLap * mode * tyre;
         }
@@ -68,6 +69,7 @@ namespace MarbleGP.Systems
         public static float EnergyChangePerLap(MarbleRuntime m)
         {
             float delta = ModeTuning.Get(m.mode).energyDelta;
+            if (m.grip == null || m.driver == null) return delta;
             if (delta < 0f) // dreno: pneu macio e baixa gestao gastam mais
             {
                 float tyre = m.grip.EnergyMult;
@@ -89,6 +91,7 @@ namespace MarbleGP.Systems
             Weather weather, int totalLaps)
         {
             float baseWear = BaseWearPerLap(totalLaps);
+            if (m.grip == null || m.driver == null || m.surface == null) return baseWear;
             float tyre = m.grip.WearMult;
             float mode = ModeTuning.Get(m.mode).wear;
             float surface = m.surface.wearModifier;
@@ -105,6 +108,8 @@ namespace MarbleGP.Systems
         /// <summary>Chance de erro por avaliacao (PRD 41 - ErrorChance), em 0..1.</summary>
         public static float ErrorChance(MarbleRuntime m, GameBalance bal, Weather weather, float trackErrorAdd = 0f)
         {
+            if (m.driver == null || m.grip == null) return bal != null ? bal.baseErrorChance : 0f;
+
             float wearPenalty = 0f;
             if (m.wear > bal.wearCriticalThreshold) wearPenalty = 0.08f;
             else if (m.wear > bal.wearHeavyThreshold) wearPenalty = 0.04f;
