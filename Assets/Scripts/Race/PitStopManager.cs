@@ -64,6 +64,8 @@ namespace MarbleGP.Race
         {
             if (_active.ContainsKey(ctrl)) return;
             var m = ctrl.Runtime;
+            // Bolinha que ja terminou a corrida nunca entra no pit (defesa extra).
+            if (m.state == MarbleRaceState.Finished) { m.pitRequested = false; return; }
             m.pitRequested = false;
             m.state = MarbleRaceState.EnteringPit;
             m.pitStops++;

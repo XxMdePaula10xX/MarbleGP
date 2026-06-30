@@ -91,6 +91,7 @@ namespace MarbleGP.Race
             if (m.completedLaps >= totalLaps)
             {
                 m.state = MarbleRaceState.Finished;
+                m.pitRequested = false; // terminou: cancela qualquer pit pendente
             }
             return true;
         }

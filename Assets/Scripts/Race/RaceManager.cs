@@ -331,8 +331,10 @@ namespace MarbleGP.Race
                             m.state = MarbleRaceState.Finished;
                             Log($"🏁 {m.DisplayName} cruzou a linha.");
                         }
-                        else if (m.pitRequested)
+                        else if (m.pitRequested && m.state != MarbleRaceState.Finished)
                         {
+                            // Nao arrasta para o pit uma bolinha que ACABOU de terminar
+                            // a corrida (UpdateLap ja marcou Finished nessa volta).
                             _pitManager.BeginEntry(ctrl);
                             Log($"🔧 {m.DisplayName} entrou no pit.");
                         }
