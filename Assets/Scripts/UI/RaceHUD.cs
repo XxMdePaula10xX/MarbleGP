@@ -82,6 +82,13 @@ namespace MarbleGP.UI
         private bool _safetyWas, _lastLapBanner;
         private const float BannerTotal = 2.8f;
 
+        // ---- Rádio do box (decisões-relâmpago) ----
+        private RectTransform _hudRoot;     // raiz (safe area) para sobreposicoes
+        private GameObject _radioCard;
+        private RectTransform _radioBar;
+        private RadioDecision _radioDecision;
+        private float _radioTimer;
+
         public void Bind(RaceManager race, CameraController cam)
         {
             _race = race;
@@ -92,6 +99,7 @@ namespace MarbleGP.UI
             _race.OnRaceStarted += () => _countdownText.text = "";
             _race.OnRaceEvent += PushLog;
             _race.OnRaceFinished += OnFinished;
+            _race.OnRadioDecision += ShowRadio;
         }
 
         // ================= BUILD =================
@@ -105,6 +113,7 @@ namespace MarbleGP.UI
             // Conteudo da HUD vive dentro da safe area (notch / home indicator);
             // o countdown e o tutorial modal cobrem a tela inteira.
             var safe = UIFactory.SafeAreaRoot(canvas.transform);
+            _hudRoot = safe;
 
             BuildTopBar(safe);
             BuildTimingTower(safe);
@@ -661,6 +670,81 @@ namespace MarbleGP.UI
             UpdateCards();
             UpdateLog();
             UpdateBanner();
+            UpdateRadio();
+        }
+
+        // ---- Rádio do box ----
+
+        private static Color RadioColor(RadioTone t)
+        {
+            switch (t)
+            {
+                case RadioTone.Attack: return MarbleUITheme.NeonOrange;
+                case RadioTone.Defend: return MarbleUITheme.NeonBlue;
+                case RadioTone.Save: return MarbleUITheme.NeonGreen;
+                default: return new Color(0.34f, 0.38f, 0.48f);
+            }
+        }
+
+        private void ShowRadio(RadioDecision d)
+        {
+            if (_hudRoot == null || d == null || d.options.Count == 0) return;
+            CloseRadio(); // substitui uma decisao em aberto
+            _radioDecision = d;
+            _radioTimer = d.duration;
+
+            var card = UIFactory.Panel(_hudRoot, new Vector2(0.31f, 0.56f), new Vector2(0.69f, 0.79f),
+                Vector2.zero, Vector2.zero, new Color(0.04f, 0.07f, 0.12f, 0.97f));
+            UIFactory.NeonBorder(card.gameObject, MarbleUITheme.NeonCyan, 0.9f, 2.4f);
+            _radioCard = card.gameObject;
+            _radioCard.AddComponent<UIFadeIn>(); // fade/pop de entrada (auto-adiciona CanvasGroup)
+
+            var hdr = UIFactory.Panel(card, new Vector2(0f, 0.8f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero, MarbleUITheme.PanelSoft);
+            UIFactory.Label(hdr, "RÁDIO DO BOX", 13, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0f), new Vector2(0.96f, 1f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, d.prompt, 16, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.5f), new Vector2(0.95f, 0.78f), Color.white).fontStyle = FontStyle.Bold;
+
+            int n = d.options.Count;
+            const float gap = 0.02f, totalW = 0.92f;
+            float w = (totalW - gap * (n - 1)) / n;
+            for (int i = 0; i < n; i++)
+            {
+                var opt = d.options[i];
+                float x0 = 0.04f + i * (w + gap);
+                var btn = UIFactory.Button(card, opt.label, RadioColor(opt.tone),
+                    new Vector2(x0, 0.14f), new Vector2(x0 + w, 0.46f), Vector2.zero, Vector2.zero);
+                btn.GetComponentInChildren<Text>().fontSize = 15;
+                var captured = opt;
+                btn.onClick.AddListener(() => { _race.ApplyRadio(d.ctrl, captured); CloseRadio(); });
+            }
+
+            // Barra de tempo para decidir.
+            var barBg = UIFactory.Panel(card, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.09f),
+                Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
+            _radioBar = UIFactory.SolidPanel(barBg, new Vector2(0f, 0f), new Vector2(1f, 1f), MarbleUITheme.NeonCyan);
+            _radioBar.GetComponent<Image>().raycastTarget = false;
+        }
+
+        private void UpdateRadio()
+        {
+            if (_radioCard == null) return;
+            _radioTimer -= Time.deltaTime; // pausa junto com o jogo (timeScale 0)
+            if (_radioBar != null && _radioDecision != null)
+            {
+                float f = Mathf.Clamp01(_radioTimer / Mathf.Max(0.01f, _radioDecision.duration));
+                _radioBar.anchorMin = new Vector2(0f, 0f);
+                _radioBar.anchorMax = new Vector2(f, 1f);
+                _radioBar.offsetMin = Vector2.zero; _radioBar.offsetMax = Vector2.zero;
+            }
+            if (_radioTimer <= 0f) CloseRadio(); // ignorada -> sem efeito
+        }
+
+        private void CloseRadio()
+        {
+            if (_radioCard != null) Destroy(_radioCard);
+            _radioCard = null; _radioBar = null; _radioDecision = null;
         }
 
         private void UpdateTimingTower()
@@ -899,6 +983,6 @@ namespace MarbleGP.UI
             return Color.white;
         }
 
-        private void OnFinished(RaceResult result) => _countdownText.text = "FIM";
+        private void OnFinished(RaceResult result) { _countdownText.text = "FIM"; CloseRadio(); }
     }
 }

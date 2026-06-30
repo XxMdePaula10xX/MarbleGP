@@ -20,6 +20,11 @@ namespace MarbleGP.Systems
         public SurfaceProfileSO surface;
         public RaceMode mode = RaceMode.Normal;
 
+        // Rádio do box: modo temporario aplicado por uma decisao do jogador (PRD extra).
+        public bool radioActive;
+        public float radioModeTimer;
+        public RaceMode radioPrevMode = RaceMode.Normal;
+
         // Estado dinamico
         public float wear = 0f;            // 0-100 (PRD 14)
         public float energy = 100f;        // 0-100 bateria de performance (PRD 4.2)

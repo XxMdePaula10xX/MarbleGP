@@ -42,9 +42,12 @@ namespace MarbleGP.Race
         public event Action<string> OnRaceEvent;       // log de eventos
         public event Action<RaceResult> OnRaceFinished;
         public Action PauseRequested;                  // HUD pede pausa ao AppController
+        public Action<RadioDecision> OnRadioDecision;  // rádio do box -> HUD
 
         private readonly List<MarbleController> _field = new();
+        private readonly List<MarbleController> _players = new(); // bolinhas do jogador (cache)
         private readonly Dictionary<MarbleController, MarbleAI> _ais = new();
+        private TeamRadioSystem _teamRadio;
 
         private GameBalance _bal;
         private TireWearSystem _tireSystem;
@@ -110,6 +113,7 @@ namespace MarbleGP.Race
             _positionSystem = new RacePositionSystem(Track, _bal.baseSpeed);
             _pitManager = new PitStopManager(Track, _bal, database, _tireSystem, _energySystem, _fuelSystem);
             _aiStrategy = new AIStrategyManager(database, _fuelSystem, this, TotalLaps);
+            _teamRadio = new TeamRadioSystem();
 
             _tireSystem.OnHighWearAlert += m => Log($"⚠ {m.DisplayName}: desgaste alto!");
             _energySystem.OnLowEnergyAlert += m => Log($"⚠ {m.DisplayName}: energia baixa!");
@@ -221,6 +225,7 @@ namespace MarbleGP.Race
                 if (fwd.sqrMagnitude > 0.01f) ctrl.transform.rotation = Quaternion.LookRotation(fwd);
 
                 _field.Add(ctrl);
+                if (runtime.isPlayer) _players.Add(ctrl);
                 _ais[ctrl] = new MarbleAI(ctrl, Track, _bal, this);
                 _positionSystem.Register(runtime);
                 ctrl.Contact += OnMarbleContact; // eventos de batida (PRD 10)
@@ -315,6 +320,13 @@ namespace MarbleGP.Race
                         m.energy = Mathf.Max(0f, m.energy - 14f * dt);
                     }
 
+                    // Rádio do box: modo temporario expira e volta ao modo anterior.
+                    if (m.radioActive)
+                    {
+                        m.radioModeTimer -= dt;
+                        if (m.radioModeTimer <= 0f) { m.radioActive = false; m.mode = m.radioPrevMode; }
+                    }
+
                     ctrl.PhysicsStep(dt);
                     ctrl.HandleStuckRecovery(dt);
 
@@ -357,6 +369,14 @@ namespace MarbleGP.Race
             _positionSystem.UpdatePositions(_field);
             DetectOvertakes(dt);
             HandleSafetyMarbleRoll();
+
+            // Rádio do box: oferece decisoes taticas antes da bandeirada (PRD extra).
+            if (!_winnerDeclared && OnRadioDecision != null)
+            {
+                var decision = _teamRadio.Tick(dt, _players, TotalLaps);
+                if (decision != null) OnRadioDecision.Invoke(decision);
+            }
+
             HandleFinish(dt);
         }
 
@@ -641,6 +661,19 @@ namespace MarbleGP.Race
         {
             ctrl.Runtime.mode = mode;
             Log($"⚙ {ctrl.Runtime.DisplayName}: modo {mode}.");
+        }
+
+        /// <summary>Aplica uma decisao do radio do box (modo temporario), PRD extra.</summary>
+        public void ApplyRadio(MarbleController ctrl, RadioOption opt)
+        {
+            if (ctrl == null || opt == null) return;
+            var m = ctrl.Runtime;
+            if (opt.hold) { Log($"📻 {m.DisplayName}: mantém o ritmo."); return; }
+            if (m.state != MarbleRaceState.Racing) return;
+            if (opt.mode != m.mode) { m.radioPrevMode = m.mode; m.mode = opt.mode; }
+            m.radioActive = true;
+            m.radioModeTimer = _teamRadio != null ? _teamRadio.EffectSeconds : 18f;
+            Log($"📻 {m.DisplayName}: {opt.mode} por ordem do box!");
         }
 
         // ---- Fim da corrida (PRD 23.6 / 10) ------------------------------
