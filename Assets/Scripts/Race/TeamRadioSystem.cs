@@ -44,13 +44,18 @@ namespace MarbleGP.Race
             _cooldown -= dt;
             if (_cooldown > 0f || players == null || players.Count == 0) return null;
 
-            // Escolhe uma bolinha do jogador correndo e longe do fim.
+            // Sorteia UNIFORMEMENTE entre as bolinhas do jogador elegíveis (correndo
+            // e longe do fim), para que ambas recebam decisões ao longo da corrida.
+            // Reservoir sampling (1 item): uniforme e sem alocar lista.
             MarbleController pick = null;
+            int eligible = 0;
             for (int i = 0; i < players.Count; i++)
             {
                 var m = players[i].Runtime;
                 bool nearEnd = m.completedLaps >= totalLaps - 1;
-                if (m.state == MarbleRaceState.Racing && !nearEnd) { pick = players[i]; break; }
+                if (m.state != MarbleRaceState.Racing || nearEnd) continue;
+                eligible++;
+                if (Random.Range(0, eligible) == 0) pick = players[i];
             }
             if (pick == null) { _cooldown = 12f; return null; }
 
