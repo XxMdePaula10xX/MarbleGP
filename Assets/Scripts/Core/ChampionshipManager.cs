@@ -59,7 +59,14 @@ namespace MarbleGP.Core
             string json = SaveManager.LoadChampionship();
             if (string.IsNullOrEmpty(json)) return false;
             Data = JsonUtility.FromJson<ChampionshipData>(json);
-            if (Data != null) { EnsureUpgrades(); EnsureStandings(); }
+            if (Data != null)
+            {
+                // Robustez contra saves antigos/corrompidos (evita NRE em IsSeasonOver/TotalRounds).
+                if (Data.calendarTrackIds == null) Data.calendarTrackIds = new List<string>();
+                if (Data.history == null) Data.history = new List<RoundResultSummary>();
+                EnsureUpgrades();
+                EnsureStandings();
+            }
             return Data != null && Data.active;
         }
 

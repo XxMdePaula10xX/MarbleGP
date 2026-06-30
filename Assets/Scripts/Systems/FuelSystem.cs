@@ -23,7 +23,10 @@ namespace MarbleGP.Systems
         public FuelSystem(TrackDataSO track, int totalLaps)
         {
             trackLength = Mathf.Max(1f, track.trackLength);
-            baseFuelPerLap = 130f / Mathf.Max(1, totalLaps);
+            // 145 garante mais de 1 tanque mesmo no combo mais economico (modo Save
+            // 0.78 x pneu Hard 0.92 => 145*0.7176 = 104% > 100%), forcando ao menos
+            // 1 pit; e mantem o modo Push em 1 parada (145*1.35 = 196% < 200%).
+            baseFuelPerLap = 145f / Mathf.Max(1, totalLaps);
         }
 
         public void Apply(MarbleRuntime m, float distanceTraveled)

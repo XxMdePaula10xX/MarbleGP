@@ -1180,6 +1180,7 @@ namespace MarbleGP.Bootstrap
                 {
                     string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
                     champ.StartNewSeason(playerTeamId);
+                    AchievementManager.NoteSeasonStart();   // libera contar o proximo titulo
                     ShowChampionshipHub();
                 });
             }
