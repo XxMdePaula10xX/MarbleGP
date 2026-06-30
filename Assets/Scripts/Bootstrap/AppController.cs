@@ -211,9 +211,9 @@ namespace MarbleGP.Bootstrap
             // Barra geral de progresso.
             var pbBg = UIFactory.Panel(canvas.transform, new Vector2(0.55f, 0.865f), new Vector2(0.96f, 0.9f),
                 Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
-            var pbFill = UIFactory.Panel(pbBg, new Vector2(0f, 0f),
+            var pbFill = UIFactory.SolidPanel(pbBg, new Vector2(0f, 0f),
                 new Vector2(cat.Count > 0 ? (float)unlocked / cat.Count : 0f, 1f),
-                Vector2.zero, Vector2.zero, MarbleUITheme.NeonGold);
+                MarbleUITheme.NeonGold);
             pbFill.GetComponent<Image>().raycastTarget = false;
 
             // Scroll (grade de 2 colunas).
@@ -279,8 +279,8 @@ namespace MarbleGP.Bootstrap
             // Barra de progresso + contador.
             var bg = UIFactory.Panel(card, new Vector2(0.18f, 0.14f), new Vector2(0.78f, 0.26f),
                 Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
-            var fill = UIFactory.Panel(bg, new Vector2(0f, 0f), new Vector2(a.Progress(data), 1f),
-                Vector2.zero, Vector2.zero, done ? MarbleUITheme.NeonGold : MarbleUITheme.NeonBlue);
+            var fill = UIFactory.SolidPanel(bg, new Vector2(0f, 0f), new Vector2(a.Progress(data), 1f),
+                done ? MarbleUITheme.NeonGold : MarbleUITheme.NeonBlue);
             fill.GetComponent<Image>().raycastTarget = false;
             UIFactory.Label(card, $"{a.Current(data)}/{a.target}", 13, TextAnchor.MiddleRight,
                 new Vector2(0.79f, 0.13f), new Vector2(0.97f, 0.27f),
@@ -800,80 +800,6 @@ namespace MarbleGP.Bootstrap
             if (!string.IsNullOrEmpty(sub))
                 UIFactory.Label(parent, sub, 10, TextAnchor.UpperLeft,
                     new Vector2(0.08f, y - 0.04f), new Vector2(0.94f, y + 0.01f), UITheme.TextDim);
-        }
-
-        /// <summary>Podio top-3 (P2 esq, P1 centro maior, P3 dir) com medalhas.</summary>
-        private void BuildPodium(Transform canvas, RaceResult result)
-        {
-            int count = result.entries.Count;
-            if (count >= 2) BuildPodiumCard(canvas, result.entries[1], 2,
-                new Vector2(0.205f, 0.665f), new Vector2(0.395f, 0.80f));
-            if (count >= 3) BuildPodiumCard(canvas, result.entries[2], 3,
-                new Vector2(0.605f, 0.665f), new Vector2(0.795f, 0.79f));
-            if (count >= 1) BuildPodiumCard(canvas, result.entries[0], 1,
-                new Vector2(0.405f, 0.665f), new Vector2(0.595f, 0.862f)); // P1 maior, por cima
-        }
-
-        private void BuildPodiumCard(Transform canvas, RaceResultEntry e, int pos, Vector2 aMin, Vector2 aMax)
-        {
-            var med = UITheme.Medal(pos);
-            UIFactory.Shadow(canvas, aMin, aMax, new Vector2(4f, -6f), 0.35f);
-            var card = UIFactory.Panel(canvas, aMin, aMax, Vector2.zero, Vector2.zero,
-                new Color(0.10f, 0.11f, 0.16f, 0.97f));
-            var glow = card.gameObject.AddComponent<Outline>();
-            glow.effectColor = new Color(med.r, med.g, med.b, 0.95f);
-            glow.effectDistance = new Vector2(pos == 1 ? 3f : 2f, pos == 1 ? 3f : 2f);
-
-            // Faixa superior da medalha + barra da equipe.
-            UIFactory.Panel(card, new Vector2(0f, 0.85f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, new Color(med.r * 0.45f, med.g * 0.42f, med.b * 0.32f, 0.97f));
-            var side = UIFactory.Panel(card, new Vector2(0f, 0f), new Vector2(0.025f, 0.85f),
-                Vector2.zero, Vector2.zero, TeamColorOf(e));
-            side.GetComponent<Image>().raycastTarget = false;
-
-            string crown = pos == 1 ? "★ " : "";
-            UIFactory.Label(card, $"{crown}P{pos}", pos == 1 ? 40 : 30, TextAnchor.MiddleCenter,
-                new Vector2(0f, 0.85f), new Vector2(1f, 1f), Color.white).fontStyle = FontStyle.Bold;
-
-            UIFactory.Logo(card, e.teamId, new Vector2(0.36f, 0.5f), new Vector2(0.64f, 0.82f));
-
-            var nm = UIFactory.Label(card, Trim(e.marbleName, 16), pos == 1 ? 20 : 16, TextAnchor.MiddleCenter,
-                new Vector2(0.04f, 0.32f), new Vector2(0.96f, 0.5f), Color.white);
-            nm.fontStyle = FontStyle.Bold;
-            UIFactory.Label(card, Trim(e.teamName, 18), 13, TextAnchor.MiddleCenter,
-                new Vector2(0.04f, 0.21f), new Vector2(0.96f, 0.32f), UITheme.TextDim);
-            UIFactory.Label(card, $"{e.finalTyre}  ·  Pits {e.pitStops}  ·  {e.points} pts", 13, TextAnchor.MiddleCenter,
-                new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.2f), med);
-        }
-
-        /// <summary>Card do vencedor em destaque dourado (PRD 4).</summary>
-        private void BuildWinnerCard(Transform canvas, RaceResultEntry w)
-        {
-            var card = UIFactory.Panel(canvas, new Vector2(0.24f, 0.69f), new Vector2(0.76f, 0.85f),
-                Vector2.zero, Vector2.zero, new Color(0.12f, 0.10f, 0.04f, 0.95f));
-            var glow = card.gameObject.AddComponent<Outline>();
-            glow.effectColor = UITheme.Gold; glow.effectDistance = new Vector2(3f, 3f);
-
-            // Barra lateral na cor da equipe.
-            var bar = UIFactory.Panel(card, new Vector2(0f, 0f), new Vector2(0.02f, 1f),
-                Vector2.zero, Vector2.zero, TeamColorOf(w));
-
-            UIFactory.Label(card, "★", 60, TextAnchor.MiddleCenter,
-                new Vector2(0.03f, 0.1f), new Vector2(0.16f, 0.9f), UITheme.Gold);
-
-            // Logo da equipe (Resources/Logos/{teamId}); nada se nao existir.
-            UIFactory.Logo(card, w.teamId, new Vector2(0.80f, 0.50f), new Vector2(0.96f, 0.92f));
-
-            var name = UIFactory.Label(card, $"P1  {w.marbleName}", 30, TextAnchor.LowerLeft,
-                new Vector2(0.18f, 0.5f), new Vector2(0.98f, 0.95f), UITheme.Gold);
-            name.fontStyle = FontStyle.Bold;
-            UIFactory.Label(card, w.teamName, 20, TextAnchor.UpperLeft,
-                new Vector2(0.18f, 0.32f), new Vector2(0.7f, 0.55f), UITheme.TextDim);
-
-            string stats = $"Pneu {w.finalTyre}   ·   Pits {w.pitStops}   ·   " +
-                           $"Comb {w.finalFuel:0}   ·   Energia {w.finalEnergy:0}   ·   {w.points} pts";
-            UIFactory.Label(card, stats, 18, TextAnchor.UpperLeft,
-                new Vector2(0.18f, 0.05f), new Vector2(0.98f, 0.32f), Color.white);
         }
 
         /// <summary>Tabela moderna de classificacao (PRD 4).</summary>

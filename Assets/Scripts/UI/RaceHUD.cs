@@ -119,35 +119,6 @@ namespace MarbleGP.UI
             if (!_raceTutorialSeen) ShowRaceTutorial(); // mini tutorial na 1a corrida da sessao
         }
 
-        // ---- Navegacao inferior (DATA / STRATEGY / TIMINGS / MENU) ----
-
-        private void BuildBottomNav(Transform canvas)
-        {
-            string[] labels = { "DADOS", "ESTRAT", "TEMPOS", "MENU" };
-            System.Action[] acts =
-            {
-                () => { },                              // DATA (reservado)
-                () => ToggleLog(),                      // STRATEGY -> alterna log/eventos
-                () => ToggleTower(),                    // TIMINGS  -> alterna a race tower
-                () => _race.PauseRequested?.Invoke()    // MENU     -> menu de pausa
-            };
-            Color[] cols =
-            {
-                MarbleUITheme.PanelSoft, MarbleUITheme.PanelSoft,
-                new Color32(18, 60, 105, 235), UITheme.PrimaryButton
-            };
-            float x0 = 0.80f, w = 0.046f, gap = 0.004f;
-            for (int i = 0; i < labels.Length; i++)
-            {
-                float xMin = x0 + i * (w + gap);
-                var b = UIFactory.Button(canvas, labels[i], cols[i],
-                    new Vector2(xMin, 0.012f), new Vector2(xMin + w, 0.085f), Vector2.zero, Vector2.zero);
-                b.GetComponentInChildren<Text>().fontSize = 12;
-                var act = acts[i];
-                b.onClick.AddListener(() => act());
-            }
-        }
-
         // ---- Banner de broadcast ----
 
         private void BuildBanner(Transform canvas)
@@ -408,11 +379,11 @@ namespace MarbleGP.UI
             logoRt.offsetMin = Vector2.zero; logoRt.offsetMax = Vector2.zero;
 
             row.code = UIFactory.Label(rowGo.transform, "", 17, TextAnchor.MiddleLeft,
-                new Vector2(0.32f, 0f), new Vector2(0.52f, 1f), Color.white);
+                new Vector2(0.32f, 0f), new Vector2(0.49f, 1f), Color.white);
             row.code.fontStyle = FontStyle.Bold;
 
             row.gap = UIFactory.Label(rowGo.transform, "", 13, TextAnchor.MiddleRight,
-                new Vector2(0.46f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
+                new Vector2(0.49f, 0f), new Vector2(0.73f, 1f), new Color(0.85f, 0.85f, 0.9f));
 
             // Badge de pneu (anel colorido + letra), estilo transmissao.
             // Badge QUADRADO (anchor central + sizeDelta), senao a linha larga
@@ -611,8 +582,7 @@ namespace MarbleGP.UI
         {
             var bg = UIFactory.Panel(parent, new Vector2(0.35f, yMin), new Vector2(0.96f, yMax),
                 Vector2.zero, Vector2.zero, new Color(0.06f, 0.09f, 0.14f, 1f));
-            var fill = UIFactory.Panel(bg, new Vector2(0f, 0f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero, fillColor);
+            var fill = UIFactory.SolidPanel(bg, new Vector2(0f, 0f), new Vector2(1f, 1f), fillColor);
             return fill;
         }
 

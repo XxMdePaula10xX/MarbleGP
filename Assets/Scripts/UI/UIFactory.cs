@@ -150,6 +150,20 @@ namespace MarbleGP.UI
             return rt;
         }
 
+        /// <summary>
+        /// Painel retangular puro (sem o sprite 9-slice arredondado). Ideal para
+        /// barras de PREENCHIMENTO que escalam de 0 a 1: o sliced mostra um
+        /// "sliver" dos cantos quando o fill fica bem estreito.
+        /// </summary>
+        public static RectTransform SolidPanel(Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color color)
+        {
+            var rt = Panel(parent, anchorMin, anchorMax, Vector2.zero, Vector2.zero, color);
+            var img = rt.GetComponent<Image>();
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            return rt;
+        }
+
         /// <summary>Sombra suave atras de um retangulo (deslocada). Crie ANTES do
         /// elemento para ela ficar atras.</summary>
         public static RectTransform Shadow(Transform parent, Vector2 anchorMin, Vector2 anchorMax,

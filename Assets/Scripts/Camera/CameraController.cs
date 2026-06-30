@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using MarbleGP.Track;
 
 namespace MarbleGP.CameraSystem
@@ -159,6 +160,10 @@ namespace MarbleGP.CameraSystem
 
             var t0 = Input.GetTouch(0);
             var t1 = Input.GetTouch(1);
+
+            // Nao "rouba" a camera se um dos dedos esta sobre a HUD (botoes, paineis).
+            if (IsOverUI(t0.fingerId) || IsOverUI(t1.fingerId)) { _twoFingerActive = false; return; }
+
             Vector2 mid = (t0.position + t1.position) * 0.5f;
             float dist = Vector2.Distance(t0.position, t1.position);
 
@@ -200,6 +205,9 @@ namespace MarbleGP.CameraSystem
             _lastPinchDist = dist;
             _lastPanMid = mid;
         }
+
+        private static bool IsOverUI(int fingerId)
+            => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(fingerId);
 
         /// <summary>Ponto do chao (plano y=0) sob uma coordenada de tela.</summary>
         private Vector3 ScreenToGround(Vector2 screenPos)

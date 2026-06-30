@@ -175,9 +175,25 @@ namespace MarbleGP.Race
             t.rotation = _cam.transform.rotation;
         }
 
+        private int _lastLabelSig = int.MinValue;
+
         private void UpdateLabel()
         {
             if (_label == null) return;
+
+            // Assinatura barata do estado que altera o label. Em frames sem mudanca
+            // (a regra), evita concatenar string e reconstruir a malha do TextMesh
+            // (alocacao/GC com 20 bolinhas). So reconstroi quando algo muda.
+            int sig = (int)_runtime.mode
+                    | (_isWinner ? 1 << 4 : 0)
+                    | (_runtime.coreFailTimer > 0f ? 1 << 5 : 0)
+                    | ((int)_runtime.state << 6)
+                    | (_runtime.FuelEmpty ? 1 << 12 : 0)
+                    | (_runtime.wear > 70f ? 1 << 13 : 0)
+                    | (_runtime.energy < 20f ? 1 << 14 : 0);
+            if (sig == _lastLabelSig) return;
+            _lastLabelSig = sig;
+
             string code = _runtime.driver != null ? _runtime.driver.shortCode : "MAR";
             string suffix = "";
             if (_runtime.mode == RaceMode.Push) suffix = " »";
