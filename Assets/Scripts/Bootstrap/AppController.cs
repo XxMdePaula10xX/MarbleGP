@@ -33,6 +33,10 @@ namespace MarbleGP.Bootstrap
         private bool _lastWasChampionship;
         private GameObject _pausePanel;
 
+        // Replay (PRD extra).
+        private MarbleGP.Race.RaceRecorder _recorder;
+        private RaceHUD _raceHud;
+
         // Selecoes correntes do fluxo.
         private TrackDataSO _selectedTrack;
         private TrackDataSO _previewTrack;   // circuito em destaque na selecao
@@ -758,6 +762,11 @@ namespace MarbleGP.Bootstrap
             hudGo.transform.SetParent(_raceRoot.transform, false);
             var hud = hudGo.AddComponent<RaceHUD>();
             hud.Bind(race, _camera);
+            _raceHud = hud;
+
+            // Gravador do replay (PRD extra): registra o movimento + destaques.
+            _recorder = _raceRoot.AddComponent<MarbleGP.Race.RaceRecorder>();
+            _recorder.Begin(race);
 
             // Botao de pausa do HUD abre o menu de pausa (PRD 8).
             race.PauseRequested = () => { if (_pausePanel == null) OpenPause(); };
@@ -830,21 +839,47 @@ namespace MarbleGP.Bootstrap
 
             // Rodape (PRD 4).
             var menu = UIFactory.Button(canvas.transform, "Voltar ao Menu", UITheme.SecondaryButton,
-                new Vector2(0.18f, 0.035f), new Vector2(0.42f, 0.115f), Vector2.zero, Vector2.zero);
+                new Vector2(0.04f, 0.035f), new Vector2(0.27f, 0.115f), Vector2.zero, Vector2.zero);
             menu.onClick.AddListener(() => { CleanupRace(); ShowMainMenu(); });
+
+            // Ver Replay (se houver gravacao).
+            if (_recorder != null && _recorder.Frames.Count >= 2)
+            {
+                var rep = UIFactory.Button(canvas.transform, "Ver Replay", new Color(0.45f, 0.30f, 0.70f),
+                    new Vector2(0.39f, 0.035f), new Vector2(0.61f, 0.115f), Vector2.zero, Vector2.zero);
+                rep.onClick.AddListener(StartReplay);
+            }
 
             if (returnToChampionship)
             {
                 var next = UIFactory.Button(canvas.transform, "Classificacao / Proxima", UITheme.PrimaryButton,
-                    new Vector2(0.58f, 0.035f), new Vector2(0.82f, 0.115f), Vector2.zero, Vector2.zero);
+                    new Vector2(0.73f, 0.035f), new Vector2(0.96f, 0.115f), Vector2.zero, Vector2.zero);
                 next.onClick.AddListener(() => { CleanupRace(); ShowChampionshipHub(); });
             }
             else
             {
                 var again = UIFactory.Button(canvas.transform, "Correr de Novo", UITheme.PrimaryButton,
-                    new Vector2(0.58f, 0.035f), new Vector2(0.82f, 0.115f), Vector2.zero, Vector2.zero);
+                    new Vector2(0.73f, 0.035f), new Vector2(0.96f, 0.115f), Vector2.zero, Vector2.zero);
                 again.onClick.AddListener(() => { CleanupRace(); ShowStrategy(); });
             }
+        }
+
+        // ---- Replay (PRD extra) -----------------------------------------
+
+        private void StartReplay()
+        {
+            if (_recorder == null || _recorder.Frames.Count < 2 || _raceRoot == null) return;
+            if (_uiRoot != null) _uiRoot.SetActive(false);          // esconde a tela de Resultado
+            if (_raceHud != null) _raceHud.gameObject.SetActive(false);
+
+            var go = new GameObject("ReplayPlayer");
+            go.transform.SetParent(_raceRoot.transform, false);
+            var rp = go.AddComponent<RaceReplayPlayer>();
+            rp.Init(_recorder, _camera, () =>
+            {
+                if (_raceHud != null) _raceHud.gameObject.SetActive(true);
+                if (_uiRoot != null) _uiRoot.SetActive(true);       // volta para o Resultado
+            });
         }
 
         private Color TeamColorOf(RaceResultEntry e)
