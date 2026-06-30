@@ -41,6 +41,11 @@ namespace MarbleGP.Bootstrap
         private float _startEnergy = 100f;
         private int _selectedLaps = 5; // Rapido/Normal/Longo (PRD 3)
 
+        // Desafio diario.
+        private DailyChallengeDef _dailyDef;
+        private bool _dailyActive;
+        private DailyData _daily;
+
         private void Start()
         {
             EnsureCoreSystems();
@@ -166,10 +171,11 @@ namespace MarbleGP.Bootstrap
                 new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.55f), Color.white).fontStyle = FontStyle.Bold;
 
             MenuButton(canvas.transform, "Corrida Rápida", "flag", 0, () => ShowTrackSelect(), MarbleUITheme.NeonOrange);
-            MenuButton(canvas.transform, "Campeonato", "trophy", 1, () => ShowChampionshipHub(), new Color32(18, 60, 105, 235));
-            MenuButton(canvas.transform, "Garagem", "settings", 2, () => ShowGarage(), MarbleUITheme.NeonPurple);
-            MenuButton(canvas.transform, "Conquistas", "trophy", 3, () => ShowAchievements(), MarbleUITheme.NeonGold);
-            MenuButton(canvas.transform, "Sair", "", 4, () =>
+            MenuButton(canvas.transform, "Desafio do Dia", "", 1, () => ShowDailyChallenge(), MarbleUITheme.NeonGreen);
+            MenuButton(canvas.transform, "Campeonato", "trophy", 2, () => ShowChampionshipHub(), new Color32(18, 60, 105, 235));
+            MenuButton(canvas.transform, "Garagem", "settings", 3, () => ShowGarage(), MarbleUITheme.NeonPurple);
+            MenuButton(canvas.transform, "Conquistas", "trophy", 4, () => ShowAchievements(), MarbleUITheme.NeonGold);
+            MenuButton(canvas.transform, "Sair", "", 5, () =>
             {
 #if UNITY_EDITOR
                 UnityEditor.EditorApplication.isPlaying = false;
@@ -185,10 +191,10 @@ namespace MarbleGP.Bootstrap
         private void MenuButton(Transform parent, string label, string icon, int index,
             UnityEngine.Events.UnityAction onClick, Color color)
         {
-            float yMax = 0.65f - index * 0.115f;
+            float yMax = 0.66f - index * 0.10f;
             var btn = UIFactory.Button(parent, label, color,
-                new Vector2(0.3f, yMax - 0.09f), new Vector2(0.7f, yMax), Vector2.zero, Vector2.zero);
-            btn.GetComponentInChildren<Text>().fontSize = 24;
+                new Vector2(0.3f, yMax - 0.085f), new Vector2(0.7f, yMax), Vector2.zero, Vector2.zero);
+            btn.GetComponentInChildren<Text>().fontSize = 23;
             if (!string.IsNullOrEmpty(icon))
                 UIFactory.Icon(btn.transform, icon, new Vector2(0.06f, 0.22f), new Vector2(0.15f, 0.78f), Color.white);
             if (onClick != null) btn.onClick.AddListener(onClick);
@@ -285,6 +291,122 @@ namespace MarbleGP.Bootstrap
             UIFactory.Label(card, $"{a.Current(data)}/{a.target}", 13, TextAnchor.MiddleRight,
                 new Vector2(0.79f, 0.13f), new Vector2(0.97f, 0.27f),
                 done ? MarbleUITheme.NeonGold : UITheme.TextDim);
+        }
+
+        // ---- Tela: Desafio do Dia ---------------------------------------
+
+        private void ShowDailyChallenge()
+        {
+            var canvas = NewCanvas("Daily");
+            _dailyDef = DailyChallenge.Today(_gm.Database);
+            _daily ??= SaveManager.LoadDaily();
+            var def = _dailyDef;
+
+            UIFactory.Label(canvas.transform, "DESAFIO DO DIA", 44, TextAnchor.UpperLeft,
+                new Vector2(0.05f, 0.88f), new Vector2(0.7f, 0.98f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(canvas.transform, System.DateTime.Now.ToString("dd/MM/yyyy"), 18, TextAnchor.UpperLeft,
+                new Vector2(0.055f, 0.83f), new Vector2(0.7f, 0.88f), MarbleUITheme.NeonGreen).fontStyle = FontStyle.Bold;
+
+            if (def == null || def.track == null)
+            {
+                UIFactory.Label(canvas.transform, "Nenhum circuito disponível.", 22, TextAnchor.MiddleCenter,
+                    new Vector2(0.1f, 0.5f), new Vector2(0.9f, 0.6f), UITheme.TextDim);
+                BackButton(canvas.transform, ShowMainMenu);
+                return;
+            }
+
+            bool sameDay = _daily.lastDateKey == def.dateKey;
+            bool met = sameDay && _daily.objectiveMet;
+            int attempts = sameDay ? _daily.attempts : 0;
+            int best = sameDay ? _daily.bestPosition : 0;
+
+            // Card principal: pista + cenario + objetivo.
+            var card = UIFactory.GlassPanel(canvas.transform, new Vector2(0.06f, 0.28f), new Vector2(0.62f, 0.8f));
+            UIFactory.Thumbnail(card, def.track.trackId, new Vector2(0.04f, 0.42f), new Vector2(0.5f, 0.93f));
+            UIFactory.Label(card, def.track.trackName.ToUpper(), 24, TextAnchor.UpperLeft,
+                new Vector2(0.53f, 0.8f), new Vector2(0.97f, 0.93f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, $"{def.laps} voltas  ·  {WeatherName(def.weather)}", 15, TextAnchor.UpperLeft,
+                new Vector2(0.53f, 0.72f), new Vector2(0.97f, 0.8f), UITheme.TextDim);
+            UIFactory.Label(card, $"Sugerido: pneu {def.startGrip} · modo {def.startMode}", 13, TextAnchor.UpperLeft,
+                new Vector2(0.53f, 0.65f), new Vector2(0.97f, 0.72f), UITheme.TextDim);
+            UIFactory.Label(card, "OBJETIVO", 13, TextAnchor.UpperLeft,
+                new Vector2(0.53f, 0.55f), new Vector2(0.97f, 0.61f), MarbleUITheme.NeonGreen).fontStyle = FontStyle.Bold;
+            UIFactory.Label(card, def.description, 18, TextAnchor.UpperLeft,
+                new Vector2(0.53f, 0.42f), new Vector2(0.97f, 0.55f), Color.white).fontStyle = FontStyle.Bold;
+            string status = met ? "✓ CUMPRIDO HOJE"
+                : attempts > 0 ? $"Tentativas hoje: {attempts}" : "Ainda não tentado hoje";
+            UIFactory.Label(card, status, 15, TextAnchor.MiddleLeft,
+                new Vector2(0.05f, 0.3f), new Vector2(0.97f, 0.4f),
+                met ? MarbleUITheme.NeonGold : UITheme.TextDim).fontStyle = FontStyle.Bold;
+
+            // Card lateral: streak + melhor de hoje.
+            var side = UIFactory.GlassPanel(canvas.transform, new Vector2(0.65f, 0.28f), new Vector2(0.94f, 0.8f));
+            UIFactory.Label(side, "SEQUÊNCIA", 14, TextAnchor.UpperCenter,
+                new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.96f), MarbleUITheme.NeonGreen).fontStyle = FontStyle.Bold;
+            UIFactory.Label(side, _daily.streak.ToString(), 60, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.86f), Color.white).fontStyle = FontStyle.Bold;
+            UIFactory.Label(side, "dias seguidos", 13, TextAnchor.UpperCenter,
+                new Vector2(0.05f, 0.5f), new Vector2(0.95f, 0.57f), UITheme.TextDim);
+            UIFactory.Label(side, "MELHOR HOJE", 13, TextAnchor.UpperCenter,
+                new Vector2(0.05f, 0.34f), new Vector2(0.95f, 0.43f), UITheme.TextDim).fontStyle = FontStyle.Bold;
+            UIFactory.Label(side, best > 0 ? $"P{best}" : "—", 36, TextAnchor.MiddleCenter,
+                new Vector2(0.05f, 0.12f), new Vector2(0.95f, 0.33f), MarbleUITheme.NeonGold).fontStyle = FontStyle.Bold;
+
+            var play = UIFactory.Button(canvas.transform, met ? "Jogar de Novo" : "Jogar", MarbleUITheme.NeonGreen,
+                new Vector2(0.35f, 0.12f), new Vector2(0.65f, 0.22f), Vector2.zero, Vector2.zero);
+            play.GetComponentInChildren<Text>().fontSize = 26;
+            play.onClick.AddListener(StartDaily);
+
+            BackButton(canvas.transform, ShowMainMenu);
+        }
+
+        private void StartDaily()
+        {
+            var def = _dailyDef;
+            if (def == null || def.track == null) return;
+            UnityEngine.Random.InitState(def.seed); // cenario reproduzivel (mesmo p/ todos)
+            string playerTeamId = _gm.Database.teams.Count > 0 ? _gm.Database.teams[0].teamId : "";
+            var config = QuickRaceBuilder.Build(_gm.Database, def.track, playerTeamId,
+                maxMarbles: 20, defaultGrip: def.startGrip, startMode: def.startMode);
+            config.laps = def.laps;
+            config.weather = def.weather;
+            _dailyActive = true;
+            RunRace(config, isChampionship: false);
+        }
+
+        private void UpdateDailyData(DailyChallengeDef def, bool met, int bestPos, int overtakes)
+        {
+            _daily ??= SaveManager.LoadDaily();
+            var d = _daily;
+            if (d.lastDateKey != def.dateKey)
+            {
+                d.lastDateKey = def.dateKey;
+                d.objectiveMet = false; d.bestPosition = 0; d.bestOvertakes = 0; d.attempts = 0;
+            }
+            d.attempts++;
+            if (bestPos > 0 && (d.bestPosition == 0 || bestPos < d.bestPosition)) d.bestPosition = bestPos;
+            if (overtakes > d.bestOvertakes) d.bestOvertakes = overtakes;
+            if (met && !d.objectiveMet)
+            {
+                d.objectiveMet = true;
+                string yesterday = System.DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
+                d.streak = d.lastWinDateKey == yesterday ? d.streak + 1 : 1;
+                d.lastWinDateKey = def.dateKey;
+            }
+            SaveManager.SaveDaily(d);
+        }
+
+        private static string WeatherName(Weather w)
+        {
+            switch (w)
+            {
+                case Weather.Dry: return "Seco";
+                case Weather.Cloudy: return "Nublado";
+                case Weather.Damp: return "Úmido";
+                case Weather.LightRain: return "Chuva leve";
+                case Weather.HeavyRain: return "Chuva forte";
+                default: return w.ToString();
+            }
         }
 
         // ---- Tela: Selecao de pista (PRD 7.3 / 23.3) --------------------
@@ -658,6 +780,16 @@ namespace MarbleGP.Bootstrap
             // Registra estatísticas e descobre conquistas novas (PRD 32).
             var newAchievements = AchievementManager.RecordRace(result);
 
+            // Avalia o Desafio do Dia, se esta corrida foi um daily.
+            bool dailyDone = false, dailyMet = false;
+            if (_dailyActive && _dailyDef != null)
+            {
+                dailyMet = DailyChallenge.Evaluate(_dailyDef, result, out int dBest, out int dOt, out _);
+                UpdateDailyData(_dailyDef, dailyMet, dBest, dOt);
+                dailyDone = true;
+                _dailyActive = false;
+            }
+
             var canvas = NewCanvas("Results");
 
             // Titulo + subtitulo (PRD 4).
@@ -672,8 +804,19 @@ namespace MarbleGP.Bootstrap
             BuildRaceStats(canvas.transform, result);
             BuildResultTable(canvas.transform, result);
 
-            // Aviso de conquista nova (faixa dourada na area livre central).
-            if (newAchievements.Count > 0)
+            // Faixa central: resultado do Desafio do Dia (prioritario) ou conquista nova.
+            if (dailyDone)
+            {
+                string txt = dailyMet ? "✓  DESAFIO DO DIA CUMPRIDO!"
+                                      : "Desafio do dia não cumprido — tente de novo";
+                Color col = dailyMet ? MarbleUITheme.NeonGreen : MarbleUITheme.NeonOrange;
+                var ban = UIFactory.Panel(canvas.transform, new Vector2(0.24f, 0.615f), new Vector2(0.76f, 0.69f),
+                    Vector2.zero, Vector2.zero, new Color(0.05f, 0.12f, 0.06f, 0.96f));
+                UIFactory.NeonBorder(ban.gameObject, col, 0.85f, 2f);
+                UIFactory.Label(ban, txt, 20, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, col)
+                    .fontStyle = FontStyle.Bold;
+            }
+            else if (newAchievements.Count > 0)
             {
                 string txt = newAchievements.Count == 1
                     ? $"★  Nova conquista: {newAchievements[0].title}"

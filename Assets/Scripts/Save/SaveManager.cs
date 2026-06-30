@@ -14,6 +14,7 @@ namespace MarbleGP.Save
         private static string ProfilePath => Path.Combine(Application.persistentDataPath, "profile.json");
         private static string ChampionshipPath => Path.Combine(Application.persistentDataPath, "championship.json");
         private static string AchievementsPath => Path.Combine(Application.persistentDataPath, "achievements.json");
+        private static string DailyPath => Path.Combine(Application.persistentDataPath, "daily.json");
 
         // ---- Perfil -----------------------------------------------------
 
@@ -84,11 +85,31 @@ namespace MarbleGP.Save
             return new AchievementData();
         }
 
+        // ---- Desafio diario ---------------------------------------------
+
+        public static void SaveDaily(DailyData data)
+        {
+            try { File.WriteAllText(DailyPath, JsonUtility.ToJson(data, true)); }
+            catch (Exception e) { Debug.LogError($"[SaveManager] Falha ao salvar desafio diario: {e.Message}"); }
+        }
+
+        public static DailyData LoadDaily()
+        {
+            try
+            {
+                if (File.Exists(DailyPath))
+                    return JsonUtility.FromJson<DailyData>(File.ReadAllText(DailyPath)) ?? new DailyData();
+            }
+            catch (Exception e) { Debug.LogError($"[SaveManager] Falha ao carregar desafio diario: {e.Message}"); }
+            return new DailyData();
+        }
+
         public static void DeleteAll()
         {
             if (File.Exists(ProfilePath)) File.Delete(ProfilePath);
             if (File.Exists(ChampionshipPath)) File.Delete(ChampionshipPath);
             if (File.Exists(AchievementsPath)) File.Delete(AchievementsPath);
+            if (File.Exists(DailyPath)) File.Delete(DailyPath);
         }
     }
 }
