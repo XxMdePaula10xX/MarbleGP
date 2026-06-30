@@ -65,6 +65,12 @@ namespace MarbleGP.Core
             else GameNotifications.ClearBadgeAndDelivered();
         }
 
+        // Reforco: ao reganhar o foco (voltar pro app), limpa o badge tambem.
+        private void OnApplicationFocus(bool focus)
+        {
+            if (focus) GameNotifications.ClearBadgeAndDelivered();
+        }
+
         private void OnApplicationQuit() => GameNotifications.ScheduleReminders();
 
         public void SaveProfile() => SaveManager.SaveProfile(Profile);

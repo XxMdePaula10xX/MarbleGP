@@ -21,12 +21,14 @@ namespace MarbleGP.Core
     {
         private const string AndroidChannel = "marblegp_reminders";
 
-        // Lembretes escalonados: (título, corpo, dias até disparar).
+        // Lembretes escalonados para quem se ausenta: (título, corpo, dias até disparar).
         private static readonly (string title, string body, int days)[] Reminders =
         {
-            ("🏁 As pistas chamam!",        "Sua equipe está pronta. Bora competir?",    1),
-            ("🏎️ A grid sente sua falta",   "Volte e brigue pelo pódio.",                3),
-            ("🏆 O campeonato não para",    "Já faz uma semana! Acelere de volta.",      7),
+            ("🏁 As pistas chamam!",         "Sua equipe está pronta. Bora competir?",         1),
+            ("🏆 Supere seu recorde",        "Será que hoje você bate seu melhor resultado?",  2),
+            ("🏎️ A grid sente sua falta",    "Volte e brigue pelo pódio.",                     4),
+            ("📣 O campeonato não para",     "Já faz uma semana! Acelere de volta.",           7),
+            ("🔥 Sua equipe precisa de você", "Duas semanas fora... hora de voltar às pistas!", 14),
         };
 
         /// <summary>
@@ -82,7 +84,17 @@ namespace MarbleGP.Core
                 };
                 iOSNotificationCenter.ScheduleNotification(n);
             }
-            // Lembrete recorrente diario as 19h ("hora da corrida!").
+            // Recorrente de manhã (10h): novo Desafio do Dia disponível.
+            iOSNotificationCenter.ScheduleNotification(new iOSNotification
+            {
+                Identifier = "marblegp_daily_challenge",
+                Title = "🏁 Novo Desafio do Dia!",
+                Body = "Um novo desafio te espera. Encare e aumente sua sequência!",
+                ShowInForeground = false,
+                Badge = 1,
+                Trigger = new iOSNotificationCalendarTrigger { Hour = 10, Minute = 0, Repeats = true }
+            });
+            // Recorrente à noite (19h): hora da corrida.
             iOSNotificationCenter.ScheduleNotification(new iOSNotification
             {
                 Identifier = "marblegp_daily",
@@ -107,7 +119,19 @@ namespace MarbleGP.Core
                 };
                 AndroidNotificationCenter.SendNotification(n, AndroidChannel);
             }
-            // Lembrete recorrente diario as 19h.
+            // Recorrente de manhã (10h): novo Desafio do Dia.
+            var morning = DateTime.Now.Date.AddHours(10);
+            if (morning < DateTime.Now) morning = morning.AddDays(1);
+            AndroidNotificationCenter.SendNotification(new AndroidNotification
+            {
+                Title = "🏁 Novo Desafio do Dia!",
+                Text = "Um novo desafio te espera. Encare e aumente sua sequência!",
+                FireTime = morning,
+                RepeatInterval = TimeSpan.FromDays(1),
+                Number = 1,
+                ShouldAutoCancel = true
+            }, AndroidChannel);
+            // Recorrente à noite (19h): hora da corrida.
             var fire = DateTime.Now.Date.AddHours(19);
             if (fire < DateTime.Now) fire = fire.AddDays(1);
             AndroidNotificationCenter.SendNotification(new AndroidNotification
