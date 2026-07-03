@@ -295,7 +295,7 @@ namespace MarbleGP.UI
             header.pivot = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(0f, headerH);
             header.anchoredPosition = Vector2.zero;
-            var htxt = UIFactory.Label(header, "CLASSIFICAÇÃO", 13, TextAnchor.MiddleLeft,
+            var htxt = UIFactory.Label(header, "CLASSIFICAÇÃO", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0f), new Vector2(0.78f, 1f), new Color(0.8f, 0.85f, 1f));
             htxt.fontStyle = FontStyle.Bold;
 
@@ -421,7 +421,7 @@ namespace MarbleGP.UI
             // Cabecalho do log.
             var hdr = UIFactory.Panel(_logPanel, new Vector2(0f, 0.8f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero, UITheme.HeaderPanel);
-            UIFactory.Label(hdr, "EVENTOS DA CORRIDA", 14, TextAnchor.MiddleLeft,
+            UIFactory.Label(hdr, "EVENTOS DA CORRIDA", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.02f, 0f), new Vector2(0.8f, 1f), UITheme.Neon).fontStyle = FontStyle.Bold;
             var toggle = UIFactory.Button(hdr, "▼", new Color(0.22f, 0.27f, 0.42f, 0.95f),
                 new Vector2(0.955f, 0.12f), new Vector2(0.992f, 0.88f), Vector2.zero, Vector2.zero);
@@ -532,19 +532,19 @@ namespace MarbleGP.UI
                 new Vector2(0.5f, 0.74f), new Vector2(0.96f, 0.85f), new Color(0.9f, 1f, 0.9f));
 
             // Barras: desgaste, energia e combustivel (PRD 7).
-            card.wearLabel = UIFactory.Label(content, "Desgaste", 13, TextAnchor.MiddleLeft,
+            card.wearLabel = UIFactory.Label(content, "Desgaste", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.61f), new Vector2(0.34f, 0.73f), MarbleUITheme.TextSecondary);
             card.wearFill = BuildBar(content, 0.61f, 0.73f, MarbleUITheme.TyreWear);
             card.wearVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,
                 new Vector2(0.37f, 0.61f), new Vector2(0.94f, 0.73f), Color.white);
 
-            card.energyLabel = UIFactory.Label(content, "Energia", 13, TextAnchor.MiddleLeft,
+            card.energyLabel = UIFactory.Label(content, "Energia", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.48f), new Vector2(0.34f, 0.60f), MarbleUITheme.TextSecondary);
             card.energyFill = BuildBar(content, 0.48f, 0.60f, MarbleUITheme.Energy);
             card.energyVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,
                 new Vector2(0.37f, 0.48f), new Vector2(0.94f, 0.60f), Color.white);
 
-            card.fuelLabel = UIFactory.Label(content, "Combust.", 13, TextAnchor.MiddleLeft,
+            card.fuelLabel = UIFactory.Label(content, "Combust.", 15, TextAnchor.MiddleLeft,
                 new Vector2(0.05f, 0.35f), new Vector2(0.34f, 0.47f), MarbleUITheme.TextSecondary);
             card.fuelFill = BuildBar(content, 0.35f, 0.47f, MarbleUITheme.Fuel);
             card.fuelVal = UIFactory.Label(content, "", 12, TextAnchor.MiddleRight,

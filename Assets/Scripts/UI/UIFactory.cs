@@ -205,7 +205,10 @@ namespace MarbleGP.UI
             var t = go.GetComponent<Text>();
             t.font = DefaultFont;
             t.text = text;
-            t.fontSize = size;
+            // Piso de legibilidade MOBILE: no canvas 1920x1080, fontes <14 ficam
+            // com ~0.8mm num iPhone (ilegiveis). Overflow ja esta ligado, entao
+            // subir o tamanho nunca esconde texto — no maximo transborda um pouco.
+            t.fontSize = Mathf.Max(size, 14);
             t.alignment = anchor;
             t.color = color;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;

@@ -500,13 +500,13 @@ namespace MarbleGP.Bootstrap
                 Vector2.zero, Vector2.zero, sel ? MarbleUITheme.NeonBlue : MarbleUITheme.PanelSoft);
             UIFactory.Label(nb, num.ToString(), 17, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Color.white).fontStyle = FontStyle.Bold;
 
-            UIFactory.Label(card.transform, t.trackName, 20, TextAnchor.LowerLeft,
+            UIFactory.Label(card.transform, t.trackName, 22, TextAnchor.LowerLeft,
                 new Vector2(0.3f, 0.54f), new Vector2(0.98f, 0.92f), locked ? UITheme.TextDim : Color.white).fontStyle = FontStyle.Bold;
-            UIFactory.Label(card.transform, locked ? "Bloqueado · vença o campeonato" : Trim(t.description, 64), 12,
-                TextAnchor.UpperLeft, new Vector2(0.3f, 0.08f), new Vector2(0.72f, 0.52f), UITheme.TextDim);
+            UIFactory.Label(card.transform, locked ? "Bloqueado · vença o campeonato" : Trim(t.description, 56), 15,
+                TextAnchor.UpperLeft, new Vector2(0.3f, 0.08f), new Vector2(0.70f, 0.52f), UITheme.TextDim);
             UIFactory.Label(card.transform,
-                $"{t.difficulty}  ·  {t.recommendedLaps}v  ·  chuva {Mathf.RoundToInt(t.rainChance * 100f)}%", 12,
-                TextAnchor.LowerRight, new Vector2(0.72f, 0.1f), new Vector2(0.97f, 0.45f), UITheme.TextDim);
+                $"{t.difficulty}  ·  {t.recommendedLaps}v  ·  chuva {Mathf.RoundToInt(t.rainChance * 100f)}%", 15,
+                TextAnchor.LowerRight, new Vector2(0.70f, 0.1f), new Vector2(0.97f, 0.45f), UITheme.TextDim);
         }
 
         private void BuildCircuitPreview(Transform parent, TrackDataSO t, int num)
@@ -529,13 +529,13 @@ namespace MarbleGP.Bootstrap
             PreviewStat(panel, "ULTRAPASSAGEM", Mathf.RoundToInt(t.overtakeLevel * 8f), 8, MarbleUITheme.NeonCyan, 0.305f);
             PreviewStat(panel, "DESGASTE DE PNEU", Mathf.RoundToInt((t.abrasionLevel - 0.5f) / 1.5f * 8f), 8, MarbleUITheme.NeonOrange, 0.225f);
 
-            UIFactory.Label(panel, Trim(t.description, 160), 14, TextAnchor.UpperLeft,
+            UIFactory.Label(panel, Trim(t.description, 160), 16, TextAnchor.UpperLeft,
                 new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.2f), UITheme.TextDim);
         }
 
         private void PreviewStat(Transform parent, string label, int filled, int total, Color color, float yBase)
         {
-            UIFactory.Label(parent, label, 12, TextAnchor.LowerLeft,
+            UIFactory.Label(parent, label, 15, TextAnchor.LowerLeft,
                 new Vector2(0.05f, yBase + 0.03f), new Vector2(0.95f, yBase + 0.075f), UITheme.TextDim).fontStyle = FontStyle.Bold;
             float pipW = 0.9f / total;
             for (int i = 0; i < total; i++)
@@ -577,7 +577,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Track blueprint (esquerda) ----
             var bp = UIFactory.GlassPanel(canvas.transform, new Vector2(0.03f, 0.46f), new Vector2(0.47f, 0.88f));
-            UIFactory.Label(bp, "MAPA DO CIRCUITO", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(bp, "MAPA DO CIRCUITO", 16, TextAnchor.UpperLeft,
                 new Vector2(0.04f, 0.9f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             UIFactory.Thumbnail(bp, t.trackId, new Vector2(0.30f, 0.13f), new Vector2(0.70f, 0.88f));
             UIFactory.Label(bp, $"{t.difficulty}  ·  {t.recommendedLaps} voltas recomendadas  ·  {Mathf.RoundToInt(t.trackLength)} m",
@@ -585,7 +585,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Weather forecast ----
             var wf = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.715f), new Vector2(0.78f, 0.88f));
-            UIFactory.Label(wf, "PREVISÃO DO CLIMA", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(wf, "PREVISÃO DO CLIMA", 16, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.86f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             string[] times = { "NOW", "+15", "+30", "+45", "+60", "+90" };
             for (int i = 0; i < 6; i++)
@@ -605,7 +605,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Tyre selection ----
             var ts = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.55f), new Vector2(0.78f, 0.705f));
-            UIFactory.Label(ts, "PNEUS", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(ts, "PNEUS", 16, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.82f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             TyreCard(ts, GripType.Soft, "SOFT", "Mais aderência", 0);
             TyreCard(ts, GripType.Medium, "MEDIUM", "Equilibrado", 1);
@@ -615,7 +615,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Drive mode ----
             var dm = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.43f), new Vector2(0.78f, 0.54f));
-            UIFactory.Label(dm, "MODO DE CORRIDA", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(dm, "MODO DE CORRIDA", 16, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.78f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             ModeCard(dm, RaceMode.Save, "SAVE", "Economiza energia", MarbleUITheme.NeonGreen, 0);
             ModeCard(dm, RaceMode.Normal, "NORMAL", "Equilíbrio", MarbleUITheme.NeonBlue, 1);
@@ -623,7 +623,7 @@ namespace MarbleGP.Bootstrap
 
             // ---- Race duration ----
             var rd = UIFactory.GlassPanel(canvas.transform, new Vector2(0.49f, 0.31f), new Vector2(0.78f, 0.42f));
-            UIFactory.Label(rd, "DURAÇÃO DA CORRIDA", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(rd, "DURAÇÃO DA CORRIDA", 16, TextAnchor.UpperLeft,
                 new Vector2(0.03f, 0.78f), new Vector2(0.7f, 0.99f), MarbleUITheme.NeonCyan).fontStyle = FontStyle.Bold;
             DurationCard(rd, 5, "RÁPIDA", "5 voltas", 0);
             DurationCard(rd, 12, "NORMAL", "12 voltas", 1);
@@ -632,7 +632,7 @@ namespace MarbleGP.Bootstrap
             // ---- Strategy summary (direita) ----
             var sm = UIFactory.GlassPanel(canvas.transform, new Vector2(0.80f, 0.31f), new Vector2(0.98f, 0.88f),
                 null, MarbleUITheme.NeonOrange);
-            UIFactory.Label(sm, "RESUMO DA ESTRATÉGIA", 14, TextAnchor.UpperLeft,
+            UIFactory.Label(sm, "RESUMO DA ESTRATÉGIA", 16, TextAnchor.UpperLeft,
                 new Vector2(0.06f, 0.93f), new Vector2(0.94f, 0.99f), MarbleUITheme.NeonOrange).fontStyle = FontStyle.Bold;
             int stops = _selectedLaps >= 18 ? 2 : 1;
             SummaryRow(sm, "PARADAS PREVISTAS", $"{stops}", "parada(s) no pit", 0.78f, MarbleUITheme.NeonOrange);
@@ -663,7 +663,7 @@ namespace MarbleGP.Bootstrap
             UIFactory.NeonBorder(card.gameObject, sel ? MarbleUITheme.NeonOrange : MarbleUITheme.NeonCyan,
                 sel ? 0.95f : 0.3f, sel ? 2.2f : 1.1f);
             UIFactory.TyreBadgeSquare(card, g.ToString(), new Vector2(0.5f, 0.69f), 40f);
-            UIFactory.Label(card, name, 14, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.26f), new Vector2(0.98f, 0.44f),
+            UIFactory.Label(card, name, 15, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.26f), new Vector2(0.98f, 0.44f),
                 sel ? MarbleUITheme.NeonOrange : Color.white).fontStyle = FontStyle.Bold;
             UIFactory.Label(card, desc, 10, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.04f), new Vector2(0.98f, 0.24f),
                 UITheme.TextDim);
@@ -679,7 +679,7 @@ namespace MarbleGP.Bootstrap
             var card = UIFactory.Panel(parent, new Vector2(xMin, 0.08f), new Vector2(xMin + 0.30f, 0.72f),
                 Vector2.zero, Vector2.zero, sel ? new Color(accent.r * 0.2f, accent.g * 0.2f, accent.b * 0.2f, 0.95f) : MarbleUITheme.PanelDark);
             UIFactory.NeonBorder(card.gameObject, sel ? accent : MarbleUITheme.NeonCyan, sel ? 0.95f : 0.3f, sel ? 2f : 1.1f);
-            UIFactory.Label(card, name, 15, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.45f), new Vector2(0.98f, 0.95f),
+            UIFactory.Label(card, name, 16, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.45f), new Vector2(0.98f, 0.95f),
                 sel ? accent : Color.white).fontStyle = FontStyle.Bold;
             UIFactory.Label(card, desc, 11, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.05f), new Vector2(0.98f, 0.45f), UITheme.TextDim);
             var btn = card.gameObject.AddComponent<Button>();
@@ -694,7 +694,7 @@ namespace MarbleGP.Bootstrap
             var card = UIFactory.Panel(parent, new Vector2(xMin, 0.1f), new Vector2(xMin + 0.30f, 0.72f),
                 Vector2.zero, Vector2.zero, sel ? new Color32(10, 40, 60, 240) : MarbleUITheme.PanelDark);
             UIFactory.NeonBorder(card.gameObject, sel ? MarbleUITheme.NeonBlue : MarbleUITheme.NeonCyan, sel ? 0.95f : 0.3f, sel ? 2f : 1.1f);
-            UIFactory.Label(card, name, 15, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.45f), new Vector2(0.98f, 0.95f),
+            UIFactory.Label(card, name, 16, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.45f), new Vector2(0.98f, 0.95f),
                 sel ? MarbleUITheme.NeonBlue : Color.white).fontStyle = FontStyle.Bold;
             UIFactory.Label(card, desc, 11, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.05f), new Vector2(0.98f, 0.45f), UITheme.TextDim);
             var btn = card.gameObject.AddComponent<Button>();

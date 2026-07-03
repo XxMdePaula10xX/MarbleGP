@@ -164,7 +164,7 @@ namespace MarbleGP.UI
 
             var restart = UIFactory.Button(bar, "INÍCIO", new Color(0.30f, 0.34f, 0.45f),
                 new Vector2(0.12f, 0.2f), new Vector2(0.19f, 0.8f), Vector2.zero, Vector2.zero);
-            restart.GetComponentInChildren<Text>().fontSize = 13;
+            restart.GetComponentInChildren<Text>().fontSize = 14;
             restart.onClick.AddListener(() => Seek(0f, _focus));
 
             var speed = UIFactory.Button(bar, "1x", new Color(0.30f, 0.34f, 0.45f),
@@ -200,7 +200,7 @@ namespace MarbleGP.UI
                 float x = x0 + i * (w + gap);
                 var btn = UIFactory.Button(root, ChipLabel(h.kind), ChipColor(h.kind),
                     new Vector2(x, 0.11f), new Vector2(x + w, 0.15f), Vector2.zero, Vector2.zero);
-                btn.GetComponentInChildren<Text>().fontSize = 12;
+                btn.GetComponentInChildren<Text>().fontSize = 14;
                 var hl = h;
                 btn.onClick.AddListener(() => Seek(hl.time, hl.focusIndex));
             }
