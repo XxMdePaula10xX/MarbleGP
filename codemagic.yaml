@@ -1,0 +1,50 @@
+# Pipeline Codemagic: Unity -> Xcode -> IPA assinado -> TestFlight (sem Mac).
+# Baseado no template oficial Unity iOS do Codemagic. Antes de rodar:
+#   1) No Codemagic, crie o grupo de variaveis "unity_credentials" com
+#      UNITY_EMAIL, UNITY_PASSWORD e UNITY_SERIAL (veja docs para licenca Personal).
+#   2) Crie a integracao App Store Connect (chave API .p8) e ajuste o nome
+#      "MarbleGP_ASC" abaixo para o nome que voce der a ela.
+#   3) Confira se a versao do Unity abaixo existe nas maquinas do Codemagic
+#      (docs "Unity versions"); qualquer 2022.3.x LTS proxima tambem serve.
+workflows:
+  unity-ios:
+    name: Marble GP - iOS TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - unity_credentials            # UNITY_EMAIL / UNITY_PASSWORD / UNITY_SERIAL
+      integrations:
+        app_store_connect: MarbleGP_ASC
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.matheuscastro.marblegp
+      vars:
+        UNITY_HOME: /Applications/Unity/Hub/Editor/2022.3.40f1/Unity.app
+        UNITY_BIN: $UNITY_HOME/Contents/MacOS/Unity
+        XCODE_PROJECT: ios/Unity-iPhone.xcodeproj
+        XCODE_SCHEME: Unity-iPhone
+    scripts:
+      - name: Ativar licenca do Unity
+        script: |
+          $UNITY_BIN -batchmode -quit -nographics -logFile \
+            -serial ${UNITY_SERIAL} -username ${UNITY_EMAIL} -password ${UNITY_PASSWORD}
+      - name: Unity -> projeto Xcode
+        script: |
+          $UNITY_BIN -batchmode -quit -nographics -logFile \
+            -projectPath . \
+            -executeMethod MarbleGP.EditorTools.CIBuild.BuildIOS
+      - name: Perfis de assinatura
+        script: xcode-project use-profiles
+      - name: Gerar IPA assinado
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      scripts:
+        - name: Devolver licenca do Unity
+          script: $UNITY_BIN -batchmode -quit -nographics -logFile -returnlicense || true
