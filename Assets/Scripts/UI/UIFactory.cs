@@ -213,6 +213,10 @@ namespace MarbleGP.UI
             t.color = color;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
+            // Textos NUNCA capturam clique/toque. Sem isto, labels grandes (ex.: o
+            // countdown central, mesmo vazio) engolem os toques de botoes que
+            // estejam embaixo — foi o que bloqueou os botoes do Radio do Box.
+            t.raycastTarget = false;
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
