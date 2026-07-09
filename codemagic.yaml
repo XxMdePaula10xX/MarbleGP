@@ -40,16 +40,37 @@ workflows:
           agvtool new-version -all $BUILD_NUMBER
       - name: Assinatura (cria certificado + perfil se faltarem)
         script: |
-          # Cria explicitamente o certificado de distribuição e o
-          # provisioning profile App Store caso ainda não existam
-          # (--create). Requer que a integração App Store Connect use uma
-          # API key com papel App Manager ou Admin.
+          set -e
           keychain initialize
+
+          # 1) Garante um certificado de distribuição na conta e salva a
+          #    chave privada localmente (necessária para assinar). Se já
+          #    existir um certificado utilizável, reaproveita.
+          echo "== create-certificate =="
+          app-store-connect create-certificate \
+            --type IOS_DISTRIBUTION \
+            --save || echo "(certificado já existe — seguindo)"
+
+          # 2) Cria/baixa o provisioning profile App Store para o bundle id.
+          echo "== fetch-signing-files =="
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
+
+          # 3) Instala os certificados salvos no keychain do build.
+          echo "== add-certificates =="
           keychain add-certificates
+
+          # 4) Aplica os profiles ao projeto Xcode. Falha explicitamente se
+          #    nenhum profile foi aplicado (evita erro obscuro no archive).
+          echo "== use-profiles =="
           xcode-project use-profiles
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
+          if ! ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision >/dev/null 2>&1; then
+            echo "ERRO: nenhum provisioning profile foi criado/baixado." >&2
+            echo "Verifique se a API key da integração tem papel App Manager/Admin." >&2
+            exit 1
+          fi
       - name: Gerar IPA assinado
         script: |
           xcode-project build-ipa \
