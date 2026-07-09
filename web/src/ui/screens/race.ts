@@ -234,6 +234,77 @@ export function raceScreen(ctx: RaceContext): void {
     mount(log, logHd, logLines);
     stage.appendChild(log);
 
+    // ---- Arrastar para recolher (torre e log) -----------------------
+    // Gesto: arraste o painel na direção da borda para recolher; arraste
+    // de volta (ou toque quando recolhido) para reabrir. O dedo acompanha
+    // o painel; ao soltar, ele "prende" no estado mais próximo.
+    const makeStowable = (
+      panel: HTMLElement, axis: 'x' | 'y', stowSign: 1 | -1, keepPx: number,
+    ): void => {
+      let stowed = false;
+      let dragging = false;
+      let decided = false;
+      let cancelled = false;
+      let start = 0;
+      let startOther = 0;
+      let base = 0;      // posição no início do arrasto
+      let curPx = 0;
+      const size = () => (axis === 'x' ? panel.offsetWidth : panel.offsetHeight);
+      const stowedPx = () => stowSign * (size() - keepPx);
+      const applyPx = (px: number) => {
+        panel.style.transform = axis === 'x' ? `translateX(${px}px)` : `translateY(${px}px)`;
+      };
+      const settle = (toStowed: boolean) => {
+        stowed = toStowed;
+        panel.classList.toggle('stowed', toStowed);
+        panel.style.transition = 'transform 0.28s cubic-bezier(0.34,1.2,0.4,1)';
+        applyPx(toStowed ? stowedPx() : 0);
+      };
+      panel.addEventListener('pointerdown', (e) => {
+        if ((e.target as HTMLElement).closest('button')) return; // não a partir de botões
+        dragging = true; decided = false; cancelled = false;
+        start = axis === 'x' ? e.clientX : e.clientY;
+        startOther = axis === 'x' ? e.clientY : e.clientX;
+        base = stowed ? stowedPx() : 0;
+        curPx = base;
+        panel.style.transition = 'none';
+        try { panel.setPointerCapture(e.pointerId); } catch { /* ok */ }
+      });
+      panel.addEventListener('pointermove', (e) => {
+        if (!dragging || cancelled) return;
+        const p = axis === 'x' ? e.clientX : e.clientY;
+        const other = axis === 'x' ? e.clientY : e.clientX;
+        const d = p - start;
+        if (!decided) {
+          if (Math.abs(d) < 5 && Math.abs(other - startOther) < 5) return;
+          decided = true;
+          if (Math.abs(other - startOther) > Math.abs(d)) { cancelled = true; return; } // gesto no outro eixo
+        }
+        const lo = Math.min(0, stowedPx());
+        const hi = Math.max(0, stowedPx());
+        curPx = Math.max(lo, Math.min(hi, base + d));
+        applyPx(curPx);
+        e.preventDefault();
+      });
+      const end = () => {
+        if (!dragging) return;
+        dragging = false;
+        const moved = Math.abs(curPx - base);
+        if (moved < 6) { settle(!stowed); return; }        // toque curto alterna
+        const past = Math.abs(curPx) > Math.abs(stowedPx()) * 0.4; // passou de 40% → recolhe
+        settle(past);
+        Haptics.tap();
+      };
+      panel.addEventListener('pointerup', end);
+      panel.addEventListener('pointercancel', end);
+    };
+    makeStowable(tower, 'x', -1, 26);   // torre recolhe para a esquerda
+    makeStowable(log, 'y', 1, 30);      // log recolhe para baixo (deixa o cabeçalho)
+    // Alça de arrasto (dica visual).
+    const towerGrip = div('stow-grip');
+    towerGrip.innerHTML = '‹';
+    tower.appendChild(towerGrip);
+
     const logItems: Array<{ txt: string; el: HTMLElement }> = [];
     const pushLog = (msg: string, color?: string) => {
       const li = div('li');

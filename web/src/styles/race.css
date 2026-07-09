@@ -87,6 +87,28 @@
 .tower.compact .trow .chip,
 .tower.compact .trow .gap { display: none; }
 .tower.compact .trow.rank-lo { flex: 0.8; }
+
+/* ---------- arrastar para recolher (torre + log) ---------- */
+.tower, .rlog { touch-action: none; will-change: transform; }
+/* alça de arrasto — só aparece quando recolhida (tab para reabrir) */
+.tower .stow-grip {
+  position: absolute; right: 0.2em; top: 50%; transform: translateY(-50%);
+  width: 1.1em; height: 3.4em; border-radius: 0.5em;
+  background: rgba(20, 40, 66, 0.85); border: 1px solid var(--cyan); color: var(--cyan);
+  display: grid; place-items: center; font-size: 1.1em; line-height: 1; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; box-shadow: 0 0 0.8em -0.2em var(--cyan);
+}
+.tower.stowed { box-shadow: none; border-color: transparent; background: transparent; }
+.tower.stowed .rows, .tower.stowed .tower-hd { opacity: 0; pointer-events: none; }
+.tower.stowed .stow-grip { opacity: 1; }
+/* log recolhido: some com as linhas, mantém só o cabeçalho arrastável */
+.rlog .rhud-hd { position: relative; }
+.rlog .rhud-hd::after {
+  content: '⌄'; margin-left: auto; opacity: 0.5; font-size: 1.1em; line-height: 1;
+  transition: transform 0.28s; transform: rotate(180deg);
+}
+.rlog.stowed .rhud-hd::after { transform: rotate(0deg); }
+.rlog.stowed .lines { opacity: 0; }
 /* flash de mudança de posição (linguagem de transmissão) */
 .trow.up { animation: trow-up 0.7s var(--ease); }
 .trow.down { animation: trow-down 0.7s var(--ease); }

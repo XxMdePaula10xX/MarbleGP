@@ -69,7 +69,7 @@ export function trackSelectScreen(): void {
 function buildPreview(t: TrackData, num: number): HTMLElement {
   const panel = div('panel circ-prev');
   const thBig = div('th-big');
-  thBig.appendChild(trackThumb(t.trackId, 240));
+  thBig.appendChild(trackThumb(t.trackId, 360, 150));
 
   mount(panel,
     label('CIRCUITO ' + num, 'badge'),

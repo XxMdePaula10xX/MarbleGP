@@ -11,13 +11,15 @@ import { Track } from '../sim/track';
 // o conteúdo desenhado, só os atributos, então devolvia miniaturas em branco.
 const cache = new Map<string, HTMLCanvasElement>();
 
-export function trackThumb(trackId: string, size = 160): HTMLCanvasElement {
-  const key = `${trackId}@${size}`;
+export function trackThumb(trackId: string, w = 160, h = w): HTMLCanvasElement {
+  const key = `${trackId}@${w}x${h}`;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cw = w * dpr;
+  const ch = h * dpr;
 
   const out = document.createElement('canvas');
-  out.width = size * dpr;
-  out.height = size * dpr;
+  out.width = cw;
+  out.height = ch;
   out.style.width = '100%';
   out.style.height = '100%';
 
@@ -28,8 +30,8 @@ export function trackThumb(trackId: string, size = 160): HTMLCanvasElement {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
+  canvas.width = cw;
+  canvas.height = ch;
   const c = canvas.getContext('2d')!;
 
   const data = trackById(trackId);
@@ -44,13 +46,16 @@ export function trackThumb(trackId: string, size = 160): HTMLCanvasElement {
     if (p.y > maxY) maxY = p.y;
   }
   const pad = data.trackWidth;
-  const s = (size * dpr * 0.86) / Math.max(maxX - minX + pad * 2, maxY - minY + pad * 2);
-  const ox = (size * dpr) / 2 - ((minX + maxX) / 2) * s;
-  const oy = (size * dpr) / 2 - ((minY + maxY) / 2) * s;
+  const spanX = maxX - minX + pad * 2;
+  const spanY = maxY - minY + pad * 2;
+  // Ajusta o traçado à caixa (largura × altura), preservando a proporção.
+  const s = Math.min((cw * 0.9) / spanX, (ch * 0.9) / spanY);
+  const ox = cw / 2 - ((minX + maxX) / 2) * s;
+  const oy = ch / 2 - ((minY + maxY) / 2) * s;
 
   // Fundo.
   c.fillStyle = '#0b1a2c';
-  c.fillRect(0, 0, size * dpr, size * dpr);
+  c.fillRect(0, 0, cw, ch);
 
   const path = new Path2D();
   path.moveTo(pts[0]!.x * s + ox, pts[0]!.y * s + oy);
