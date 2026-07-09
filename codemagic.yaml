@@ -65,10 +65,11 @@ workflows:
               --certificate-key @file:"$CERT_KEY" \
               --p12-password "$CERT_PW" \
               --save
-            cp "$HOME/Library/Developer/Xcode/UserData/Certificates/"*.p12 \
-              "$CM_BUILD_DIR/marblegp_dist.p12"
-            base64 "$CM_BUILD_DIR/marblegp_dist.p12" \
-              > "$CM_BUILD_DIR/marblegp_dist.p12.b64.txt"
+            P12=$(ls -t "$HOME/Library/Developer/Xcode/UserData/Certificates/"*.p12 | head -1)
+            cp "$P12" "$CM_BUILD_DIR/marblegp_dist.p12"
+            # macOS base64 exige -i/-o (não aceita arquivo posicional).
+            base64 -i "$CM_BUILD_DIR/marblegp_dist.p12" \
+              -o "$CM_BUILD_DIR/marblegp_dist.p12.b64.txt"
             echo ">>> GUARDE o artefato marblegp_dist.p12.b64.txt: salve o"
             echo ">>> conteúdo como variável segura IOS_DIST_CERT_B64 e a senha"
             echo ">>> IOS_DIST_CERT_PASSWORD='$CERT_PW' no Codemagic. A partir"
