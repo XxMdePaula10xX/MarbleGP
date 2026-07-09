@@ -20,10 +20,8 @@ workflows:
       node: 22.14.0
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.matheuscastro.marblegp
       vars:
+        BUNDLE_ID: com.matheuscastro.marblegp
         XCODE_WORKSPACE: web/ios/App/App.xcworkspace
         XCODE_SCHEME: App
     scripts:
@@ -40,8 +38,18 @@ workflows:
         script: |
           cd web/ios/App
           agvtool new-version -all $BUILD_NUMBER
-      - name: Perfis de assinatura
-        script: xcode-project use-profiles
+      - name: Assinatura (cria certificado + perfil se faltarem)
+        script: |
+          # Cria explicitamente o certificado de distribuição e o
+          # provisioning profile App Store caso ainda não existam
+          # (--create). Requer que a integração App Store Connect use uma
+          # API key com papel App Manager ou Admin.
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Gerar IPA assinado
         script: |
           xcode-project build-ipa \
