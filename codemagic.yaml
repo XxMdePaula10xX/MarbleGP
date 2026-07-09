@@ -38,37 +38,40 @@ workflows:
         script: |
           cd web/ios/App
           agvtool new-version -all $BUILD_NUMBER
-      - name: Assinatura (cria certificado + perfil se faltarem)
+      - name: Assinatura (gera certificado próprio + perfil)
         script: |
           set -e
           keychain initialize
 
-          # 1) Garante um certificado de distribuição na conta e salva a
-          #    chave privada localmente (necessária para assinar). Se já
-          #    existir um certificado utilizável, reaproveita.
-          echo "== create-certificate =="
-          app-store-connect create-certificate \
-            --type IOS_DISTRIBUTION \
-            --save || echo "(certificado já existe — seguindo)"
+          # A conta Apple já tem certificados de distribuição (Expo EAS),
+          # mas o Codemagic não tem a chave privada deles. Geramos uma chave
+          # nova e criamos um certificado de distribuição próprio para este
+          # pipeline — assim temos a chave privada e conseguimos assinar.
+          CERT_KEY=/tmp/marblegp_cert_key.pem
+          echo "== gerar chave privada =="
+          openssl genrsa -out "$CERT_KEY" 2048
 
-          # 2) Cria/baixa o provisioning profile App Store para o bundle id.
+          echo "== certificates create =="
+          app-store-connect certificates create \
+            --type IOS_DISTRIBUTION \
+            --certificate-key @file:"$CERT_KEY" \
+            --save
+
+          # Cria/baixa o provisioning profile App Store e casa com o
+          # certificado cuja chave privada acabamos de gerar.
           echo "== fetch-signing-files =="
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key @file:"$CERT_KEY" \
             --create
 
-          # 3) Instala os certificados salvos no keychain do build.
           echo "== add-certificates =="
           keychain add-certificates
 
-          # 4) Aplica os profiles ao projeto Xcode. Falha explicitamente se
-          #    nenhum profile foi aplicado (evita erro obscuro no archive).
           echo "== use-profiles =="
           xcode-project use-profiles
-          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
           if ! ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision >/dev/null 2>&1; then
             echo "ERRO: nenhum provisioning profile foi criado/baixado." >&2
-            echo "Verifique se a API key da integração tem papel App Manager/Admin." >&2
             exit 1
           fi
       - name: Gerar IPA assinado
