@@ -150,19 +150,25 @@ const ALL_KEYS = [
 
 // ---- Espelho nativo (Capacitor Preferences) ---------------------------
 // Carregado sob demanda para não pesar no bundle da web.
+//
+// IMPORTANTE: sempre desestruture { Preferences } do módulo e chame os
+// métodos direto. NUNCA resolva uma Promise com o objeto Preferences (ex.:
+// `async () => Preferences`): o motor de Promises faz um "thenable check"
+// no proxy do plugin, o que dispara Preferences.then() e o Capacitor lança
+// "Preferences.then() is not implemented on ios".
 const isNative = Capacitor.isNativePlatform();
-
-async function prefs(): Promise<typeof import('@capacitor/preferences').Preferences> {
-  const mod = await import('@capacitor/preferences');
-  return mod.Preferences;
-}
 
 /** Espelha (fire-and-forget) uma escrita para o armazenamento nativo. */
 function mirrorToNative(key: string, raw: string): void {
   if (!isNative) return;
-  void prefs()
-    .then((p) => p.set({ key, value: raw }))
-    .catch((e) => console.error(`[SaveManager] Falha ao espelhar ${key}:`, e));
+  void (async () => {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      await Preferences.set({ key, value: raw });
+    } catch (e) {
+      console.error(`[SaveManager] Falha ao espelhar ${key}:`, e);
+    }
+  })();
 }
 
 function read<T>(key: string): T | null {
@@ -222,9 +228,14 @@ export const SaveManager = {
   deleteAll(): void {
     for (const key of ALL_KEYS) localStorage.removeItem(key);
     if (isNative) {
-      void prefs()
-        .then((p) => Promise.all(ALL_KEYS.map((key) => p.remove({ key }))))
-        .catch((e) => console.error('[SaveManager] Falha ao limpar Preferences:', e));
+      void (async () => {
+        try {
+          const { Preferences } = await import('@capacitor/preferences');
+          await Promise.all(ALL_KEYS.map((key) => Preferences.remove({ key })));
+        } catch (e) {
+          console.error('[SaveManager] Falha ao limpar Preferences:', e);
+        }
+      })();
     }
   },
 };
@@ -244,11 +255,11 @@ export const Storage = {
   async hydrate(): Promise<void> {
     if (!isNative) return;
     try {
-      const p = await prefs();
+      const { Preferences } = await import('@capacitor/preferences');
       await Promise.all(
         ALL_KEYS.map(async (key) => {
           if (localStorage.getItem(key) !== null) return; // já presente localmente
-          const { value } = await p.get({ key });
+          const { value } = await Preferences.get({ key });
           if (value != null) localStorage.setItem(key, value);
         }),
       );
