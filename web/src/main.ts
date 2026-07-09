@@ -17,12 +17,22 @@ const app = document.getElementById('app');
 if (!app) throw new Error('#app não encontrado');
 
 // ---- Rede de segurança em device ------------------------------------
-// No TestFlight não há console acessível; qualquer erro que impeça o boot
-// deixaria só o fundo escuro. Este overlay mostra o erro na tela para
-// diagnóstico (e não aparece quando está tudo certo).
+// No TestFlight não há console acessível. Duas superfícies de erro:
+//  • showFatal: overlay cheio, usado só por falha de uma ETAPA do boot
+//    (indica que o jogo pode não ter montado).
+//  • logBanner: faixa pequena no rodapé para erros globais assíncronos
+//    (não cobre o app — se ele funciona atrás, dá pra ver e jogar).
+function detail(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message + (err.stack ? `\n${err.stack}` : '');
+  }
+  if (err && typeof err === 'object') {
+    try { return JSON.stringify(err); } catch { /* fallthrough */ }
+  }
+  return String(err);
+}
+
 function showFatal(label: string, err: unknown): void {
-  const msg =
-    err instanceof Error ? (err.stack ?? err.message) : String(err);
   let box = document.getElementById('fatal-overlay');
   if (!box) {
     box = document.createElement('pre');
@@ -34,14 +44,29 @@ function showFatal(label: string, err: unknown): void {
       '-webkit-user-select:text;user-select:text;';
     document.body.appendChild(box);
   }
-  box.textContent += `[${label}] ${msg}\n\n`;
+  box.textContent += `[${label}] ${detail(err)}\n\n`;
 }
-window.addEventListener('error', (e) =>
-  showFatal('window.error', e.error ?? e.message),
-);
-window.addEventListener('unhandledrejection', (e) =>
-  showFatal('unhandledrejection', (e as PromiseRejectionEvent).reason),
-);
+
+function logBanner(label: string, err: unknown): void {
+  let box = document.getElementById('err-banner');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'err-banner';
+    box.style.cssText =
+      'position:fixed;left:0;right:0;bottom:0;z-index:99998;max-height:38%;' +
+      'overflow:auto;margin:0;padding:8px 12px;background:rgba(60,20,20,.92);' +
+      'color:#ffc9c9;font:10px/1.4 ui-monospace,Menlo,monospace;' +
+      'white-space:pre-wrap;-webkit-user-select:text;user-select:text;';
+    box.addEventListener('click', () => box?.remove()); // toque descarta
+    document.body.appendChild(box);
+  }
+  box.textContent += `[${label}] ${detail(err)}\n`;
+}
+
+window.addEventListener('error', (e) => logBanner('error', e.error ?? e.message));
+window.addEventListener('unhandledrejection', (e) => {
+  logBanner('unhandledrejection', (e as PromiseRejectionEvent).reason);
+});
 
 // ---- Splash de boot: revelação da marca, depois entra no jogo ----
 function boot(): void {
