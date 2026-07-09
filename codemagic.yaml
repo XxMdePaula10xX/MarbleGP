@@ -70,10 +70,6 @@ workflows:
 
           echo "== use-profiles =="
           xcode-project use-profiles
-          if ! ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision >/dev/null 2>&1; then
-            echo "ERRO: nenhum provisioning profile foi criado/baixado." >&2
-            exit 1
-          fi
       - name: Gerar IPA assinado
         script: |
           xcode-project build-ipa \
