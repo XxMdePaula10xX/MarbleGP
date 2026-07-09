@@ -1,151 +1,88 @@
 # Marble GP Manager
 
-Jogo de gerência de corridas de **bolinhas de gude 3D autônomas**, vistas de cima
+Jogo de gerência de corridas de **bolinhas de gude autônomas**, vistas de cima
 (top-down). O jogador é o **chefe de equipe/estrategista**: não pilota as bolinhas,
 mas decide pit stops, anéis de aderência, energia, superfície e modo de corrida.
 
 > Inspirado no conceito geral de corridas de elite, **sem** usar nomes, logos,
 > marcas, pistas ou equipes oficiais de qualquer categoria real.
 
-Engine: **Unity 2022.3 LTS** · Linguagem: **C#**
+## ⚡ Versão atual: Web (TypeScript + Canvas 2D + Capacitor)
 
----
+O jogo foi **migrado do Unity para a web** (pasta [`web/`](web/)):
+**TypeScript estrito + Canvas 2D + Vite**, empacotado para **iOS via Capacitor**.
+O port é 1:1 — mesmos dados, fórmulas do PRD 41, balanceamento e telas.
 
-## Como rodar (passo a passo)
+Vantagens da nova stack:
+- Bundle de **~40 KB gzip** (vs. dezenas de MB do Unity).
+- Roda no navegador, como PWA e como app nativo iOS (mesma base de código).
+- Testável de ponta a ponta sem editor (typecheck + simulação headless +
+  screenshots reais via Chromium).
 
-Este projeto foi construído numa abordagem **code-first / procedural**: pista,
-bolinhas e HUD são gerados por código, e os dados (equipes, bolinhas, pistas,
-anéis, superfícies) são gerados por um menu de Editor. Isso permite abrir e
-jogar com setup mínimo, sem montar cenas/prefabs à mão.
+### Rodar localmente
 
-1. **Instale o Unity 2022.3 LTS** (Unity Hub → adicionar versão `2022.3.x`).
-2. **Abra o projeto** (pasta raiz deste repositório) pelo Unity Hub.
-   - Na primeira importação a Unity gera os arquivos `.meta` automaticamente.
-3. No menu superior, rode: **`Tools > Marble GP > Setup Completo (Dados + Cena)`**
-   - Isso gera todos os ScriptableObjects do MVP em `Assets/Resources/GameDatabase.asset`
-     e cria a cena `Assets/Scenes/Bootstrap.unity` (já adicionada ao Build Settings).
-4. Abra a cena `Assets/Scenes/Bootstrap.unity` e dê **Play**.
+```bash
+cd web
+npm install
+npm run dev        # http://localhost:5173
+```
 
-> Alternativamente, rode os dois menus separadamente:
-> `Tools > Marble GP > Gerar Dados do MVP` e `Tools > Marble GP > Criar Cena Bootstrap`.
+- `npm run typecheck` — verificação de tipos (tsc estrito).
+- `npm run build` — build de produção em `web/dist/`.
+- Simulação headless de uma corrida completa (sem navegador):
+  `npx esbuild --bundle src/dev/simtest.ts --format=esm --outfile=/tmp/simtest.mjs && node /tmp/simtest.mjs`
 
-### Fluxo no jogo
-Criar Perfil → Menu Principal → Corrida Rápida → Selecionar Circuito →
-Estratégia (anel + modo) → **Corrida** (HUD com ranking, pit e modo) → Resultado.
-
-Durante a corrida:
-- **Botão PIT** (painel da direita) chama o pit stop da sua bolinha.
-- **Botão MODE** cicla Normal → Push → Save.
-- **Botão Camera** (canto sup. direito) alterna visão geral / seguir bolinha.
-- **Scroll do mouse** dá zoom.
-
----
-
-## Arquitetura
-
-Código em `Assets/Scripts/`, organizado por domínio e seguindo o PRD:
+### Estrutura (`web/src/`)
 
 | Pasta | Responsabilidade |
 |-------|------------------|
-| `Core/` | `GameManager`, `GameBalance` (PRD 28/41), enums, `RaceConfig`, `QuickRaceBuilder` |
-| `Data/` | ScriptableObjects: `TeamDataSO`, `MarbleDriverSO`, `TrackDataSO`, `GripRingSO`, `SurfaceProfileSO`, `GameDatabase` |
-| `Save/` | `PlayerProfile`, `SaveManager` (JSON local) |
-| `Track/` | `TrackManager`, `TrackBuilder` (geração procedural + malha), `Lane`, `MaterialFactory` |
-| `AI/` | `MarbleController` (física guiada), `MarbleAI` (comportamentos) |
-| `Systems/` | `MarbleRuntime`, `RaceFormulas`, `TireWearSystem`, `EnergySystem` |
-| `Race/` | `RaceManager`, `RacePositionSystem`, `PitStopManager`, `MarbleFactory`, `RaceResult` |
-| `Camera/` | `CameraController` (ortográfica top-down) |
-| `UI/` | `UIFactory`, `RaceHUD` (HUD procedural) |
-| `Bootstrap/` | `AppController` (orquestra todo o fluxo numa cena única) |
-| `Editor/` | `DataGenerator`, `SceneSetup` (menus Tools > Marble GP) |
+| `core/` | Tipos e helpers (enums, multiplicadores de atributo, clima × pneu) |
+| `data/` | Dados do jogo: 10 equipes, 20 bolinhas, 15 circuitos, 5 compostos, 3 superfícies, balanceamento |
+| `sim/` | Simulação: fórmulas (PRD 41), pista (Catmull-Rom + checkpoints + pit lane), steering, posições, pit stops, estratégia da IA, clima dinâmico, Safety Marble, rádio do box, gravador de replay |
+| `game/` | Meta-game: save (localStorage), campeonato + upgrades, 32 conquistas, desafio diário, notificações locais (Capacitor) |
+| `render/` | Canvas 2D: ambiente pré-renderizado offscreen, pista vetorial, bolinhas, câmera zoom/pan/follow, miniaturas procedurais |
+| `ui/` | 11 telas DOM (perfil, menu, corrida com HUD completo, resultado, campeonato, garagem, conquistas, daily, replay…) |
 
-### Princípios seguidos (PRD 39)
-- Sistemas funcionais antes de polimento; lógica de corrida separada da UI.
-- Dados em ScriptableObjects, **nada hardcodado** nos managers (via `GameDatabase`).
-- Arquitetura pronta para **24 bolinhas** (MVP roda com 8).
-- Separação entre **dados base** (`*SO`) e **estado de runtime** (`MarbleRuntime`).
-- Sistema anti-bug de bolinha presa (`MarbleController.HandleStuckRecovery`).
-- Posição por **progresso de arco** (PRD 26), evitando o bug de circuito fechado.
+### Deploy iOS (TestFlight, sem Mac)
 
----
+O `codemagic.yaml` na raiz tem o workflow **`capacitor-ios`**:
+`npm ci` → `npm run build` → `cap sync ios` → IPA assinado → TestFlight.
 
-## O que está implementado (MVP — Fases 1–5 do PRD)
+Pré-requisitos no Codemagic:
+1. Integração App Store Connect (chave API `.p8`) chamada **`MarbleGP_ASC`**.
+2. Bundle ID **`com.matheuscastro.marblegp`** registrado no App Store Connect.
 
-✅ Perfil local (JSON) · Menu principal · Corrida Rápida · Seleção de circuito ·
-Estratégia pré-corrida · Largada com contagem 3-2-1-GO · IA seguindo waypoints ·
-3 linhas de corrida + pit lane · Ranking ao vivo · Contagem de voltas por
-checkpoints · Anéis Soft/Medium/Hard · Desgaste · Energia · Modos Normal/Push/Save ·
-Pit stop (troca de anel + recarga) · Fim de corrida · Tela de resultado com pontos ·
-Câmera top-down (overview/seguir) · 3 pistas jogáveis + 12 placeholders.
+O projeto Xcode (`web/ios/`) já está no repositório com paisagem travada,
+ícone e splash oficiais.
 
-✅ **Ranking ao vivo (timing tower)** no estilo da referência: posição · chip/cor
-da equipe (logo placeholder) com número · sigla de 3 letras do piloto · gap para
-o líder em segundos · indicador do anel (cor estilo pneu) · setas verde/vermelho
-de variação de posição · linha do jogador destacada.
+### Fluxo do jogo
 
-✅ **Modo Campeonato** (PRD 29): calendário das etapas, pontuação por posição,
-classificação de pilotos e de equipes, vitórias/pódios, histórico, progressão
-entre etapas e persistência em JSON. Hub com "Correr Etapa" e standings ao vivo.
-
-✅ **Garagem** (PRD 31): exibe as 2 bolinhas do jogador com atributos e
-personalidade, permite editar o nome da equipe, as cores primária/secundária e a
-cor de cada bolinha (paleta). As customizações são salvas no perfil e aplicadas
-em runtime (corpo da bolinha, faixa, chip do ranking e nome no resultado) sem
-mutar os ScriptableObjects base.
-
-✅ **Upgrades de Equipe** (PRD 30): moeda de créditos ganha por corrida no
-campeonato e 7 upgrades melhoráveis (Pit Crew, Energy Core Lab, Grip Research,
-Surface Lab, Strategy Center, Marble Material, AI Coaching), cada um com 5
-níveis. Os efeitos (tempo de pit, consumo, desgaste, velocidade, controle e
-chance de erro) são aplicados às bolinhas do jogador em corrida via as fórmulas
-do PRD 41. Tela de Upgrades no hub do campeonato, com custos e saldo, persistida
-em JSON junto da temporada.
-
-✅ **Clima dinâmico** (PRD 19): o tempo evolui durante a corrida
-(Seco↔Nublado↔Úmido↔Chuva leve↔Chuva forte) guiado pela chance de chuva da
-pista, afetando ao vivo a performance dos anéis, o desgaste e a chance de erro
-(com `WetSkill` ajudando no molhado e penalidade por usar pneu seco na chuva).
-Anéis **Intermediate** e **Rain** disponíveis; previsão exibida na estratégia e
-clima ao vivo no HUD. Botão **TYRE** no painel permite trocar o composto no pit.
-
-✅ **Eventos de corrida** (PRD 20): **Safety Marble** (neutraliza velocidade e
-ultrapassagens por alguns segundos) e **Pista Suja** (menos aderência e mais
-risco de erro temporariamente), sorteados ao longo da prova, além dos alertas de
-desgaste/energia/pit e dos avisos de mudança de clima — tudo no log do HUD.
-
-✅ **Overhaul visual e de usabilidade**: circuito de verdade gerado por código
-(grama, asfalto, zebras vermelho/branco, linha de chegada quadriculada, setas de
-sentido, dashes centrais, placa do circuito) e **pit lane** com boxes coloridos
-por equipe e placas PIT IN/OUT. Bolinhas **2x maiores** com sombra, material
-glossy, etiqueta com a sigla (CM1/CM2…), **rastro** de velocidade, **brilho** de
-modo (Push/Save) e overlay de **PIT com barra de progresso**. Câmera com 4 modos
-(geral / bolinha 1 / bolinha 2 / líder), zoom mais próximo e movimento suave.
-HUD repaginado: top bar central, timing tower com glow do jogador e faixa da
-equipe, **cards** com barras de desgaste/energia, seletores de **modo/pneu** e
-estados de botão (PIT → QUEUED/IN PIT), **log colorido com fade** e **minimapa**.
-Largada com contagem grande, vencedor destacado e tela de resultado com pneu
-final e realce do campeão.
-
-### Dados gerados (PRD 42)
-- **4 equipes**: Red Comet Racing, Blue Orbit GP, Emerald Rollers, Shadow Marble Team.
-- **8 bolinhas** (2 por equipe), com atributos e personalidades distintas.
-- **3 pistas jogáveis**: Marble Park, Neon Harbor, Spiral Canyon (+ 12 bloqueadas).
-- **3 anéis** (Soft/Medium/Hard) e **3 superfícies** (Polished/Micro-Grooved/Textured).
+Criar Perfil → Menu → { Corrida Rápida · Desafio do Dia · Campeonato ·
+Garagem · Conquistas } → Seleção de Circuito → Estratégia (pneu/modo/duração) →
+**Corrida** (torre de tempos, cards com PIT/MODO/PNEU, rádio do box, eventos,
+Safety Marble, clima dinâmico, zoom/pan/follow) → Resultado → Replay.
 
 ---
 
-## Próximas fases (Fase 6–7 do PRD) — ainda não implementadas
-Expansão do campeonato para 12 equipes / 24 bolinhas / 15 pistas finalizadas,
-áudio e efeitos visuais (PRD 32 — Push glow, trail, alertas piscando), eventos
-extras (pit lento, undercut de rival), e build mobile (Android/iOS). A
-arquitetura já está preparada para esses pontos (o campeonato MVP roda com as
-4 equipes / 8 bolinhas / 3 pistas já existentes).
+## Conteúdo do jogo
 
-## Limitações conhecidas (MVP)
-- Visual com primitivas/placeholder (sem assets externos), conforme PRD 39.8/9.
-- A contagem de voltas é validada por checkpoints; em casos de pit muito longo a
-  re-sincronização de checkpoint pós-pit é simplificada (a bolinha sempre termina,
-  mas o ponto exato de revalidação pode variar). Será refinado na Fase 6.
-- Estratégia pré-corrida aplica a mesma configuração inicial às bolinhas do
-  jogador; ajuste individual por bolinha entra junto da Garagem (Fase 6).
-</content>
+- **10 equipes** × 2 bolinhas = grid de 20, cada piloto com 10 atributos e
+  personalidade própria (afeta ritmo, ultrapassagem, erros e estratégia).
+- **15 circuitos** com geometria procedural própria (spline fechada por
+  control points; 12 gerados pela curva paramétrica `r = 1 + amp·sin(lobes·θ)`).
+- **5 compostos** (Soft/Medium/Hard/Inter/Rain) com desgaste, consumo e
+  performance por clima; **3 superfícies** de bolinha.
+- **Clima dinâmico** por volta (Seco↔Nublado↔Úmido↔Chuva leve↔Chuva forte).
+- **Campeonato** com classificação de pilotos/equipes, créditos e **7 upgrades**
+  de 5 níveis; **32 conquistas**; **Desafio do Dia** com seed por data e streak;
+  **replay** com destaques; **notificações locais** com badge.
+
+---
+
+## Versão Unity (legado)
+
+O projeto Unity original (C#, `Assets/`) permanece no repositório como
+referência durante a transição. Para rodá-lo: Unity 2022.3 LTS →
+`Tools > Marble GP > Setup Completo (Dados + Cena)` → Play na cena
+`Assets/Scenes/Bootstrap.unity`. O workflow Codemagic `unity-ios` (legado)
+ainda existe no `codemagic.yaml`.

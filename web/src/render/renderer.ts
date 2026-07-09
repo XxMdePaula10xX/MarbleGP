@@ -259,15 +259,16 @@ export class RaceRenderer {
     c.clip(this.asphalt, 'evenodd'); // nada — só para manter tipo; removido abaixo
     c.restore();
 
-    // Árvores espalhadas (fora da pista).
+    // Árvores espalhadas (fora da pista E fora do pit lane).
     const isNearTrack = (x: number, y: number): boolean => {
-      let best = Infinity;
-      const cpts = this.track.center;
-      for (let i = 0; i < cpts.length; i += 4) {
-        const d = (cpts[i]!.x - x) ** 2 + (cpts[i]!.y - y) ** 2;
-        if (d < best) best = d;
+      const limit = (this.track.halfWidth + 9) ** 2;
+      for (const p of this.track.center) {
+        if ((p.x - x) ** 2 + (p.y - y) ** 2 < limit) return true;
       }
-      return best < (this.track.halfWidth + 7) ** 2;
+      for (const p of this.track.pitPath) {
+        if ((p.x - x) ** 2 + (p.y - y) ** 2 < 36) return true;
+      }
+      return false;
     };
     for (let i = 0; i < 70; i++) {
       const x = this.minX - BG_MARGIN * 0.6 + rand() * (spanX - BG_MARGIN * 1.2);
@@ -284,11 +285,17 @@ export class RaceRenderer {
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
     }
 
-    // Arquibancada perto da linha de largada (lado externo).
-    const sp = this.startPos, snm = this.track.normals[0]!;
-    const standDist = this.track.halfWidth + 8;
-    const bx = sp.x - snm.x * standDist, by = sp.y - snm.y * standDist;
-    const along = { x: -snm.y, y: snm.x };
+    // Arquibancada perto da linha de largada, SEMPRE do lado de fora
+    // (direção que aponta para longe do centro da pista) e além do pit.
+    const sp = this.startPos;
+    const cxT = (this.minX + this.maxX) / 2, cyT = (this.minY + this.maxY) / 2;
+    let ox = sp.x - cxT, oy = sp.y - cyT;
+    const ol = Math.hypot(ox, oy) || 1;
+    ox /= ol; oy /= ol;
+    const standDist = this.track.halfWidth + 11;
+    const bx = sp.x + ox * standDist, by = sp.y + oy * standDist;
+    // Alinhada perpendicular à direção "para fora" (paralela à pista).
+    const along = { x: -oy, y: ox };
     c.save();
     c.translate(bx, by);
     c.rotate(Math.atan2(along.y, along.x));

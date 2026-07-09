@@ -20,6 +20,18 @@
 .menu-buttons .btn { font-size: 17px; padding: 13px 18px; }
 .menu-version { position: absolute; right: calc(var(--safe-r) + 14px); bottom: calc(var(--safe-b) + 10px); color: var(--mut); font-size: 12px; }
 
+/* Paisagem baixa (celular deitado): menu em 2 colunas, tudo mais compacto. */
+@media (max-height: 480px) {
+  .screen-menu { gap: 5px; }
+  .menu-title { font-size: clamp(22px, 4.5vh, 30px); }
+  .menu-sub { font-size: 9px; margin-bottom: 3px; }
+  .menu-team { padding: 5px 12px; margin-bottom: 6px; }
+  .menu-team .nm { font-size: 14px; }
+  .menu-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; width: min(560px, 90vw); }
+  .menu-buttons .btn { font-size: 14px; padding: 10px 12px; }
+  .menu-buttons .btn:first-child { grid-column: 1 / 3; }
+}
+
 /* ---------- perfil ---------- */
 .screen-profile { align-items: center; justify-content: center; gap: 12px; }
 .profile-box { width: min(460px, 90vw); padding: 26px; display: flex; flex-direction: column; gap: 12px; }
