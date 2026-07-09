@@ -3,6 +3,13 @@
 // Web: no-op silencioso. iOS/Android (Capacitor): LocalNotifications +
 // Badge. Mesmos textos e horários do Unity (10h desafio, 19h corrida,
 // lembretes 1/2/4/7/14 dias).
+//
+// Nota sobre badge: o Unity definia um badge crescente (1..5) em cada
+// lembrete agendado. O LocalNotifications do Capacitor NÃO tem campo de
+// badge por notificação agendada — o número do ícone é controlado em
+// runtime pelo plugin Badge (limpo em clearBadgeAndDelivered ao abrir o
+// app). Por isso o badge escalonado é intencionalmente omitido aqui; o
+// lembrete em si (título/corpo/horário) é idêntico.
 // =====================================================================
 
 import { Capacitor } from '@capacitor/core';

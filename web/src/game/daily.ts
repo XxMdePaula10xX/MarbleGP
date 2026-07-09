@@ -33,7 +33,14 @@ function seedFromKey(key: string): number {
   return h & 0x7fffffff;
 }
 
-/** RNG determinístico (mulberry32). */
+/**
+ * RNG determinístico (mulberry32). O seed vem de seedFromKey (mesma data =>
+ * mesmo seed), então o desafio é 100% reprodutível DENTRO da plataforma web
+ * (todo jogador no mesmo dia joga o mesmo cenário). Observação: o build Unity
+ * legado consumia o seed com System.Random (algoritmo diferente), então os
+ * cenários NÃO coincidem entre Unity e web — irrelevante agora que a web é a
+ * plataforma oficial.
+ */
 export function seededRandom(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

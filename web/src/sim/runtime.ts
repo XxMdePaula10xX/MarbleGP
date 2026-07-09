@@ -105,6 +105,13 @@ export class MarbleRuntime {
   trackDist = 0;      // distância percorrida ao longo da volta (0..trackLength)
   trail: Array<{ x: number; y: number }> = [];
 
+  // Overrides visuais da garagem (só bolinhas do jogador). Vazio => usa a
+  // identidade da equipe do banco. Espelha os *Override do MarbleRuntime C#.
+  teamNameOverride: string | null = null;
+  teamPrimaryOverride: string | null = null;
+  teamSecondaryOverride: string | null = null;
+  marbleColorOverride: string | null = null;
+
   constructor(
     driver: MarbleDriver, team: TeamData, strategy: MarbleStrategy,
     grip: GripRing, surface: SurfaceProfile,
@@ -120,7 +127,9 @@ export class MarbleRuntime {
   }
 
   get displayName(): string { return this.driver.marbleName; }
-  get teamName(): string { return this.team.teamName; }
-  get teamPrimary(): string { return this.team.primaryColor; }
-  get teamSecondary(): string { return this.team.secondaryColor; }
+  get teamName(): string { return this.teamNameOverride ?? this.team.teamName; }
+  get teamPrimary(): string { return this.teamPrimaryOverride ?? this.team.primaryColor; }
+  get teamSecondary(): string { return this.teamSecondaryOverride ?? this.team.secondaryColor; }
+  /** Cor do corpo da bolinha: cor própria customizada ou a primária da equipe. */
+  get marbleColor(): string { return this.marbleColorOverride ?? this.teamPrimary; }
 }

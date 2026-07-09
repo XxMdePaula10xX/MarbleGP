@@ -58,6 +58,7 @@ export class RaceRenderer {
   private gridSlots: Array<{ x: number; y: number; a: number }> = [];
   private startPos: Vec2;
   private W = 0; private H = 0;
+  private vignette: CanvasGradient | null = null;
 
   constructor(canvas: HTMLCanvasElement, track: Track) {
     this.canvas = canvas;
@@ -79,6 +80,7 @@ export class RaceRenderer {
     this.H = Math.max(64, Math.round(rect.height * this.dpr));
     this.canvas.width = this.W;
     this.canvas.height = this.H;
+    this.vignette = null; // depende de W/H
 
     const spanX = this.maxX - this.minX, spanY = this.maxY - this.minY;
     this.baseScale = Math.min(this.W / spanX, this.H / spanY) * 0.92;
@@ -444,9 +446,10 @@ export class RaceRenderer {
     for (const a of marbles) {
       const m = a.m;
       // Trilha.
+      const body = m.marbleColor; // cor própria (garagem) ou a da equipe
       const tr = m.trail;
       if (tr.length > 1) {
-        c.strokeStyle = m.teamPrimary;
+        c.strokeStyle = body;
         c.globalAlpha = 0.35;
         c.lineWidth = r * 0.9;
         c.lineCap = 'round';
@@ -462,7 +465,7 @@ export class RaceRenderer {
       c.arc(m.x + 0.16, m.y + 0.2, r, 0, Math.PI * 2);
       c.fill();
       // Corpo.
-      c.fillStyle = m.teamPrimary;
+      c.fillStyle = body;
       c.beginPath();
       c.arc(m.x, m.y, r, 0, Math.PI * 2);
       c.fill();
@@ -503,13 +506,16 @@ export class RaceRenderer {
       c.stroke();
     }
 
-    // 9) Vinheta.
+    // 9) Vinheta (gradiente cacheado; só depende de W/H → rebuild no resize).
     c.setTransform(1, 0, 0, 1, 0, 0);
-    const v = c.createRadialGradient(this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.42,
-      this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.72);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.4)');
-    c.fillStyle = v;
+    if (!this.vignette) {
+      this.vignette = c.createRadialGradient(
+        this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.42,
+        this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.72);
+      this.vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      this.vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+    }
+    c.fillStyle = this.vignette;
     c.fillRect(0, 0, this.W, this.H);
   }
 }

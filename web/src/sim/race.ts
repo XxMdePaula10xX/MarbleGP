@@ -48,10 +48,12 @@ export interface RaceManagerOptions {
   aiDifficulty?: number;
   /** Upgrades aplicados às bolinhas do jogador. */
   upgrades?: TeamUpgradeEffects;
-  /** Overrides visuais da garagem. */
+  /** Overrides visuais da garagem (só bolinhas do jogador). */
   playerTeamName?: string;
   playerPrimaryColor?: string;
   playerSecondaryColor?: string;
+  /** Cor de cada bolinha do jogador (índice na ordem de spawn); '' => cor da equipe. */
+  playerMarbleColors?: string[];
 }
 
 export class RaceManager implements RaceConditions {
@@ -153,6 +155,7 @@ export class RaceManager implements RaceConditions {
 
   private spawnField(setup: RaceSetup, opts: RaceManagerOptions): void {
     const upgrades = opts.upgrades ?? NEUTRAL_UPGRADES;
+    let playerMarbleIndex = 0;
 
     for (let i = 0; i < setup.entries.length; i++) {
       const strat = setup.entries[i]!;
@@ -174,6 +177,15 @@ export class RaceManager implements RaceConditions {
         m.upgSpeedFactor = upgrades.speedFactor;
         m.upgControlFactor = upgrades.controlFactor;
         m.upgErrorFactor = upgrades.errorFactor;
+
+        // Identidade personalizada da garagem (nome/cores da equipe + cor da
+        // bolinha), espelhando RaceManager.SpawnField do Unity.
+        if (opts.playerTeamName) m.teamNameOverride = opts.playerTeamName;
+        if (opts.playerPrimaryColor) m.teamPrimaryOverride = opts.playerPrimaryColor;
+        if (opts.playerSecondaryColor) m.teamSecondaryOverride = opts.playerSecondaryColor;
+        const mc = opts.playerMarbleColors?.[playerMarbleIndex];
+        if (mc) m.marbleColorOverride = mc;
+        playerMarbleIndex++;
       } else {
         // Dificuldade da IA: velocidade, erro e qualidade de pit.
         switch (opts.aiDifficulty ?? 1) {

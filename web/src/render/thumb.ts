@@ -6,19 +6,30 @@
 import { trackById } from '../data/circuits';
 import { Track } from '../sim/track';
 
+// Cache do BITMAP desenhado (canvas-fonte nunca montado no DOM). Cada chamada
+// devolve um canvas novo copiando o bitmap via drawImage — cloneNode NÃO copia
+// o conteúdo desenhado, só os atributos, então devolvia miniaturas em branco.
 const cache = new Map<string, HTMLCanvasElement>();
 
 export function trackThumb(trackId: string, size = 160): HTMLCanvasElement {
   const key = `${trackId}@${size}`;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const out = document.createElement('canvas');
+  out.width = size * dpr;
+  out.height = size * dpr;
+  out.style.width = '100%';
+  out.style.height = '100%';
+
   const hit = cache.get(key);
-  if (hit) return hit.cloneNode(true) as HTMLCanvasElement;
+  if (hit) {
+    out.getContext('2d')!.drawImage(hit, 0, 0);
+    return out;
+  }
 
   const canvas = document.createElement('canvas');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = size * dpr;
   canvas.height = size * dpr;
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
   const c = canvas.getContext('2d')!;
 
   const data = trackById(trackId);
@@ -62,5 +73,6 @@ export function trackThumb(trackId: string, size = 160): HTMLCanvasElement {
   c.fill();
 
   cache.set(key, canvas);
-  return canvas;
+  out.getContext('2d')!.drawImage(canvas, 0, 0);
+  return out;
 }

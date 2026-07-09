@@ -25,9 +25,17 @@ const NEXT_MODE: Record<string, RaceMode> = { Normal: 'Push', Push: 'Save', Save
 export function raceScreen(ctx: RaceContext): void {
   show('race', root => {
     // ---- Simulação -------------------------------------------------
-    const opts = ctx.isChampionship && Game.championship.hasActiveSeason
-      ? { aiDifficulty: Game.profile.difficulty, upgrades: Game.championship.effects() }
-      : { aiDifficulty: Game.profile.difficulty, upgrades: NEUTRAL_UPGRADES };
+    const p = Game.profile;
+    const opts = {
+      aiDifficulty: p.difficulty,
+      upgrades: ctx.isChampionship && Game.championship.hasActiveSeason
+        ? Game.championship.effects() : NEUTRAL_UPGRADES,
+      // Identidade personalizada da garagem aplicada às bolinhas do jogador.
+      playerTeamName: p.teamName,
+      playerPrimaryColor: p.primaryColorHex,
+      playerSecondaryColor: p.secondaryColorHex,
+      playerMarbleColors: p.marbleColorHex,
+    };
     const rand = ctx.seededRand ?? Math.random;
     const race = new RaceManager(ctx.setup, opts, rand);
     const recorder = new RaceRecorder(race);
@@ -312,6 +320,9 @@ export function raceScreen(ctx: RaceContext): void {
 
     const medal = (p: number) => (p === 1 ? 'var(--gold)' : p === 2 ? '#cdd5e3' : p === 3 ? '#d9975a' : '#e6eeff');
 
+    // Posição anterior POR BOLINHA (não por linha da torre) para a seta ▲/▼.
+    const prevPos = new Map<MarbleActor, number>();
+
     function updateHud(): void {
       const leader = race.leader;
       const lap = Math.min(race.totalLaps, (leader?.m.completedLaps ?? 0) + 1);
@@ -320,15 +331,19 @@ export function raceScreen(ctx: RaceContext): void {
 
       // Torre.
       for (let i = 0; i < race.field.length && i < rows.length; i++) {
-        const m = race.field[i]!.m;
+        const actor = race.field[i]!;
+        const m = actor.m;
         const r = rows[i]!;
         r.root.classList.toggle('me', m.isPlayer);
         r.acc.style.background = m.teamPrimary;
         r.pos.textContent = String(i + 1);
         r.pos.style.color = medal(i + 1);
-        const delta = m.position !== 0 && m.position < (r.root.dataset['prev'] ? Number(r.root.dataset['prev']) : m.position);
-        r.arw.textContent = delta ? '▲' : '';
-        r.root.dataset['prev'] = String(m.position);
+        // Compara a posição da BOLINHA com a dela própria no update anterior.
+        const cur = i + 1;
+        const prev = prevPos.get(actor) ?? cur;
+        r.arw.textContent = cur < prev ? '▲' : cur > prev ? '▼' : '';
+        r.arw.style.color = cur < prev ? 'var(--green)' : 'var(--red)';
+        prevPos.set(actor, cur);
         r.chip.textContent = m.driver.shortCode.slice(-1);
         r.chip.style.background = m.teamPrimary;
         r.chip.style.color = m.teamSecondary;

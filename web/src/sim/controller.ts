@@ -66,7 +66,12 @@ export class MarbleActor {
   }
 
   get currentSpeed(): number { return Math.hypot(this.vx, this.vy); }
-  get pos(): Vec2 { return { x: this.m.x, y: this.m.y }; }
+
+  // Objeto reaproveitado para `pos`: evita alocar um Vec2 por acesso no loop
+  // quente (~4×/frame/bolinha). Todos os chamadores consomem o valor na hora,
+  // sem reter a referência entre dois acessos, então o compartilhamento é seguro.
+  private _pos: Vec2 = { x: 0, y: 0 };
+  get pos(): Vec2 { this._pos.x = this.m.x; this._pos.y = this.m.y; return this._pos; }
 
   // ------------------------------------------------------------------
   // Física guiada (MarbleController.PhysicsStep)

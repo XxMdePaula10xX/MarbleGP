@@ -10,7 +10,7 @@ import type { RaceRecorder } from '../../sim/recorder';
 import { teamById } from '../../data/teams';
 import { btn, div, el, formatTime, label, mount, trim } from '../dom';
 import { show } from '../router';
-import { goChampionship, goMenu, goRace, goReplay, type RaceContext } from '../flow';
+import { goChampionship, goDaily, goMenu, goReplay, goStrategy, type RaceContext } from '../flow';
 
 export function resultsScreen(
   result: RaceResult, ctx: RaceContext, recorder: RaceRecorder | null, skipRecord = false,
@@ -129,8 +129,15 @@ export function resultsScreen(
     mount(foot, div('spacer'));
     if (ctx.isChampionship) {
       mount(foot, btn('Classificação / Próxima', 'primary', goChampionship));
+    } else if (ctx.isDaily) {
+      // Volta ao Desafio do Dia, que recria o RNG semeado do zero (senão a
+      // 2ª corrida continuaria o fluxo de RNG já consumido e perderia a
+      // reprodutibilidade da seed do dia).
+      mount(foot, btn('Jogar de Novo', 'primary', goDaily));
     } else {
-      mount(foot, btn('Correr de Novo', 'primary', () => goRace(ctx)));
+      // Corrida rápida: volta à Estratégia (como no Unity), para o jogador
+      // reescolher pneu/modo/duração antes de correr de novo.
+      mount(foot, btn('Correr de Novo', 'primary', () => goStrategy(ctx.setup.trackId)));
     }
 
     mount(root, head, banner, strip, tableBox, foot);
