@@ -58,11 +58,16 @@ export class MarbleActor {
   private simTime = 0;
   private rand: () => number;
 
+  /** Reação de largada (0.85..1.06): melhor aceleração/consistência = arranca melhor. */
+  readonly launchReaction: number;
+
   constructor(m: MarbleRuntime, track: Track, rand: () => number = Math.random) {
     this.m = m;
     this.track = track;
     this.rand = rand;
     this.paceSeed = rand() * 100;
+    const skill = (m.driver.acceleration * 0.7 + m.driver.consistency * 0.3) / 100;
+    this.launchReaction = 0.85 + skill * 0.18 + (rand() - 0.5) * 0.05;
   }
 
   get currentSpeed(): number { return Math.hypot(this.vx, this.vy); }

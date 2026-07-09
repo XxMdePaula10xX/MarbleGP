@@ -168,6 +168,7 @@ body {
 .wordmark { font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.9; }
 .wordmark .gp { color: var(--gold); }
 .monogram { filter: drop-shadow(0 0 10px rgba(34, 228, 212, 0.45)); }
+.emblem { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); flex: 0 0 auto; }
 .monogram .spin { transform-origin: 20px 20px; animation: orbit 6s linear infinite; }
 @keyframes orbit { to { transform: rotate(360deg); } }
 

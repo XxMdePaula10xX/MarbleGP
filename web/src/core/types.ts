@@ -47,7 +47,9 @@ export interface Vec2 { x: number; y: number; }
 export interface TeamData {
   teamId: string;
   teamName: string;
-  primaryColor: string;   // hex #RRGGBB
+  primaryColor: string;   // hex #RRGGBB — identidade de marca
+  /** Cor da bolinha na pista: vibrante e distinta entre equipes (legibilidade). */
+  raceColor: string;
   secondaryColor: string;
   teamStyle: TeamStyle;
   baseBonusType: TeamBonusType;

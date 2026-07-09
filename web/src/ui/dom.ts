@@ -36,7 +36,7 @@ export function btn(text: string, className: string, onClick: () => void): HTMLB
   return b;
 }
 
-export function mount(parent: HTMLElement, ...children: Array<HTMLElement | null>): void {
+export function mount(parent: HTMLElement, ...children: Array<Node | null>): void {
   for (const c of children) if (c) parent.appendChild(c);
 }
 

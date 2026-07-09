@@ -3,10 +3,11 @@
 import { Game } from '../../game/state';
 import { Haptics } from '../../game/haptics';
 import { brandLockup } from '../brand';
+import { teamEmblem } from '../emblem';
 import { icon } from '../icons';
 import { div, el, label, mount } from '../dom';
 import { show } from '../router';
-import { goAchievements, goChampionship, goDaily, goGarage, goTrackSelect } from '../flow';
+import { goAchievements, goChampionship, goDaily, goGarage, goSettings, goTrackSelect } from '../flow';
 
 interface MenuItem { label: string; icon: string; cls: string; go: () => void; }
 
@@ -16,9 +17,7 @@ export function menuScreen(): void {
     brand.appendChild(brandLockup());
 
     const team = div('panel menu-team');
-    const dot = div('teamdot');
-    dot.style.background = Game.profile.primaryColorHex;
-    mount(team, dot, label('SUA EQUIPE', 'lb'), label(Game.profile.teamName, 'nm'));
+    mount(team, teamEmblem('red_comet', 26), label('SUA EQUIPE', 'lb'), label(Game.profile.teamName, 'nm'));
 
     const items: MenuItem[] = [
       { label: 'Corrida Rápida', icon: 'flag', cls: 'primary', go: goTrackSelect },
@@ -39,6 +38,13 @@ export function menuScreen(): void {
     }
 
     const version = label(`v1.0 · ${Game.profile.playerName}`, 'menu-version');
-    mount(root, brand, team, buttons, version);
+
+    // Engrenagem de configurações (canto inferior esquerdo).
+    const gear = el('button', 'menu-gear');
+    gear.innerHTML = icon('gear', 20);
+    gear.setAttribute('aria-label', 'Configurações');
+    gear.addEventListener('click', () => { Haptics.tap(); goSettings(); });
+
+    mount(root, brand, team, buttons, version, gear);
   });
 }

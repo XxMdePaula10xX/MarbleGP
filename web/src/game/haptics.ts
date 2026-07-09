@@ -4,10 +4,11 @@
 // =====================================================================
 
 import { Capacitor } from '@capacitor/core';
+import { Game } from './state';
 
 type Style = 'light' | 'medium' | 'heavy';
 
-function native(): boolean { return Capacitor.isNativePlatform(); }
+function native(): boolean { return Capacitor.isNativePlatform() && Game.settings.haptics; }
 
 async function impact(style: Style): Promise<void> {
   if (!native()) return;

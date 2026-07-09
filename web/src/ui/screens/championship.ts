@@ -7,6 +7,7 @@ import {
   upgradeDesc, upgradeName,
 } from '../../game/championship';
 import { Game } from '../../game/state';
+import { teamEmblem } from '../emblem';
 import { driversOfTeam } from '../../data/drivers';
 import { teamById } from '../../data/teams';
 import { btn, div, el, label, mount, trim } from '../dom';
@@ -79,14 +80,14 @@ export function championshipScreen(): void {
     body.append(
       standingsPanel('PILOTOS', champ.driverStandingsSorted().map((d, i) => ({
         rank: i + 1,
-        color: safeTeamColor(d.teamId),
+        teamId: d.teamId,
         name: `${driverCode(d.driverId)}  ${driverName(d.driverId)}`,
         points: d.points, wins: d.wins,
         me: d.teamId === PLAYER_TEAM,
       }))),
       standingsPanel('EQUIPES', champ.teamStandingsSorted().map((t, i) => ({
         rank: i + 1,
-        color: safeTeamColor(t.teamId),
+        teamId: t.teamId,
         name: teamName(t.teamId),
         points: t.points, wins: t.wins,
         me: t.teamId === PLAYER_TEAM,
@@ -115,7 +116,7 @@ function safeTeamColor(teamId: string): string {
   try { return teamById(teamId).primaryColor; } catch { return '#888'; }
 }
 
-interface StandRowData { rank: number; color: string; name: string; points: number; wins: number; me: boolean; }
+interface StandRowData { rank: number; teamId: string; name: string; points: number; wins: number; me: boolean; }
 
 function standingsPanel(title: string, rows: StandRowData[]): HTMLElement {
   const panel = div('panel stand-panel');
@@ -124,9 +125,7 @@ function standingsPanel(title: string, rows: StandRowData[]): HTMLElement {
   const box = div('stand-rows');
   for (const r of rows) {
     const row = div(`stand-row${r.rank === 1 ? ' first' : r.me ? ' me' : ''}`);
-    const sw = div('sw');
-    sw.style.background = r.color;
-    mount(row, label(String(r.rank), 'rk'), sw, label(trim(r.name, 26), ''), label(String(r.points), 'pt'), label(`${r.wins}V`, 'wn'));
+    mount(row, label(String(r.rank), 'rk'), teamEmblem(r.teamId, 18), label(trim(r.name, 26), ''), label(String(r.points), 'pt'), label(`${r.wins}V`, 'wn'));
     box.appendChild(row);
   }
   mount(panel, hd, box);

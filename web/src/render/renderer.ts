@@ -47,6 +47,15 @@ function darken(hex: string, k: number): string {
   const [r, g, b] = toRgb(hex);
   return `rgb(${Math.round(r * (1 - k))},${Math.round(g * (1 - k))},${Math.round(b * (1 - k))})`;
 }
+function roundRectPath(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
 
 export class RaceRenderer {
   readonly cam: CameraState = { x: 0, y: 0, z: 1, tx: 0, ty: 0, tz: 1, follow: false };
@@ -79,6 +88,7 @@ export class RaceRenderer {
   // Gradientes cacheados (centrados na origem; usados com translate por bolinha
   // → zero alocação por frame). AO é único; corpo é por cor de equipe.
   private aoGrad: CanvasGradient | null = null;
+  private leaderGlow: CanvasGradient | null = null;
   private bodyGrads = new Map<string, CanvasGradient>();
 
   // Partículas de faísca (contato/batida). Espaço de mundo.
@@ -196,7 +206,7 @@ export class RaceRenderer {
         const seg = new Path2D();
         seg.moveTo(a.x, a.y);
         seg.lineTo(b.x, b.y);
-        this.kerbs.push({ path: seg, color: (i / 2) % 2 === 0 ? '#d92929' : '#f2f2f2' });
+        this.kerbs.push({ path: seg, color: (i / 2) % 2 === 0 ? '#b83232' : '#c9ccd2' });
       }
     }
 
@@ -275,9 +285,10 @@ export class RaceRenderer {
     const cx = (this.minX + this.maxX) / 2, cy = (this.minY + this.maxY) / 2;
     const R = Math.max(spanX, spanY) * 0.75;
     const grad = c.createRadialGradient(cx, cy, R * 0.15, cx, cy, R);
-    grad.addColorStop(0, '#22492c');
-    grad.addColorStop(0.7, '#1a3a22');
-    grad.addColorStop(1, '#122718');
+    // Grama mais escura e dessaturada, para casar com a UI sci-fi e destacar a pista.
+    grad.addColorStop(0, '#16341f');
+    grad.addColorStop(0.7, '#102a19');
+    grad.addColorStop(1, '#0a1c11');
     c.fillStyle = grad;
     c.fillRect(this.minX - BG_MARGIN, this.minY - BG_MARGIN, spanX, spanY);
 
@@ -566,12 +577,27 @@ export class RaceRenderer {
       c.strokeRect(p.x - 0.7, p.y - 0.7, 1.4, 1.4);
     }
 
-    // 7) Bolinhas (motion blur + oclusão + corpo + brilho + aro do jogador).
-    const r = 0.5;
+    // 7) Bolinhas (maiores + motion blur + oclusão + corpo + aros de destaque).
+    const r = 0.58;
+    if (!this.leaderGlow) {
+      this.leaderGlow = c.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 2.4);
+      this.leaderGlow.addColorStop(0, 'rgba(233,190,92,0.5)');
+      this.leaderGlow.addColorStop(1, 'rgba(233,190,92,0)');
+    }
     for (const a of marbles) {
       const m = a.m;
-      const body = m.marbleColor; // cor própria (garagem) ou a da equipe
+      const body = m.marbleColor; // cor de corrida da equipe
       const speed = Math.hypot(a.vx, a.vy);
+      const inPit = m.state === 'InPit' || m.state === 'EnteringPit' || m.state === 'ExitingPit';
+
+      // Glow dourado do líder (halo atrás da bolinha).
+      if (m.position === 1 && !inPit) {
+        c.save();
+        c.translate(m.x, m.y);
+        c.fillStyle = this.leaderGlow;
+        c.beginPath(); c.arc(0, 0, r * 2.4, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
 
       // Trilha.
       const tr = m.trail;
@@ -631,11 +657,14 @@ export class RaceRenderer {
       // Brilho especular.
       c.fillStyle = 'rgba(255,255,255,0.8)';
       c.beginPath(); c.arc(-r * 0.3, -r * 0.35, r * 0.17, 0, Math.PI * 2); c.fill();
-      // Aro dourado pulsante do jogador.
+      // Aro forte do jogador: contorno escuro + anel dourado pulsante (bem visível).
       if (m.isPlayer) {
-        c.strokeStyle = `rgba(233,190,92,${0.5 + 0.35 * Math.sin(now / 300)})`;
-        c.lineWidth = 0.12;
-        c.beginPath(); c.arc(0, 0, r + 0.28, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = 'rgba(0,0,0,0.5)';
+        c.lineWidth = 0.22;
+        c.beginPath(); c.arc(0, 0, r + 0.30, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = `rgba(233,190,92,${0.7 + 0.3 * Math.sin(now / 280)})`;
+        c.lineWidth = 0.16;
+        c.beginPath(); c.arc(0, 0, r + 0.30, 0, Math.PI * 2); c.stroke();
       }
       c.restore();
     }
@@ -652,6 +681,48 @@ export class RaceRenderer {
       }
       c.globalAlpha = 1;
     }
+
+    // 7c) Rótulos/alertas em espaço de tela (legíveis em qualquer zoom, só o
+    //     que importa: PIT, sigla do jogador, alerta de combustível baixo).
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.textAlign = 'center';
+    const dpr = this.dpr;
+    const rPix = r * this.scale;
+    for (const a of marbles) {
+      const m = a.m;
+      const inPit = m.state === 'InPit' || m.state === 'EnteringPit' || m.state === 'ExitingPit';
+      const lowFuel = m.isPlayer && m.fuel < 20 && m.state === 'Racing';
+      if (!inPit && !m.isPlayer && !lowFuel) continue; // não polui com IA comum
+      const sp = this.worldToScreen(m.x, m.y);
+      const top = sp.y - rPix - 4 * dpr;
+
+      if (inPit) {
+        c.font = `700 ${9 * dpr}px ui-monospace, Menlo, monospace`;
+        const w = c.measureText('PIT').width + 8 * dpr;
+        c.fillStyle = 'rgba(255,138,46,0.92)';
+        roundRectPath(c, sp.x - w / 2, top - 12 * dpr, w, 13 * dpr, 3 * dpr); c.fill();
+        c.fillStyle = '#1a0b00';
+        c.fillText('PIT', sp.x, top - 2.5 * dpr);
+      } else if (m.isPlayer) {
+        // sigla do jogador
+        c.font = `800 ${9.5 * dpr}px ui-monospace, Menlo, monospace`;
+        c.fillStyle = 'rgba(4,10,20,0.7)';
+        const w = c.measureText(m.driver.shortCode).width + 7 * dpr;
+        roundRectPath(c, sp.x - w / 2, top - 12 * dpr, w, 13 * dpr, 3 * dpr); c.fill();
+        c.fillStyle = '#e9be5c';
+        c.fillText(m.driver.shortCode, sp.x, top - 2.5 * dpr);
+        if (lowFuel && Math.sin(now / 200) > 0) {
+          // alerta de combustível baixo: "!" amarelo pulsante ao lado.
+          const ax = sp.x + w / 2 + 7 * dpr, ay = top - 5.5 * dpr;
+          c.fillStyle = '#ffcc2e';
+          c.beginPath(); c.arc(ax, ay, 6 * dpr, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#1a0b00';
+          c.font = `900 ${9 * dpr}px ui-monospace`;
+          c.fillText('!', ax, ay + 3.2 * dpr);
+        }
+      }
+    }
+    c.textAlign = 'left';
 
     // 8) Chuva (streaks em espaço de tela).
     if (weather === 'LightRain' || weather === 'HeavyRain') {
@@ -673,10 +744,11 @@ export class RaceRenderer {
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (!this.vignette) {
       this.vignette = c.createRadialGradient(
-        this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.42,
-        this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.72);
+        this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.34,
+        this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.74);
       this.vignette.addColorStop(0, 'rgba(0,0,0,0)');
-      this.vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+      this.vignette.addColorStop(0.7, 'rgba(2,5,12,0.22)');
+      this.vignette.addColorStop(1, 'rgba(2,5,12,0.58)');
     }
     c.fillStyle = this.vignette;
     c.fillRect(0, 0, this.W, this.H);

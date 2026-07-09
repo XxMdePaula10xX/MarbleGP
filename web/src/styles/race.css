@@ -54,7 +54,7 @@
 }
 .trow .acc { position: absolute; left: 0; top: 14%; bottom: 14%; width: 0.2em; border-radius: 2px; }
 .trow .pos { font-weight: 800; text-align: center; font-size: 1em; font-variant-numeric: tabular-nums; }
-.trow .arw { font-size: 0.8em; text-align: center; }
+.trow .arw { font-size: 0.62em; text-align: center; opacity: 0.75; }
 .trow .chip { width: 1.55em; height: 1.2em; border-radius: 0.25em; display: grid; place-items: center; font-size: 0.68em; font-weight: 800; }
 .trow .code { font-weight: 700; font-size: 0.95em; }
 .trow .gap { font-family: var(--mono); font-size: 0.85em; color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
@@ -62,7 +62,31 @@
   width: 1.3em; height: 1.3em; border-radius: 50%; display: grid; place-items: center;
   font-size: 0.68em; font-weight: 800; border: 1.5px solid currentColor; justify-self: end;
 }
-.trow.me { background: linear-gradient(90deg, rgba(233, 190, 92, 0.16), rgba(233, 190, 92, 0.02)); box-shadow: inset 0 0 0 1px rgba(233, 190, 92, 0.4); }
+/* jogador: destaque forte (barra ciano à esquerda + fundo + borda) */
+.trow.me { background: linear-gradient(90deg, rgba(34, 228, 212, 0.18), rgba(34, 228, 212, 0.03)); box-shadow: inset 0 0 0 1px rgba(34, 228, 212, 0.5); }
+.trow.me::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+/* líder: linha dourada */
+.trow.leader { background: linear-gradient(90deg, rgba(233, 190, 92, 0.14), transparent); box-shadow: inset 0 0 0 1px rgba(233, 190, 92, 0.3); }
+.trow.leader.me { background: linear-gradient(90deg, rgba(34, 228, 212, 0.18), rgba(233, 190, 92, 0.05)); }
+/* fora do top 10: rows mais baixas e discretas */
+.trow.rank-lo { flex: 0.72; opacity: 0.82; }
+.trow.rank-lo .chip { font-size: 0.58em; }
+
+/* cabeçalho da torre + botão de recolher */
+.tower-hd { justify-content: space-between; }
+.tower-hd .tt { flex: 1; }
+.tower-collapse { border: 1px solid var(--stroke); background: rgba(20,40,66,.6); color: var(--dim);
+  border-radius: 0.4em; width: 1.7em; height: 1.4em; font-size: 0.9em; cursor: pointer; line-height: 1;
+  display: grid; place-items: center; font-family: var(--ui); }
+.tower-collapse:hover { color: var(--cyan); border-color: var(--cyan); }
+
+/* modo recolhido: só posição, sigla e pneu */
+.tower.compact { width: auto; }
+.tower.compact .trow { grid-template-columns: 1.45em 1fr 1.4em; }
+.tower.compact .trow .arw,
+.tower.compact .trow .chip,
+.tower.compact .trow .gap { display: none; }
+.tower.compact .trow.rank-lo { flex: 0.8; }
 /* flash de mudança de posição (linguagem de transmissão) */
 .trow.up { animation: trow-up 0.7s var(--ease); }
 .trow.down { animation: trow-down 0.7s var(--ease); }
@@ -115,6 +139,11 @@
   background: radial-gradient(circle at 40% 35%, #ff6a6a, #c1121f); border-color: #ff8a8a;
   box-shadow: 0 0 0.9em -0.1em #ff3b3b;
 }
+/* clarão branco no GO */
+.start-flash { position: absolute; inset: 0; background: #eaf6ff; opacity: 0; pointer-events: none; z-index: 5; }
+.start-flash.go { animation: goflash 0.4s ease-out; }
+@keyframes goflash { 0% { opacity: 0.55; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .start-flash.go { animation: none; } }
 
 #fpsmeter {
   position: absolute; left: 0.5em; top: 0.5em; z-index: 6; font-family: var(--mono);
@@ -145,25 +174,60 @@
 
 /* ---------- cards do jogador ---------- */
 .pcards { grid-column: 3; grid-row: 1 / 4; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 0.7em; pointer-events: none; overflow: hidden; }
-.pcard { pointer-events: auto; background: var(--glass); border-radius: 0.85em; padding: 0 0 0.55em; backdrop-filter: blur(8px); border: 1px solid var(--stroke); }
-.pcard .top { display: flex; align-items: center; gap: 0.5em; padding: 0.5em 0.65em; background: rgba(8, 22, 38, 0.92); border-radius: 0.82em 0.82em 0 0; position: relative; }
-.pcard .top .side { position: absolute; left: 0; top: 18%; bottom: 18%; width: 0.25em; border-radius: 2px; }
-.pcard .top .nm { font-weight: 800; font-size: 1.05em; }
-.pcard .top .pp { margin-left: auto; font-family: var(--mono); font-weight: 800; color: var(--gold); background: rgba(255, 206, 70, 0.12); padding: 0.1em 0.45em; border-radius: 0.35em; font-variant-numeric: tabular-nums; }
-.pcard .tyre { display: flex; justify-content: space-between; padding: 0.32em 0.7em 0.1em; color: #cdd9f2; font-size: 0.88em; }
-.pcard .bar { margin: 0.22em 0.7em; display: grid; grid-template-columns: 4.3em 1fr auto; align-items: center; gap: 0.5em; }
-.pcard .bar .lb { font-size: 0.84em; color: var(--dim); }
-.pcard .bar .track { height: 0.66em; border-radius: 0.4em; background: #0a1622; overflow: hidden; }
+.pcard { pointer-events: auto; background: var(--glass); border-radius: 0.85em; padding: 0 0 0.5em; backdrop-filter: blur(8px); border: 1px solid var(--hair); box-shadow: inset 0 1px 0 var(--lift); }
+.pcard .top { display: flex; align-items: center; gap: 0.5em; padding: 0.45em 0.6em; background: rgba(8, 18, 32, 0.9); border-radius: 0.82em 0.82em 0 0; position: relative; }
+.pcard .top .side { position: absolute; left: 0; top: 18%; bottom: 18%; width: 0.2em; border-radius: 2px; }
+.pcard .top .emblem { width: 1.3em; height: 1.3em; }
+.pcard .top .nm { font-weight: 800; font-size: 1em; }
+.pcard .top .pp { margin-left: auto; font-family: var(--mono); font-weight: 800; color: var(--gold); background: rgba(233, 190, 92, 0.12); padding: 0.1em 0.45em; border-radius: 0.35em; font-variant-numeric: tabular-nums; }
+/* badges de pneu/modo */
+.pcard .badges { display: flex; gap: 0.4em; padding: 0.4em 0.65em 0.1em; }
+.pcard .badge { font-family: var(--mono); font-size: 0.78em; letter-spacing: 0.02em; padding: 0.22em 0.5em; border-radius: 0.4em;
+  background: rgba(20, 32, 52, 0.7); border: 1px solid var(--hair); color: #cdd9f2; }
+.pcard .badge.tyb b { font-weight: 800; }
+.pcard .badge.mdb { font-weight: 700; }
+.pcard .badge.mode-Push, .pcard .badge.mode-Attack { color: #ffb3c0; border-color: rgba(240,64,90,.4); }
+.pcard .badge.mode-Save, .pcard .badge.mode-Cooldown { color: #a8f0cd; border-color: rgba(46,215,128,.4); }
+.pcard .bar { margin: 0.2em 0.65em; display: grid; grid-template-columns: 4.1em 1fr auto; align-items: center; gap: 0.5em; }
+.pcard .bar .lb { font-size: 0.8em; color: var(--dim); }
+.pcard .bar .track { height: 0.6em; border-radius: 0.4em; background: #0a1424; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.5); }
+.pcard .bar .track.crit { animation: bar-crit 0.7s ease-in-out infinite; }
+@keyframes bar-crit { 0%, 100% { box-shadow: inset 0 1px 2px rgba(0,0,0,.5); } 50% { box-shadow: inset 0 0 0 1px var(--red), 0 0 6px -1px var(--red); } }
 .pcard .bar .fill { height: 100%; border-radius: 0.4em; transition: width 0.25s; }
-.pcard .bar .vl { font-family: var(--mono); font-size: 0.8em; color: #cdd9f2; font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }
-.pcard .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4em; padding: 0.32em 0.7em 0; }
-.pcard .actions .btn { padding: 0.5em 0; font-size: 0.85em; border-radius: 0.5em; }
+.pcard .bar .vl { font-family: var(--mono); font-size: 0.76em; color: #cdd9f2; font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }
+.pcard .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4em; padding: 0.3em 0.65em 0; }
+.pcard .actions .btn { padding: 0.42em 0; font-size: 0.8em; border-radius: 0.5em; gap: 0.3em; }
+
+/* ---------- popup de escolha (pit/modo) ---------- */
+.race-popup { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(2, 6, 14, 0.55);
+  backdrop-filter: blur(2px); animation: fade 0.15s ease; }
+.rp-box { width: min(30em, 88%); background: rgba(8, 16, 30, 0.98); border: 1px solid var(--stroke); border-radius: 0.9em;
+  padding: 1em; box-shadow: 0 1.4em 3em -1em #000; }
+.rp-title { font-weight: 800; font-size: 1.1em; text-align: center; }
+.rp-sub { color: var(--dim); font-size: 0.85em; text-align: center; margin: 0.2em 0 0.8em; }
+.rp-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.5em; }
+.rp-opt { display: flex; flex-direction: column; align-items: center; gap: 0.15em; padding: 0.7em 0.3em; cursor: pointer;
+  border: 1px solid var(--hair); border-radius: 0.6em; background: linear-gradient(180deg, rgba(22,33,56,.9), rgba(12,19,33,.9)); color: var(--ink); font-family: var(--ui); }
+.rp-opt:hover { border-color: var(--cyan); }
+.rp-opt:active { transform: scale(0.96); }
+.rp-opt .rp-lb { font-weight: 800; font-size: 1.05em; }
+.rp-opt .rp-sb { font-size: 0.72em; color: var(--dim); }
+.rp-opt.grn { border-color: rgba(46,215,128,.4); } .rp-opt.grn .rp-lb { color: #a8f0cd; }
+.rp-opt.blue { border-color: rgba(47,143,255,.4); } .rp-opt.blue .rp-lb { color: #b6d8ff; }
+.rp-opt.red { border-color: rgba(240,64,90,.4); } .rp-opt.red .rp-lb { color: #ffb3c0; }
+.rp-opt.tyre-Soft .rp-lb { color: #e63333; } .rp-opt.tyre-Medium .rp-lb { color: #f2cc33; }
+.rp-opt.tyre-Hard .rp-lb { color: #ebebeb; } .rp-opt.tyre-Intermediate .rp-lb { color: #4dcc59; }
+.rp-opt.tyre-Rain .rp-lb { color: #4d8cf2; }
+.rp-cancel { width: 100%; margin-top: 0.7em; }
 
 /* ---------- log de eventos ---------- */
 .rlog { grid-column: 2; grid-row: 3; position: relative; z-index: 2; padding-bottom: 0.3em; max-height: 9em; }
 .rlog .lines { padding: 0.05em 0.8em 0.2em; display: flex; flex-direction: column; gap: 0.1em; }
-.rlog .li { font-size: 0.92em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rlog .li.f { opacity: 0.45; }
+.rlog .li { font-size: 0.92em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.4s; }
+.rlog .li.f { opacity: 0.5; }
+.rlog .li.ff { opacity: 0.28; }
+.rtop .lap.lastlap { color: var(--red); animation: lastlap-pulse 0.8s ease-in-out infinite; }
+@keyframes lastlap-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 /* ---------- pausa ---------- */
 .pause-overlay {

@@ -17,6 +17,7 @@ import { dailyScreen } from './screens/daily';
 import { championshipScreen, upgradesScreen } from './screens/championship';
 import { garageScreen } from './screens/garage';
 import { replayScreen } from './screens/replay';
+import { settingsScreen } from './screens/settings';
 
 export interface RaceContext {
   setup: RaceSetup;
@@ -40,6 +41,7 @@ export function goDaily(): void { dailyScreen(); }
 export function goChampionship(): void { championshipScreen(); }
 export function goUpgrades(): void { upgradesScreen(); }
 export function goGarage(): void { garageScreen(); }
+export function goSettings(): void { settingsScreen(); }
 export function goReplay(recorder: RaceRecorder, onClose: () => void): void {
   replayScreen(recorder, onClose);
 }

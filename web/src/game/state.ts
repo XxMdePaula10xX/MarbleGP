@@ -5,11 +5,12 @@
 
 import type { RaceSetup } from '../sim/runtime';
 import { ChampionshipManager } from './championship';
-import { SaveManager, type PlayerProfile } from './save';
+import { SaveManager, type PlayerProfile, type Settings } from './save';
 
 class GameStateSingleton {
   profile: PlayerProfile;
   championship: ChampionshipManager;
+  settings: Settings;
 
   /** Setup da corrida montada pelos menus, consumida pela tela de corrida. */
   currentRace: RaceSetup | null = null;
@@ -22,10 +23,15 @@ class GameStateSingleton {
     this.profile = SaveManager.loadProfile();
     this.championship = new ChampionshipManager();
     this.championship.loadSeason();
+    this.settings = SaveManager.loadSettings();
   }
 
   saveProfile(): void {
     SaveManager.saveProfile(this.profile);
+  }
+
+  saveSettings(): void {
+    SaveManager.saveSettings(this.settings);
   }
 }
 

@@ -48,12 +48,9 @@ export interface RaceManagerOptions {
   aiDifficulty?: number;
   /** Upgrades aplicados às bolinhas do jogador. */
   upgrades?: TeamUpgradeEffects;
-  /** Overrides visuais da garagem (só bolinhas do jogador). */
+  /** Garagem: nome da equipe e cor secundária (a primária é fixa da equipe). */
   playerTeamName?: string;
-  playerPrimaryColor?: string;
   playerSecondaryColor?: string;
-  /** Cor de cada bolinha do jogador (índice na ordem de spawn); '' => cor da equipe. */
-  playerMarbleColors?: string[];
 }
 
 export class RaceManager implements RaceConditions {
@@ -157,7 +154,6 @@ export class RaceManager implements RaceConditions {
 
   private spawnField(setup: RaceSetup, opts: RaceManagerOptions): void {
     const upgrades = opts.upgrades ?? NEUTRAL_UPGRADES;
-    let playerMarbleIndex = 0;
 
     for (let i = 0; i < setup.entries.length; i++) {
       const strat = setup.entries[i]!;
@@ -180,14 +176,10 @@ export class RaceManager implements RaceConditions {
         m.upgControlFactor = upgrades.controlFactor;
         m.upgErrorFactor = upgrades.errorFactor;
 
-        // Identidade personalizada da garagem (nome/cores da equipe + cor da
-        // bolinha), espelhando RaceManager.SpawnField do Unity.
+        // Garagem: só nome da equipe e cor secundária (primária/bolinha fixas
+        // na identidade da equipe, para não confundir na pista).
         if (opts.playerTeamName) m.teamNameOverride = opts.playerTeamName;
-        if (opts.playerPrimaryColor) m.teamPrimaryOverride = opts.playerPrimaryColor;
         if (opts.playerSecondaryColor) m.teamSecondaryOverride = opts.playerSecondaryColor;
-        const mc = opts.playerMarbleColors?.[playerMarbleIndex];
-        if (mc) m.marbleColorOverride = mc;
-        playerMarbleIndex++;
       } else {
         // Dificuldade da IA: velocidade, erro e qualidade de pit.
         switch (opts.aiDifficulty ?? 1) {
@@ -294,6 +286,13 @@ export class RaceManager implements RaceConditions {
         if (m.coreFailTimer > 0) {
           m.coreFailTimer -= dt;
           m.energy = Math.max(0, m.energy - 14 * dt);
+        }
+
+        // Reação de largada: nos ~1.3s iniciais, cada bolinha arranca conforme
+        // sua aceleração/consistência (getaways variados, sem alterar o longo prazo).
+        if (this.raceClock < 1.3) {
+          const t = this.raceClock / 1.3;
+          actor.desiredSpeed *= actor.launchReaction + (1 - actor.launchReaction) * t;
         }
 
         // Rádio do box: modo temporário expira e volta ao anterior.

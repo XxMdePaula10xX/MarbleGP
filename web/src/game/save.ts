@@ -115,12 +115,25 @@ export function defaultAchievements(): AchievementData {
   };
 }
 
+// ---- Configurações -----------------------------------------------------
+
+export interface Settings {
+  showFps: boolean;   // medidor de FPS (padrão: oculto)
+  sound: boolean;     // efeitos sonoros
+  haptics: boolean;   // vibração
+}
+
+export function defaultSettings(): Settings {
+  return { showFps: false, sound: true, haptics: true };
+}
+
 // ---- Chaves ------------------------------------------------------------
 
 const KEY_PROFILE = 'marblegp.profile';
 const KEY_CHAMPIONSHIP = 'marblegp.championship';
 const KEY_ACHIEVEMENTS = 'marblegp.achievements';
 const KEY_DAILY = 'marblegp.daily';
+const KEY_SETTINGS = 'marblegp.settings';
 
 function read<T>(key: string): T | null {
   try {
@@ -161,10 +174,16 @@ export const SaveManager = {
     return { ...defaultDaily(), ...(read<Partial<DailyData>>(KEY_DAILY) ?? {}) };
   },
 
+  saveSettings(data: Settings): void { write(KEY_SETTINGS, data); },
+  loadSettings(): Settings {
+    return { ...defaultSettings(), ...(read<Partial<Settings>>(KEY_SETTINGS) ?? {}) };
+  },
+
   deleteAll(): void {
     localStorage.removeItem(KEY_PROFILE);
     localStorage.removeItem(KEY_CHAMPIONSHIP);
     localStorage.removeItem(KEY_ACHIEVEMENTS);
     localStorage.removeItem(KEY_DAILY);
+    localStorage.removeItem(KEY_SETTINGS);
   },
 };
