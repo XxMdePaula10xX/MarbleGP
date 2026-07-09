@@ -26,7 +26,7 @@ export class RaceRecorder {
   readonly frames: ReplayFrame[] = [];
   readonly highlights: ReplayHighlight[] = [];
 
-  private race: RaceManager;
+  readonly race: RaceManager;
   private t = 0;
   private sample = 0;
   private recording = false;

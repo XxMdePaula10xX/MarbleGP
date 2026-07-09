@@ -1,14 +1,61 @@
-# Pipeline Codemagic: Unity -> Xcode -> IPA assinado -> TestFlight (sem Mac).
-# Baseado no template oficial Unity iOS do Codemagic. Antes de rodar:
-#   1) No Codemagic, crie o grupo de variaveis "unity_credentials" com
-#      UNITY_EMAIL, UNITY_PASSWORD e UNITY_SERIAL (veja docs para licenca Personal).
-#   2) Crie a integracao App Store Connect (chave API .p8) e ajuste o nome
-#      "MarbleGP_ASC" abaixo para o nome que voce der a ela.
-#   3) Confira se a versao do Unity abaixo existe nas maquinas do Codemagic
-#      (docs "Unity versions"); qualquer 2022.3.x LTS proxima tambem serve.
+# Pipelines Codemagic do Marble GP.
+#
+# PRINCIPAL: "capacitor-ios" — app web (web/, TypeScript + Canvas) empacotado
+# com Capacitor e enviado ao TestFlight. Requisitos no Codemagic:
+#   1) Integração App Store Connect (chave API .p8) chamada "MarbleGP_ASC".
+#   2) Nada de Unity: não precisa de licença nem variáveis extras.
+#
+# LEGADO: "unity-ios" — build do projeto Unity original (mantido para
+# referência durante a transição; requer grupo "unity_credentials").
 workflows:
+  capacitor-ios:
+    name: Marble GP - iOS TestFlight (Capacitor)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: MarbleGP_ASC
+    environment:
+      node: 22.14.0
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.matheuscastro.marblegp
+      vars:
+        XCODE_WORKSPACE: web/ios/App/App.xcworkspace
+        XCODE_SCHEME: App
+    scripts:
+      - name: Instalar dependências
+        script: |
+          cd web && npm ci
+      - name: Build web (tsc + vite)
+        script: |
+          cd web && npm run build
+      - name: Sincronizar Capacitor iOS
+        script: |
+          cd web && npx cap sync ios
+      - name: Número de build (TestFlight exige crescente)
+        script: |
+          cd web/ios/App
+          agvtool new-version -all $BUILD_NUMBER
+      - name: Perfis de assinatura
+        script: xcode-project use-profiles
+      - name: Gerar IPA assinado
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  # ---- LEGADO (Unity). Será removido quando a migração for concluída. ----
   unity-ios:
-    name: Marble GP - iOS TestFlight
+    name: (legado) Marble GP Unity - iOS TestFlight
     max_build_duration: 120
     instance_type: mac_mini_m2
     environment:
