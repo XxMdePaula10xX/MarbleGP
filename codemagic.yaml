@@ -38,7 +38,7 @@ workflows:
         script: |
           cd web/ios/App
           agvtool new-version -all $BUILD_NUMBER
-      - name: Assinatura (reusa .p12 salvo, ou cria no 1º build)
+      - name: Assinatura automática (limpa certs antigos e cria um novo)
         script: |
           set -e
           keychain initialize
@@ -46,38 +46,50 @@ workflows:
           CERT_KEY=/tmp/marblegp_cert_key.pem
 
           if [ -n "$IOS_DIST_CERT_B64" ]; then
-            # ---- Modo REUSO: usa o certificado salvo em variável segura ----
-            # (nenhum certificado é criado — some o limite da Apple).
+            # ---- Modo REUSO (opcional): certificado fixo em variável segura --
+            # Se você definir IOS_DIST_CERT_B64, o pipeline reusa esse .p12 e
+            # NÃO revoga nem cria nada. Útil se quiser um certificado estável.
             echo "== reusando certificado salvo (IOS_DIST_CERT_B64) =="
             echo "$IOS_DIST_CERT_B64" | base64 --decode > /tmp/marblegp_dist.p12
-            # Extrai a chave privada do .p12 para casar com o cert já existente.
             openssl pkcs12 -in /tmp/marblegp_dist.p12 -nocerts -nodes \
               -passin pass:"$CERT_PW" -out "$CERT_KEY"
           else
-            # ---- Modo BOOTSTRAP (1º build): cria o certificado e exporta ----
-            # o .p12 como artefato. GUARDE-O: ver instruções no fim do build.
-            # Requer um slot livre de certificado de distribuição na conta
-            # Apple (revogue os órfãos em developer.apple.com se der 409).
-            echo "== BOOTSTRAP: criando certificado de distribuição =="
+            # ---- Modo AUTOMÁTICO (padrão) --------------------------------
+            # Um certificado de distribuição não é reutilizável sem a chave
+            # privada, que é efêmera no runner. Para não esbarrar no limite
+            # da Apple, revogamos os certificados de distribuição existentes
+            # e criamos um novo a cada build. Sem passos manuais.
+            echo "== revogando certificados de distribuição antigos =="
+            app-store-connect certificates list --type IOS_DISTRIBUTION --json \
+              > /tmp/certs.json 2>/dev/null || echo "[]" > /tmp/certs.json
+            python3 - <<'PY'
+          import json, subprocess
+          try:
+              certs = json.load(open('/tmp/certs.json'))
+          except Exception:
+              certs = []
+          for c in certs:
+              cid = c.get('id')
+              if not cid:
+                  continue
+              print('  revogando', cid, flush=True)
+              # 'y' no stdin cobre uma eventual confirmação; ignorado se não houver.
+              try:
+                  subprocess.run(['app-store-connect', 'certificates', 'delete', cid],
+                                 input=b'y\n', check=False)
+              except Exception as e:
+                  print('  (falha ao revogar, seguindo):', e, flush=True)
+          PY
+            echo "== criando certificado de distribuição novo =="
             openssl genrsa -out "$CERT_KEY" 2048
             app-store-connect certificates create \
               --type IOS_DISTRIBUTION \
               --certificate-key @file:"$CERT_KEY" \
               --p12-password "$CERT_PW" \
               --save
-            P12=$(ls -t "$HOME/Library/Developer/Xcode/UserData/Certificates/"*.p12 | head -1)
-            cp "$P12" "$CM_BUILD_DIR/marblegp_dist.p12"
-            # macOS base64 exige -i/-o (não aceita arquivo posicional).
-            base64 -i "$CM_BUILD_DIR/marblegp_dist.p12" \
-              -o "$CM_BUILD_DIR/marblegp_dist.p12.b64.txt"
-            echo ">>> GUARDE o artefato marblegp_dist.p12.b64.txt: salve o"
-            echo ">>> conteúdo como variável segura IOS_DIST_CERT_B64 e a senha"
-            echo ">>> IOS_DIST_CERT_PASSWORD='$CERT_PW' no Codemagic. A partir"
-            echo ">>> daí os builds reusam o certificado (sem criar de novo)."
           fi
 
-          # Provisioning profile (sem limite): cria/baixa e casa com a chave
-          # privada acima. Em modo reuso, isso baixa o cert existente (não cria).
+          # Provisioning profile: cria um novo contendo o certificado atual.
           echo "== fetch-signing-files =="
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
@@ -97,8 +109,6 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - marblegp_dist.p12          # só no bootstrap: guarde e depois apague
-      - marblegp_dist.p12.b64.txt  # conteúdo → variável segura IOS_DIST_CERT_B64
     publishing:
       app_store_connect:
         auth: integration
