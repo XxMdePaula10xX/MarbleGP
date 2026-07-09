@@ -1,13 +1,14 @@
-# Pipelines Codemagic do Marble GP.
+# Pipeline Codemagic do Marble GP.
 #
-# PRINCIPAL: "capacitor-ios" — app web (web/, TypeScript + Canvas) empacotado
-# com Capacitor e enviado ao TestFlight. Requisitos no Codemagic:
+# "capacitor-ios" — app web (web/, TypeScript + Canvas) empacotado com
+# Capacitor e enviado ao TestFlight. Requisitos no Codemagic:
 #   1) Integração App Store Connect "quantum_asc" (já existente na conta;
 #      chave 4UQMCZZJ95). Se usar outra, troque o nome em app_store_connect.
-#   2) Nada de Unity: não precisa de licença nem variáveis extras.
+#   2) O app com bundle id com.matheuscastro.marblegp precisa existir no
+#      App Store Connect (My Apps > + > New App) antes do 1º envio.
 #
-# LEGADO: "unity-ios" — build do projeto Unity original (mantido para
-# referência durante a transição; requer grupo "unity_credentials").
+# (O workflow legado do Unity foi removido — a migração para web está completa.
+#  Referência do build Unity fica no histórico do Git, se necessário.)
 workflows:
   capacitor-ios:
     name: Marble GP - iOS TestFlight (Capacitor)
@@ -53,46 +54,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-
-  # ---- LEGADO (Unity). Será removido quando a migração for concluída. ----
-  unity-ios:
-    name: (legado) Marble GP Unity - iOS TestFlight
-    max_build_duration: 120
-    instance_type: mac_mini_m2
-    environment:
-      groups:
-        - unity_credentials            # UNITY_EMAIL / UNITY_PASSWORD / UNITY_SERIAL
-      integrations:
-        app_store_connect: quantum_asc
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.matheuscastro.marblegp
-      vars:
-        UNITY_HOME: /Applications/Unity/Hub/Editor/2022.3.40f1/Unity.app
-        UNITY_BIN: $UNITY_HOME/Contents/MacOS/Unity
-        XCODE_PROJECT: ios/Unity-iPhone.xcodeproj
-        XCODE_SCHEME: Unity-iPhone
-    scripts:
-      - name: Ativar licenca do Unity
-        script: |
-          $UNITY_BIN -batchmode -quit -nographics -logFile \
-            -serial ${UNITY_SERIAL} -username ${UNITY_EMAIL} -password ${UNITY_PASSWORD}
-      - name: Unity -> projeto Xcode
-        script: |
-          $UNITY_BIN -batchmode -quit -nographics -logFile \
-            -projectPath . \
-            -executeMethod MarbleGP.EditorTools.CIBuild.BuildIOS
-      - name: Perfis de assinatura
-        script: xcode-project use-profiles
-      - name: Gerar IPA assinado
-        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-      scripts:
-        - name: Devolver licenca do Unity
-          script: $UNITY_BIN -batchmode -quit -nographics -logFile -returnlicense || true
