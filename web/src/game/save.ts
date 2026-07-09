@@ -197,7 +197,9 @@ export const SaveManager = {
   loadProfile(): PlayerProfile {
     return { ...defaultProfile(), ...(read<Partial<PlayerProfile>>(KEY_PROFILE) ?? {}) };
   },
-  hasProfile(): boolean { return localStorage.getItem(KEY_PROFILE) !== null; },
+  hasProfile(): boolean {
+    try { return localStorage.getItem(KEY_PROFILE) !== null; } catch { return false; }
+  },
 
   saveChampionship(data: ChampionshipData): void { write(KEY_CHAMPIONSHIP, data); },
   loadChampionship(): ChampionshipData | null { return read<ChampionshipData>(KEY_CHAMPIONSHIP); },
