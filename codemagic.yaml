@@ -82,10 +82,12 @@ workflows:
           PY
             echo "== criando certificado de distribuição novo =="
             openssl genrsa -out "$CERT_KEY" 2048
+            # Sem --p12-password: o .p12 é salvo com a senha padrão que o
+            # keychain add-certificates espera (senão dá "MAC verification
+            # failed" na importação).
             app-store-connect certificates create \
               --type IOS_DISTRIBUTION \
               --certificate-key @file:"$CERT_KEY" \
-              --p12-password "$CERT_PW" \
               --save
           fi
 
