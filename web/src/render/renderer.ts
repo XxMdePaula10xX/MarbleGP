@@ -321,20 +321,22 @@ export class RaceRenderer {
     // ---- Infraestrutura de circuito: barreiras, placas e arquibancadas ----
     const TAU = Math.PI * 2;
     const n = this.track.center.length;
-    const crowd = ['#e8c39a', '#d2a276', '#eceff5', '#e05555', '#5aa0e0', '#e0c040', '#58c580', '#b070d5', '#f0a030'];
+    // Torcida: mais tons neutros que vibrantes, para não virar ruído colorido.
+    const crowd = ['#c9b79a', '#a98f74', '#d6dae2', '#8a97ab', '#b8bfcb', '#d06a6a', '#5a90c0', '#c8a840', '#68b080'];
 
-    // 1) Placas de publicidade (hoardings) coladas na borda EXTERNA, coloridas.
-    const adLine = offsetLine(this.track.center, this.track.normals, this.track.halfWidth + 0.55);
-    const adCols = ['#1a4e7a', '#1c6b4a', '#7a1c30', '#6b4a12', '#3a2a7a', '#0e5c66'];
+    // 1) Placas de publicidade (hoardings) na borda EXTERNA. Base escura com
+    //    acentos de cor esparsos (a cada ~4 segmentos), para não poluir.
+    const adLine = offsetLine(this.track.center, this.track.normals, this.track.halfWidth + 0.5);
+    const adCols = ['#1a4e7a', '#1c6b4a', '#7a2030', '#0e5c66', '#2a3550'];
     for (let i = 0; i < n; i++) {
       const a = adLine[i]!, b = adLine[(i + 1) % n]!;
-      c.strokeStyle = adCols[i % adCols.length]!;
-      c.lineWidth = 0.7;
+      c.strokeStyle = i % 4 === 0 ? adCols[(i / 4 | 0) % adCols.length]! : '#182234';
+      c.lineWidth = 0.62;
       c.lineCap = 'butt';
       c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
     }
     // linha branca fina no topo das placas
-    c.strokeStyle = 'rgba(235,242,255,.5)'; c.lineWidth = 0.12;
+    c.strokeStyle = 'rgba(235,242,255,.4)'; c.lineWidth = 0.1;
     c.beginPath();
     for (let i = 0; i <= n; i++) { const p = adLine[i % n]!; i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y); }
     c.stroke();
@@ -373,9 +375,9 @@ export class RaceRenderer {
         const seats = Math.floor(len / 0.52);
         for (let s = 0; s < seats; s++) {
           c.fillStyle = crowd[Math.floor(rand() * crowd.length)]!;
-          c.globalAlpha = 0.85 + rand() * 0.15;
+          c.globalAlpha = 0.6 + rand() * 0.25;
           c.beginPath();
-          c.arc(-half + 0.28 + s * 0.52, ry + depth / rows * 0.55, 0.19, 0, TAU);
+          c.arc(-half + 0.28 + s * 0.52, ry + depth / rows * 0.55, 0.18, 0, TAU);
           c.fill();
         }
         c.globalAlpha = 1;
@@ -384,9 +386,10 @@ export class RaceRenderer {
       c.fillStyle = '#c9d4e6'; c.fillRect(-half, -0.05, len, 0.32);
       c.restore();
     };
+    // Nas RETAS (índice 0 = largada; n/2 = reta oposta) as arquibancadas
+    // ficam bem alinhadas; em pistas não-ovais seguem a tangente igual.
     drawStand(0, 24);
-    drawStand(Math.floor(n * 0.36), 17);
-    drawStand(Math.floor(n * 0.68), 17);
+    drawStand(Math.floor(n / 2), 20);
 
     this.bg = off;
   }
