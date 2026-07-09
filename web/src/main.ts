@@ -7,6 +7,7 @@ import './styles/screens.css';
 import './styles/race.css';
 
 import { Game } from './game/state';
+import { Storage } from './game/save';
 import { bindNotificationLifecycle } from './game/notifications';
 import { monogram, wordmark } from './ui/brand';
 import { initRouter } from './ui/router';
@@ -49,4 +50,9 @@ function boot(): void {
   }, 1250);
 }
 
-boot();
+// Hidrata do armazenamento nativo (iOS) antes de carregar o estado salvo.
+// Na web resolve de imediato (isNativePlatform === false).
+void Storage.hydrate().then(() => {
+  Game.init();
+  boot();
+});

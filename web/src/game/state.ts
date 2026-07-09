@@ -5,12 +5,12 @@
 
 import type { RaceSetup } from '../sim/runtime';
 import { ChampionshipManager } from './championship';
-import { SaveManager, type PlayerProfile, type Settings } from './save';
+import { SaveManager, defaultProfile, defaultSettings, type PlayerProfile, type Settings } from './save';
 
 class GameStateSingleton {
-  profile: PlayerProfile;
-  championship: ChampionshipManager;
-  settings: Settings;
+  profile: PlayerProfile = defaultProfile();
+  championship: ChampionshipManager = new ChampionshipManager();
+  settings: Settings = defaultSettings();
 
   /** Setup da corrida montada pelos menus, consumida pela tela de corrida. */
   currentRace: RaceSetup | null = null;
@@ -19,9 +19,14 @@ class GameStateSingleton {
   /** True quando a corrida atual é o Desafio do Dia. */
   raceIsDaily = false;
 
-  constructor() {
+  /**
+   * Carrega o estado salvo. Chamado no boot APÓS Storage.hydrate() (ver
+   * main.ts), pois a hidratação do armazenamento nativo é assíncrona e o
+   * Game é construído no import (síncrono). Antes disso, os campos ficam
+   * com os padrões acima.
+   */
+  init(): void {
     this.profile = SaveManager.loadProfile();
-    this.championship = new ChampionshipManager();
     this.championship.loadSeason();
     this.settings = SaveManager.loadSettings();
   }

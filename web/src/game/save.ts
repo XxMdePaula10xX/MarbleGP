@@ -1,9 +1,18 @@
 // =====================================================================
 // Persistência local em JSON — port de Save/{SaveManager,PlayerProfile,
 // ChampionshipData,DailyData,AchievementData}.cs
-// localStorage no lugar de Application.persistentDataPath (funciona no
-// navegador e no WKWebView do Capacitor, onde é persistente).
+//
+// Armazenamento híbrido:
+//   • localStorage — backend síncrono usado por toda a UI (mesma API do port).
+//   • Capacitor Preferences — no iOS, espelha cada chave para armazenamento
+//     nativo (durável e incluído no backup do iPhone). O WKWebView pode
+//     limpar o localStorage sob pressão de disco; o Preferences não.
+//
+// Na web, Capacitor.isNativePlatform() é false: comportamento idêntico ao
+// localStorage puro, sem custo. Não há login — os dados ficam no aparelho.
 // =====================================================================
+
+import { Capacitor } from '@capacitor/core';
 
 import type { UpgradeType } from '../core/types';
 
@@ -135,6 +144,27 @@ const KEY_ACHIEVEMENTS = 'marblegp.achievements';
 const KEY_DAILY = 'marblegp.daily';
 const KEY_SETTINGS = 'marblegp.settings';
 
+const ALL_KEYS = [
+  KEY_PROFILE, KEY_CHAMPIONSHIP, KEY_ACHIEVEMENTS, KEY_DAILY, KEY_SETTINGS,
+] as const;
+
+// ---- Espelho nativo (Capacitor Preferences) ---------------------------
+// Carregado sob demanda para não pesar no bundle da web.
+const isNative = Capacitor.isNativePlatform();
+
+async function prefs(): Promise<typeof import('@capacitor/preferences').Preferences> {
+  const mod = await import('@capacitor/preferences');
+  return mod.Preferences;
+}
+
+/** Espelha (fire-and-forget) uma escrita para o armazenamento nativo. */
+function mirrorToNative(key: string, raw: string): void {
+  if (!isNative) return;
+  void prefs()
+    .then((p) => p.set({ key, value: raw }))
+    .catch((e) => console.error(`[SaveManager] Falha ao espelhar ${key}:`, e));
+}
+
 function read<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
@@ -145,11 +175,19 @@ function read<T>(key: string): T | null {
 }
 
 function write(key: string, value: unknown): void {
+  let raw: string;
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    raw = JSON.stringify(value);
+  } catch (e) {
+    console.error(`[SaveManager] Falha ao serializar ${key}:`, e);
+    return;
+  }
+  try {
+    localStorage.setItem(key, raw);
   } catch (e) {
     console.error(`[SaveManager] Falha ao salvar ${key}:`, e);
   }
+  mirrorToNative(key, raw);
 }
 
 // ---- API (SaveManager) ---------------------------------------------------
@@ -180,10 +218,40 @@ export const SaveManager = {
   },
 
   deleteAll(): void {
-    localStorage.removeItem(KEY_PROFILE);
-    localStorage.removeItem(KEY_CHAMPIONSHIP);
-    localStorage.removeItem(KEY_ACHIEVEMENTS);
-    localStorage.removeItem(KEY_DAILY);
-    localStorage.removeItem(KEY_SETTINGS);
+    for (const key of ALL_KEYS) localStorage.removeItem(key);
+    if (isNative) {
+      void prefs()
+        .then((p) => Promise.all(ALL_KEYS.map((key) => p.remove({ key }))))
+        .catch((e) => console.error('[SaveManager] Falha ao limpar Preferences:', e));
+    }
+  },
+};
+
+// ---- Boot: hidratação do armazenamento nativo -------------------------
+
+export const Storage = {
+  /**
+   * No iOS, copia do Preferences nativo para o localStorage as chaves que
+   * ainda não existirem localmente. Deve rodar UMA vez, antes de qualquer
+   * leitura do SaveManager (ver main.ts → Game.init()).
+   *
+   * O localStorage é a fonte de verdade em runtime (API síncrona); o
+   * Preferences é o espelho durável. Só copiamos quando o local está
+   * ausente para não sobrescrever escritas recentes desta sessão.
+   */
+  async hydrate(): Promise<void> {
+    if (!isNative) return;
+    try {
+      const p = await prefs();
+      await Promise.all(
+        ALL_KEYS.map(async (key) => {
+          if (localStorage.getItem(key) !== null) return; // já presente localmente
+          const { value } = await p.get({ key });
+          if (value != null) localStorage.setItem(key, value);
+        }),
+      );
+    } catch (e) {
+      console.error('[Storage] Falha ao hidratar do Preferences:', e);
+    }
   },
 };
