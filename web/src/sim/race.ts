@@ -71,6 +71,8 @@ export class RaceManager implements RaceConditions {
   onRaceEvent: ((msg: string) => void) | null = null;
   onRaceFinished: ((r: RaceResult) => void) | null = null;
   onRadioDecision: ((d: RadioDecision) => void) | null = null;
+  /** Contato entre bolinhas (para faíscas): posição do mundo + intensidade. */
+  onContact: ((x: number, y: number, strength: number) => void) | null = null;
 
   private ais = new Map<MarbleActor, boolean>(); // presença (o cérebro vive no actor)
   private teamRadio: TeamRadioSystem;
@@ -476,6 +478,11 @@ export class RaceManager implements RaceConditions {
     const ma = a.m, mb = b.m;
     if (ma.state === 'Finished' || mb.state === 'Finished') return;
     if (inPitFlow(ma.state) || inPitFlow(mb.state)) return;
+
+    // Faíscas no ponto de contato (throttle leve para não spammar).
+    if (this.onContact && this.rand() < 0.35) {
+      this.onContact((ma.x + mb.x) / 2, (ma.y + mb.y) / 2, Math.min(2, 0.5 + impact / 6));
+    }
 
     const key = ma.displayName < mb.displayName
       ? `${ma.displayName}|${mb.displayName}`

@@ -7,6 +7,7 @@
 import type { GripType, RaceMode } from '../../core/types';
 import { gripDisplayColor, gripDisplayLetter } from '../../core/types';
 import { Game } from '../../game/state';
+import { Haptics } from '../../game/haptics';
 import { RaceManager, weatherLabel, NEUTRAL_UPGRADES } from '../../sim/race';
 import { RaceRecorder } from '../../sim/recorder';
 import type { MarbleActor } from '../../sim/controller';
@@ -83,10 +84,17 @@ export function raceScreen(ctx: RaceContext): void {
     const mid = div('rmid');
     stage.appendChild(mid);
     const banner = div('rbanner');
-    const bignum = div('bignum');
+    // Largada estilo F1: 5 colunas de luzes.
+    const lights = div('startlights');
+    for (let i = 0; i < 5; i++) {
+      const col = div('col');
+      col.innerHTML = '<span class="sl"></span><span class="sl"></span>';
+      lights.appendChild(col);
+    }
+    const slDots = () => Array.from(lights.querySelectorAll<HTMLElement>('.sl'));
     const fps = div('', { id: 'fpsmeter' });
     fps.textContent = '— fps';
-    mount(mid, banner, bignum, fps);
+    mount(mid, banner, lights, fps);
 
     const zoomCtl = div('zoomctl');
     const zIn = el('button', 'zbtn'); zIn.textContent = '+';
@@ -150,13 +158,16 @@ export function raceScreen(ctx: RaceContext): void {
         const c = cards.find(x => x.actor === actor)!;
         race.requestPit(actor, c.nextTyre, true, 100);
         pitB.classList.add('on');
+        Haptics.medium();
       });
       const modeB = btn('MODO', 'blue', () => {
         race.setMode(actor, NEXT_MODE[m.mode] ?? 'Normal');
+        Haptics.tap();
       });
       const tyreB = btn('PNEU', 'purple', () => {
         const c = cards.find(x => x.actor === actor)!;
         c.nextTyre = NEXT_TYRE[c.nextTyre];
+        Haptics.tap();
       });
       mount(actions, pitB, modeB, tyreB);
       card.appendChild(actions);
@@ -185,6 +196,11 @@ export function raceScreen(ctx: RaceContext): void {
 
     // ---- Renderer + câmera -------------------------------------------
     const renderer = new RaceRenderer(canvas, race.track);
+    // Faíscas de contato no ponto do mundo (batida forte vibra o aparelho).
+    race.onContact = (x, y, strength) => {
+      renderer.spark(x, y, strength);
+      if (strength > 1.4) Haptics.medium();
+    };
 
     zIn.addEventListener('click', () => renderer.zoomBy(1.35));
     zOut.addEventListener('click', () => renderer.zoomBy(1 / 1.35));
@@ -242,10 +258,31 @@ export function raceScreen(ctx: RaceContext): void {
       bannerTimer = 2.6;
     };
 
+    // Largada estilo F1: as luzes acendem coluna a coluna; no GO, apagam
+    // todas de uma vez (lights out) com um toque háptico forte.
+    let lightsStarted = false;
+    const lightTimers: number[] = [];
     race.onCountdown = v => {
-      bignum.style.opacity = '1';
-      bignum.textContent = v > 0 ? String(v) : 'GO!';
-      if (v === 0) setTimeout(() => { bignum.style.opacity = '0'; }, 700);
+      lights.classList.add('show');
+      if (!lightsStarted && v > 0) {
+        lightsStarted = true;
+        const dots = slDots();
+        for (let col = 0; col < 5; col++) {
+          lightTimers.push(window.setTimeout(() => {
+            dots[col * 2]?.classList.add('on');
+            dots[col * 2 + 1]?.classList.add('on');
+            Haptics.tap();
+          }, col * 560));
+        }
+      }
+      if (v === 0) {
+        for (const t of lightTimers) clearTimeout(t);
+        slDots().forEach(d => d.classList.remove('on'));
+        lights.classList.add('out');
+        Haptics.heavy();
+        window.setTimeout(() => { lights.style.display = 'none'; }, 320);
+        showBanner('GO!', 'var(--cyan)');
+      }
     };
     race.onRaceEvent = msg => {
       pushLog(msg);
@@ -265,11 +302,13 @@ export function raceScreen(ctx: RaceContext): void {
           race.applyRadio(d.actor, opt);
           radio.classList.remove('show');
           pendingRadio = null;
+          Haptics.medium();
         }));
       }
       radioTimer = d.duration;
       radioDuration = d.duration;
       radio.classList.add('show');
+      Haptics.tap(); // chega uma decisão
     };
 
     let finished = false;
@@ -322,12 +361,25 @@ export function raceScreen(ctx: RaceContext): void {
 
     // Posição anterior POR BOLINHA (não por linha da torre) para a seta ▲/▼.
     const prevPos = new Map<MarbleActor, number>();
+    // Flash one-shot de mudança de posição (reflow força o replay da animação).
+    const flashRow = (elm: HTMLElement, cls: 'up' | 'down'): void => {
+      elm.classList.remove('up', 'down');
+      void elm.offsetWidth;
+      elm.classList.add(cls);
+    };
 
     function updateHud(): void {
       const leader = race.leader;
       const lap = Math.min(race.totalLaps, (leader?.m.completedLaps ?? 0) + 1);
       lapEl.textContent = `VOLTA ${lap}/${race.totalLaps}`;
       wxEl.textContent = `Clima: ${race.weatherLabelCurrent()}`;
+
+      // Detentor da volta mais rápida (gap em roxo, à la transmissão).
+      let flActor: MarbleActor | null = null;
+      let flBest = Number.MAX_VALUE;
+      for (const a of race.field) {
+        if (a.m.bestLapTime < flBest) { flBest = a.m.bestLapTime; flActor = a; }
+      }
 
       // Torre.
       for (let i = 0; i < race.field.length && i < rows.length; i++) {
@@ -341,8 +393,16 @@ export function raceScreen(ctx: RaceContext): void {
         // Compara a posição da BOLINHA com a dela própria no update anterior.
         const cur = i + 1;
         const prev = prevPos.get(actor) ?? cur;
-        r.arw.textContent = cur < prev ? '▲' : cur > prev ? '▼' : '';
-        r.arw.style.color = cur < prev ? 'var(--green)' : 'var(--red)';
+        if (cur < prev) {
+          r.arw.textContent = '▲'; r.arw.style.color = 'var(--delta-up)';
+          flashRow(r.root, 'up');
+          if (m.isPlayer) Haptics.tap(); // ultrapassagem do jogador
+        } else if (cur > prev) {
+          r.arw.textContent = '▼'; r.arw.style.color = 'var(--delta-down)';
+          flashRow(r.root, 'down');
+        } else {
+          r.arw.textContent = '';
+        }
         prevPos.set(actor, cur);
         r.chip.textContent = m.driver.shortCode.slice(-1);
         r.chip.style.background = m.teamPrimary;
@@ -350,9 +410,11 @@ export function raceScreen(ctx: RaceContext): void {
         r.code.textContent = m.driver.shortCode;
         r.code.style.color = i === 0 ? 'var(--gold)' : '#e6eeff';
         r.gap.textContent = i === 0 ? 'Líder' : `+${m.gapToLeader.toFixed(1)}`;
+        r.gap.style.color = actor === flActor ? 'var(--delta-best)' : 'var(--dim)';
         const inPit = m.state === 'InPit' || m.state === 'EnteringPit' || m.state === 'ExitingPit';
         r.ty.textContent = inPit ? 'P' : gripDisplayLetter(m.grip.gripId);
         r.ty.style.color = inPit ? 'var(--orange)' : gripDisplayColor(m.grip.gripId);
+        r.ty.classList.toggle('pit', inPit);
       }
 
       // Cards.

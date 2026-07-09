@@ -62,7 +62,14 @@
   width: 1.3em; height: 1.3em; border-radius: 50%; display: grid; place-items: center;
   font-size: 0.68em; font-weight: 800; border: 1.5px solid currentColor; justify-self: end;
 }
-.trow.me { background: linear-gradient(90deg, rgba(255, 196, 32, 0.15), rgba(255, 196, 32, 0.02)); box-shadow: inset 0 0 0 1px rgba(255, 206, 70, 0.38); }
+.trow.me { background: linear-gradient(90deg, rgba(233, 190, 92, 0.16), rgba(233, 190, 92, 0.02)); box-shadow: inset 0 0 0 1px rgba(233, 190, 92, 0.4); }
+/* flash de mudança de posição (linguagem de transmissão) */
+.trow.up { animation: trow-up 0.7s var(--ease); }
+.trow.down { animation: trow-down 0.7s var(--ease); }
+@keyframes trow-up { 0% { background: rgba(55, 217, 138, 0.32); } 100% {} }
+@keyframes trow-down { 0% { background: rgba(240, 64, 90, 0.28); } 100% {} }
+.trow .ty.pit { border-style: dashed; animation: pit-pulse 1s ease-in-out infinite; }
+@keyframes pit-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
 /* ---------- centro (overlays) ---------- */
 .rmid { grid-column: 2; grid-row: 2; position: relative; z-index: 2; pointer-events: none; }
@@ -86,8 +93,27 @@
 .rbanner.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
 .bignum {
   position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono);
-  font-weight: 800; font-size: 8em; color: rgba(255, 214, 60, 0.95);
-  text-shadow: 0 0.04em 0.3em rgba(0, 0, 0, 0.7); opacity: 0; transition: opacity 0.35s;
+  font-weight: 900; font-size: 7em; color: var(--cyan); letter-spacing: -0.02em;
+  text-shadow: 0 0 0.5em rgba(34, 228, 212, 0.5), 0 0.04em 0.3em rgba(0, 0, 0, 0.7);
+  opacity: 0; transition: opacity 0.35s;
+}
+/* ---------- largada estilo F1: cinco luzes ---------- */
+.startlights {
+  position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 0.7em; padding: 0.7em 0.9em; border-radius: 0.8em; z-index: 4;
+  background: rgba(4, 8, 16, 0.86); border: 1px solid var(--stroke);
+  box-shadow: 0 1.4em 3em -1em #000; opacity: 0; transition: opacity 0.3s;
+}
+.startlights.show { opacity: 1; }
+.startlights.out { opacity: 0; transform: translateX(-50%) scale(1.06); transition: opacity 0.25s, transform 0.25s; }
+.startlights .col { display: flex; flex-direction: column; gap: 0.45em; }
+.startlights .sl {
+  width: 1.5em; height: 1.5em; border-radius: 50%;
+  background: #1a0a0c; border: 2px solid #341015; transition: background 0.12s, box-shadow 0.12s;
+}
+.startlights .sl.on {
+  background: radial-gradient(circle at 40% 35%, #ff6a6a, #c1121f); border-color: #ff8a8a;
+  box-shadow: 0 0 0.9em -0.1em #ff3b3b;
 }
 
 #fpsmeter {

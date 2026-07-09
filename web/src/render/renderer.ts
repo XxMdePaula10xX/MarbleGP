@@ -33,6 +33,21 @@ function seeded(seedStr: string): () => number {
 
 const BG_MARGIN = 26; // unidades de mundo em volta da pista
 
+/** Converte hex (#rgb/#rrggbb) para [r,g,b]. */
+function toRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function lighten(hex: string, k: number): string {
+  const [r, g, b] = toRgb(hex);
+  return `rgb(${Math.round(r + (255 - r) * k)},${Math.round(g + (255 - g) * k)},${Math.round(b + (255 - b) * k)})`;
+}
+function darken(hex: string, k: number): string {
+  const [r, g, b] = toRgb(hex);
+  return `rgb(${Math.round(r * (1 - k))},${Math.round(g * (1 - k))},${Math.round(b * (1 - k))})`;
+}
+
 export class RaceRenderer {
   readonly cam: CameraState = { x: 0, y: 0, z: 1, tx: 0, ty: 0, tz: 1, follow: false };
 
@@ -54,11 +69,20 @@ export class RaceRenderer {
   private edgeR!: Path2D;
   private kerbs: KerbSeg[] = [];
   private pitRibbon: Path2D | null = null;
+  private pitEdge: Path2D | null = null;
+  private pitAwnings: Array<{ x: number; y: number; a: number }> = [];
   private checkSquares: Array<{ x: number; y: number; s: number; dark: boolean; a: number }> = [];
   private gridSlots: Array<{ x: number; y: number; a: number }> = [];
   private startPos: Vec2;
   private W = 0; private H = 0;
   private vignette: CanvasGradient | null = null;
+  // Gradientes cacheados (centrados na origem; usados com translate por bolinha
+  // → zero alocação por frame). AO é único; corpo é por cor de equipe.
+  private aoGrad: CanvasGradient | null = null;
+  private bodyGrads = new Map<string, CanvasGradient>();
+
+  // Partículas de faísca (contato/batida). Espaço de mundo.
+  private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; max: number }> = [];
 
   constructor(canvas: HTMLCanvasElement, track: Track) {
     this.canvas = canvas;
@@ -176,7 +200,8 @@ export class RaceRenderer {
       }
     }
 
-    // Pit lane (faixa aberta).
+    // Pit lane (faixa aberta) + linha-limite (borda interna, voltada à pista)
+    // + telhados das garagens atrás de cada box.
     if (t.pitPath.length > 2) {
       const pn = t.pitPath.length;
       const normals: Vec2[] = [];
@@ -188,6 +213,17 @@ export class RaceRenderer {
         normals.push({ x: ty / l, y: -tx / l });
       }
       this.pitRibbon = this.ribbon(t.pitPath, normals, 1.7, false);
+      // borda interna (lado da pista): pitPath deslocado -1.7 na normal.
+      this.pitEdge = this.polyline(offsetLine(t.pitPath, normals, -1.7), false);
+      // garagem atrás de cada box (deslocada para fora, +1.9).
+      for (const bk of t.pitBoxPathIndex) {
+        const p = t.pitPath[bk]!, nm = normals[bk]!;
+        const nxt = t.pitPath[Math.min(pn - 1, bk + 1)]!;
+        this.pitAwnings.push({
+          x: p.x + nm.x * 1.9, y: p.y + nm.y * 1.9,
+          a: Math.atan2(nxt.y - p.y, nxt.x - p.x),
+        });
+      }
     }
 
     // Linha de largada quadriculada (2 fileiras).
@@ -256,11 +292,6 @@ export class RaceRenderer {
       c.fill();
     }
 
-    // Faixas de "corte de grama" concêntricas ao traçado.
-    c.save();
-    c.clip(this.asphalt, 'evenodd'); // nada — só para manter tipo; removido abaixo
-    c.restore();
-
     // Árvores espalhadas (fora da pista E fora do pit lane).
     const isNearTrack = (x: number, y: number): boolean => {
       const limit = (this.track.halfWidth + 9) ** 2;
@@ -287,35 +318,75 @@ export class RaceRenderer {
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
     }
 
-    // Arquibancada perto da linha de largada, SEMPRE do lado de fora
-    // (direção que aponta para longe do centro da pista) e além do pit.
-    const sp = this.startPos;
-    const cxT = (this.minX + this.maxX) / 2, cyT = (this.minY + this.maxY) / 2;
-    let ox = sp.x - cxT, oy = sp.y - cyT;
-    const ol = Math.hypot(ox, oy) || 1;
-    ox /= ol; oy /= ol;
-    const standDist = this.track.halfWidth + 11;
-    const bx = sp.x + ox * standDist, by = sp.y + oy * standDist;
-    // Alinhada perpendicular à direção "para fora" (paralela à pista).
-    const along = { x: -oy, y: ox };
-    c.save();
-    c.translate(bx, by);
-    c.rotate(Math.atan2(along.y, along.x));
-    c.fillStyle = '#1c2734';
-    c.fillRect(-14, -5.4, 28, 5.2);
-    c.fillStyle = '#141c26';
-    c.fillRect(-14.6, -5.9, 29.2, 1);
-    // Torcida: pontinhos coloridos em fileiras.
-    const crowdCols = ['#e8c39a', '#d2a276', '#e6e6e6', '#e05555', '#5aa0e0', '#e0c040', '#58c580', '#b070d5'];
-    for (let r = 0; r < 4; r++) {
-      for (let s = 0; s < 36; s++) {
-        c.fillStyle = crowdCols[Math.floor(rand() * crowdCols.length)]!;
-        c.beginPath();
-        c.arc(-13 + s * 0.73, -1.1 - r * 1.05, 0.26, 0, Math.PI * 2);
-        c.fill();
-      }
+    // ---- Infraestrutura de circuito: barreiras, placas e arquibancadas ----
+    const TAU = Math.PI * 2;
+    const n = this.track.center.length;
+    const crowd = ['#e8c39a', '#d2a276', '#eceff5', '#e05555', '#5aa0e0', '#e0c040', '#58c580', '#b070d5', '#f0a030'];
+
+    // 1) Placas de publicidade (hoardings) coladas na borda EXTERNA, coloridas.
+    const adLine = offsetLine(this.track.center, this.track.normals, this.track.halfWidth + 0.55);
+    const adCols = ['#1a4e7a', '#1c6b4a', '#7a1c30', '#6b4a12', '#3a2a7a', '#0e5c66'];
+    for (let i = 0; i < n; i++) {
+      const a = adLine[i]!, b = adLine[(i + 1) % n]!;
+      c.strokeStyle = adCols[i % adCols.length]!;
+      c.lineWidth = 0.7;
+      c.lineCap = 'butt';
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
     }
-    c.restore();
+    // linha branca fina no topo das placas
+    c.strokeStyle = 'rgba(235,242,255,.5)'; c.lineWidth = 0.12;
+    c.beginPath();
+    for (let i = 0; i <= n; i++) { const p = adLine[i % n]!; i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y); }
+    c.stroke();
+
+    // 2) Barreira de proteção na borda INTERNA (infield).
+    const innerBar = offsetLine(this.track.center, this.track.normals, -(this.track.halfWidth + 0.5));
+    c.strokeStyle = '#0c1420'; c.lineWidth = 0.6;
+    c.beginPath();
+    for (let i = 0; i <= n; i++) { const p = innerBar[i % n]!; i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y); }
+    c.stroke();
+
+    // 3) Arquibancadas em degraus, tangentes à pista, em 3 pontos.
+    const drawStand = (idx: number, len: number): void => {
+      const cpt = this.track.center[idx % n]!, nm = this.track.normals[idx % n]!;
+      const nxt = this.track.center[(idx + 2) % n]!;
+      const ang = Math.atan2(nxt.y - cpt.y, nxt.x - cpt.x);
+      const dist = this.track.halfWidth + 3.2;
+      c.save();
+      c.translate(cpt.x + nm.x * dist, cpt.y + nm.y * dist);
+      c.rotate(ang);
+      const half = len / 2, depth = 6.5, rows = 6;
+      // sombra na grama
+      c.fillStyle = 'rgba(0,0,0,.28)';
+      c.fillRect(-half - 0.5, 0.4, len + 1, 1.6);
+      // telhado (cobertura)
+      c.fillStyle = '#0d1420';
+      c.fillRect(-half - 0.8, -depth - 1.6, len + 1.6, 1.6);
+      c.fillStyle = 'rgba(34,228,212,.25)'; // borda luminosa do teto
+      c.fillRect(-half - 0.8, -depth - 0.2, len + 1.6, 0.18);
+      // degraus (concreto claro → escuro ao fundo) + torcida
+      for (let r = rows - 1; r >= 0; r--) {
+        const ry = -depth + r * (depth / rows);
+        const t = r / rows;
+        c.fillStyle = `rgb(${34 - t * 12},${46 - t * 16},${64 - t * 22})`;
+        c.fillRect(-half, ry, len, depth / rows + 0.06);
+        const seats = Math.floor(len / 0.52);
+        for (let s = 0; s < seats; s++) {
+          c.fillStyle = crowd[Math.floor(rand() * crowd.length)]!;
+          c.globalAlpha = 0.85 + rand() * 0.15;
+          c.beginPath();
+          c.arc(-half + 0.28 + s * 0.52, ry + depth / rows * 0.55, 0.19, 0, TAU);
+          c.fill();
+        }
+        c.globalAlpha = 1;
+      }
+      // barreira frontal branca + pista de acesso
+      c.fillStyle = '#c9d4e6'; c.fillRect(-half, -0.05, len, 0.32);
+      c.restore();
+    };
+    drawStand(0, 24);
+    drawStand(Math.floor(n * 0.36), 17);
+    drawStand(Math.floor(n * 0.68), 17);
 
     this.bg = off;
   }
@@ -333,6 +404,29 @@ export class RaceRenderer {
     this.cam.x += (this.cam.tx - this.cam.x) * lp;
     this.cam.y += (this.cam.ty - this.cam.y) * lp;
     this.cam.z += (this.cam.tz - this.cam.z) * lp;
+    this.stepParticles(dt);
+  }
+
+  /** Emite um punhado de faíscas num ponto do mundo (contato/batida). */
+  spark(x: number, y: number, strength = 1): void {
+    const count = Math.min(18, Math.round(6 * strength));
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (2 + Math.random() * 6) * strength;
+      const max = 0.25 + Math.random() * 0.35;
+      this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: max, max });
+    }
+    if (this.particles.length > 220) this.particles.splice(0, this.particles.length - 220);
+  }
+
+  private stepParticles(dt: number): void {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i]!;
+      p.life -= dt;
+      if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.88; p.vy *= 0.88;
+    }
   }
 
   resetCamera(): void {
@@ -392,23 +486,48 @@ export class RaceRenderer {
       c.stroke(k.path);
     }
 
-    // 3) Pit lane.
-    if (this.pitRibbon) {
-      c.fillStyle = '#233444';
+    // 3) Pit lane (asfalto azulado + linha-limite tracejada + garagens).
+    if (this.pitRibbon && this.pitEdge) {
+      c.fillStyle = '#1d2c3e';
       c.fill(this.pitRibbon);
+      // linha-limite branca contínua na borda de dentro
+      c.strokeStyle = 'rgba(235,242,255,0.6)';
+      c.lineWidth = 0.18;
+      c.stroke(this.pitEdge);
+      // faixa amarela tracejada (velocidade limitada)
+      c.strokeStyle = 'rgba(233,190,92,0.7)';
+      c.lineWidth = 0.14;
+      c.setLineDash([0.8, 0.6]);
+      c.stroke(this.pitEdge);
+      c.setLineDash([]);
+      // garagens (telhado escuro) atrás de cada box
+      c.fillStyle = '#101a28';
+      for (const g of this.pitAwnings) {
+        c.save(); c.translate(g.x, g.y); c.rotate(g.a);
+        c.fillRect(-1.1, -2.0, 2.2, 1.4);
+        c.restore();
+      }
     }
 
     // 4) Asfalto + bordas.
+    const wet = weather === 'LightRain' || weather === 'HeavyRain' || weather === 'Damp';
     c.fillStyle = weather === 'HeavyRain' || weather === 'LightRain' ? '#2e3340' : '#383b44';
     c.fill(this.asphalt, 'evenodd');
+
+    // Linha de borracha ("racing line" rubberizada) ao longo da ideal.
+    c.strokeStyle = 'rgba(20,16,22,0.5)';
+    c.lineWidth = this.track.halfWidth * 0.42;
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.stroke(this.asphaltInner);
+
     c.strokeStyle = 'rgba(255,255,255,0.85)';
     c.lineWidth = 0.22;
     c.stroke(this.edgeL);
     c.stroke(this.edgeR);
 
-    // Reflexo molhado (chuva): brilho suave no asfalto.
-    if (weather === 'LightRain' || weather === 'HeavyRain' || weather === 'Damp') {
-      c.fillStyle = weather === 'Damp' ? 'rgba(140,180,255,0.04)' : 'rgba(140,180,255,0.08)';
+    // Reflexo molhado (chuva): brilho azulado + faixas de reflexo animadas.
+    if (wet) {
+      c.fillStyle = weather === 'Damp' ? 'rgba(140,180,255,0.05)' : 'rgba(150,190,255,0.10)';
       c.fill(this.asphalt, 'evenodd');
     }
 
@@ -431,26 +550,31 @@ export class RaceRenderer {
       c.restore();
     }
 
-    // 6) Boxes coloridos do pit.
+    // 6) Boxes coloridos do pit (com marca de posição e cantos).
     const pitIdx = this.track.pitBoxPathIndex;
     for (let i = 0; i < Math.min(pitIdx.length, marbles.length); i++) {
       const p = this.track.pitPath[pitIdx[i]!]!;
       c.fillStyle = marbles[i]!.m.teamPrimary;
-      c.globalAlpha = 0.85;
-      c.fillRect(p.x - 0.8, p.y - 0.8, 1.6, 1.6);
+      c.globalAlpha = 0.9;
+      c.fillRect(p.x - 0.7, p.y - 0.7, 1.4, 1.4);
       c.globalAlpha = 1;
+      c.strokeStyle = 'rgba(255,255,255,0.4)';
+      c.lineWidth = 0.08;
+      c.strokeRect(p.x - 0.7, p.y - 0.7, 1.4, 1.4);
     }
 
-    // 7) Bolinhas (trilha + corpo + brilho).
+    // 7) Bolinhas (motion blur + oclusão + corpo + brilho + aro do jogador).
     const r = 0.5;
     for (const a of marbles) {
       const m = a.m;
-      // Trilha.
       const body = m.marbleColor; // cor própria (garagem) ou a da equipe
+      const speed = Math.hypot(a.vx, a.vy);
+
+      // Trilha.
       const tr = m.trail;
       if (tr.length > 1) {
         c.strokeStyle = body;
-        c.globalAlpha = 0.35;
+        c.globalAlpha = 0.32;
         c.lineWidth = r * 0.9;
         c.lineCap = 'round';
         c.beginPath();
@@ -459,35 +583,71 @@ export class RaceRenderer {
         c.stroke();
         c.globalAlpha = 1;
       }
-      // Sombra.
-      c.fillStyle = 'rgba(0,0,0,0.35)';
-      c.beginPath();
-      c.arc(m.x + 0.16, m.y + 0.2, r, 0, Math.PI * 2);
-      c.fill();
-      // Corpo.
-      c.fillStyle = body;
-      c.beginPath();
-      c.arc(m.x, m.y, r, 0, Math.PI * 2);
-      c.fill();
-      // Anel secundário.
-      c.strokeStyle = m.teamSecondary;
-      c.lineWidth = 0.14;
-      c.beginPath();
-      c.arc(m.x, m.y, r * 0.72, 0, Math.PI * 2);
-      c.stroke();
-      // Brilho especular.
-      c.fillStyle = 'rgba(255,255,255,0.75)';
-      c.beginPath();
-      c.arc(m.x - r * 0.3, m.y - r * 0.35, r * 0.18, 0, Math.PI * 2);
-      c.fill();
-      // Destaque das bolinhas do jogador: aro dourado pulsante.
-      if (m.isPlayer) {
-        c.strokeStyle = `rgba(255,206,70,${0.55 + 0.35 * Math.sin(now / 300)})`;
-        c.lineWidth = 0.12;
+
+      // Motion blur: rastro alongado no sentido da velocidade (só rápido).
+      if (speed > 4 && a.m.state === 'Racing') {
+        const k = Math.min(1, (speed - 4) / 8);
+        const bx = a.vx / (speed || 1), by = a.vy / (speed || 1);
+        c.strokeStyle = body;
+        c.globalAlpha = 0.22 * k;
+        c.lineWidth = r * 1.7;
+        c.lineCap = 'round';
         c.beginPath();
-        c.arc(m.x, m.y, r + 0.28, 0, Math.PI * 2);
+        c.moveTo(m.x - bx * (0.6 + k), m.y - by * (0.6 + k));
+        c.lineTo(m.x, m.y);
         c.stroke();
+        c.globalAlpha = 1;
       }
+
+      // Gradientes cacheados (origem) → translate por bolinha.
+      if (!this.aoGrad) {
+        this.aoGrad = c.createRadialGradient(0.14, 0.18, r * 0.2, 0.14, 0.18, r * 1.35);
+        this.aoGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+        this.aoGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      }
+      let bodyGrad = this.bodyGrads.get(body);
+      if (!bodyGrad) {
+        bodyGrad = c.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.1, 0, 0, r);
+        bodyGrad.addColorStop(0, lighten(body, 0.35));
+        bodyGrad.addColorStop(0.6, body);
+        bodyGrad.addColorStop(1, darken(body, 0.4));
+        this.bodyGrads.set(body, bodyGrad);
+      }
+
+      c.save();
+      c.translate(m.x, m.y);
+      // Oclusão de contato (AO).
+      c.fillStyle = this.aoGrad;
+      c.beginPath(); c.arc(0.14, 0.18, r * 1.35, 0, Math.PI * 2); c.fill();
+      // Corpo (esfera sombreada).
+      c.fillStyle = bodyGrad;
+      c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+      // Anel secundário.
+      c.strokeStyle = m.teamSecondary; c.lineWidth = 0.13;
+      c.beginPath(); c.arc(0, 0, r * 0.72, 0, Math.PI * 2); c.stroke();
+      // Brilho especular.
+      c.fillStyle = 'rgba(255,255,255,0.8)';
+      c.beginPath(); c.arc(-r * 0.3, -r * 0.35, r * 0.17, 0, Math.PI * 2); c.fill();
+      // Aro dourado pulsante do jogador.
+      if (m.isPlayer) {
+        c.strokeStyle = `rgba(233,190,92,${0.5 + 0.35 * Math.sin(now / 300)})`;
+        c.lineWidth = 0.12;
+        c.beginPath(); c.arc(0, 0, r + 0.28, 0, Math.PI * 2); c.stroke();
+      }
+      c.restore();
+    }
+
+    // 7b) Faíscas de contato.
+    if (this.particles.length > 0) {
+      for (const p of this.particles) {
+        const k = p.life / p.max;
+        c.globalAlpha = k;
+        c.fillStyle = k > 0.5 ? '#fff2c0' : '#ff9d3a';
+        c.beginPath();
+        c.arc(p.x, p.y, 0.06 + 0.1 * k, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.globalAlpha = 1;
     }
 
     // 8) Chuva (streaks em espaço de tela).

@@ -10,26 +10,29 @@
 .sc-foot .spacer { flex: 1; }
 
 /* ---------- menu principal ---------- */
-.screen-menu { align-items: center; justify-content: center; gap: 8px; }
-.menu-title { font-size: clamp(30px, 6vw, 54px); font-weight: 900; letter-spacing: 0.05em; text-align: center; text-shadow: 0 0 24px rgba(0, 220, 240, 0.45); }
-.menu-sub { color: var(--cyan); letter-spacing: 0.28em; font-size: clamp(10px, 1.6vw, 14px); text-align: center; margin-bottom: 8px; }
-.menu-team { display: flex; align-items: center; gap: 10px; padding: 8px 16px; margin-bottom: 12px; }
-.menu-team .lb { font-size: 11px; letter-spacing: 0.12em; color: var(--cyan); }
+.screen-menu { align-items: center; justify-content: center; gap: 14px; }
+.menu-brand { margin-bottom: 4px; }
+.menu-team { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-radius: 999px; }
+.menu-team .teamdot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px -1px currentColor; }
+.menu-team .lb { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; color: var(--mut); text-transform: uppercase; }
 .menu-team .nm { font-weight: 800; font-size: 16px; }
-.menu-buttons { display: flex; flex-direction: column; gap: 9px; width: min(420px, 86vw); }
-.menu-buttons .btn { font-size: 17px; padding: 13px 18px; }
-.menu-version { position: absolute; right: calc(var(--safe-r) + 14px); bottom: calc(var(--safe-b) + 10px); color: var(--mut); font-size: 12px; }
+.menu-buttons { display: flex; flex-direction: column; gap: 9px; width: min(430px, 88vw); }
+.menu-btn { justify-content: flex-start; font-size: 16px; padding: 14px 18px; }
+.menu-btn .ml { flex: 1; text-align: left; }
+.menu-btn .mk { opacity: 0.7; }
+.menu-btn .bi { color: var(--cyan); }
+.menu-btn.ghost .bi { color: var(--dim); }
+.menu-version { position: absolute; right: calc(var(--safe-r) + 16px); bottom: calc(var(--safe-b) + 12px); color: var(--mut); font-size: 11px; font-family: var(--mono); letter-spacing: 0.05em; }
 
-/* Paisagem baixa (celular deitado): menu em 2 colunas, tudo mais compacto. */
+/* Paisagem baixa (celular deitado): menu em 2 colunas, mais compacto. */
 @media (max-height: 480px) {
-  .screen-menu { gap: 5px; }
-  .menu-title { font-size: clamp(22px, 4.5vh, 30px); }
-  .menu-sub { font-size: 9px; margin-bottom: 3px; }
-  .menu-team { padding: 5px 12px; margin-bottom: 6px; }
+  .screen-menu { gap: 8px; }
+  .menu-brand { transform: scale(0.82); margin: -6px 0; }
+  .menu-team { padding: 6px 14px; }
   .menu-team .nm { font-size: 14px; }
-  .menu-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; width: min(560px, 90vw); }
-  .menu-buttons .btn { font-size: 14px; padding: 10px 12px; }
-  .menu-buttons .btn:first-child { grid-column: 1 / 3; }
+  .menu-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(600px, 92vw); }
+  .menu-btn { font-size: 14px; padding: 11px 14px; }
+  .menu-btn:first-child { grid-column: 1 / 3; }
 }
 
 /* ---------- perfil ---------- */
@@ -101,7 +104,28 @@
 .start-race-btn { font-size: 19px; padding: 15px; box-shadow: 0 0 24px -6px var(--orange); }
 
 /* ---------- resultado ---------- */
-.res-winner { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border: 1px solid rgba(255, 206, 70, 0.5); }
+.res-winner { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border: 1px solid rgba(233, 190, 92, 0.5); }
+.res-winner .fl-chip { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.1em; color: var(--purple); border: 1px solid rgba(178, 123, 255, 0.4);
+  padding: 3px 8px; border-radius: 999px; width: max-content; }
+.res-winner .fl-chip .bi { width: 12px; height: 12px; }
+
+/* pódio 1-2-3 */
+.res-podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end; height: 118px; margin: 2px 0; }
+.pod-col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.pod-cap { text-align: center; margin-bottom: 6px; }
+.pod-cap .pp { font-family: var(--mono); font-weight: 800; font-size: 13px; }
+.pod-col.p1 .pod-cap .pp { color: var(--gold); }
+.pod-col.p2 .pod-cap .pp { color: #cdd5e3; }
+.pod-col.p3 .pod-cap .pp { color: #d9975a; }
+.pod-cap .nm { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pod-cap .pt { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+.pod-bar { border-radius: 7px 7px 0 0; position: relative; overflow: hidden; transition: height 0.9s var(--ease);
+  background: linear-gradient(180deg, rgba(150,180,230,.12), rgba(150,180,230,.02)); border: 1px solid var(--hair); border-bottom: none; min-height: 6px; }
+.pod-col.p1 .pod-bar { box-shadow: inset 0 2px 0 var(--gold), 0 0 20px -8px var(--gold); }
+.pod-bar .pod-dot { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px;
+  border-radius: 50%; box-shadow: 0 0 8px -1px currentColor, inset -2px -3px 5px rgba(0,0,0,.4), inset 2px 2px 4px rgba(255,255,255,.4); }
+@media (max-height: 460px) { .res-podium { height: 84px; } .pod-cap .nm { display: none; } }
 .res-winner .p1 { font-size: 30px; font-weight: 900; color: var(--gold); }
 .res-winner .nm { font-weight: 900; font-size: 20px; }
 .res-winner .tm { color: var(--dim); font-size: 13px; }
@@ -152,7 +176,15 @@
 .swatch.sel { border-color: #fff; box-shadow: 0 0 10px -2px #fff; }
 .garage-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .garage-card .nm { font-weight: 800; }
-.marble-preview { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.25); box-shadow: inset -6px -8px 14px rgba(0, 0, 0, 0.4), inset 5px 6px 10px rgba(255, 255, 255, 0.35); }
+.marble-preview { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset -6px -8px 14px rgba(0, 0, 0, 0.4), inset 5px 6px 10px rgba(255, 255, 255, 0.35);
+  position: relative; overflow: hidden; }
+/* brilho especular que gira, dando a sensação de bolinha rolando */
+.marble-preview::after { content: ""; position: absolute; top: 14%; left: 16%; width: 34%; height: 34%;
+  border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.85), transparent 70%);
+  animation: marble-roll 3.2s linear infinite; transform-origin: 90px 90px; }
+@keyframes marble-roll { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .marble-preview::after { animation: none; } }
 
 /* ---------- daily ---------- */
 .daily-body { flex: 1; display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; min-height: 0; }

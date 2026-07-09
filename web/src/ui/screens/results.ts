@@ -8,9 +8,13 @@ import { Game } from '../../game/state';
 import type { RaceResult } from '../../sim/systems';
 import type { RaceRecorder } from '../../sim/recorder';
 import { teamById } from '../../data/teams';
+import { Haptics } from '../../game/haptics';
+import { countUp, onVisible } from '../motion';
+import { icon } from '../icons';
 import { btn, div, el, formatTime, label, mount, trim } from '../dom';
 import { show } from '../router';
 import { goChampionship, goDaily, goMenu, goReplay, goStrategy, type RaceContext } from '../flow';
+import { exportResultImage } from './sharecard';
 
 export function resultsScreen(
   result: RaceResult, ctx: RaceContext, recorder: RaceRecorder | null, skipRecord = false,
@@ -59,22 +63,38 @@ export function resultsScreen(
 
     const winner = result.entries[0];
     const banner = div('panel res-winner');
+    const fastest = result.entries.find(e => e.fastestLap);
     if (winner) {
       const info = div('');
-      mount(info, label(winner.marbleName, 'nm'), label(winner.teamName, 'tm'));
+      const nm = label(winner.marbleName, 'nm');
+      mount(info, nm, label(winner.teamName, 'tm'));
+      if (winner.fastestLap) {
+        const flchip = div('fl-chip');
+        flchip.innerHTML = `${icon('bolt', 12)} VOLTA MAIS RÁPIDA`;
+        info.appendChild(flchip);
+      }
       const stats = div('stats');
+      let ptsVl: HTMLElement | null = null;
       const st = (lb: string, vl: string) => {
         const s = div('st');
-        mount(s, label(vl, 'vl'), label(lb, 'lb'));
+        const v = label(vl, 'vl');
+        mount(s, v, label(lb, 'lb'));
         stats.appendChild(s);
+        return v;
       };
       st('TEMPO', formatTime(winner.totalTime));
       st('PNEU', winner.finalTyre);
       st('PITS', String(winner.pitStops));
       st('COMBUST.', `${Math.round(winner.finalFuel)}%`);
-      st('PONTOS', `+${winner.points}`);
+      ptsVl = st('PONTOS', `+${winner.points}`);
       mount(banner, label('1º', 'p1'), info, stats);
+      // Pontuação conta de 0 até o valor quando o banner entra em cena.
+      if (ptsVl) onVisible(banner, () => countUp(ptsVl!, winner.points, 900, v => `+${Math.round(v)}`));
+      Haptics.success();
     }
+
+    // Pódio 1-2-3 (colunas que sobem).
+    const podium = buildPodium(result.entries.slice(0, 3));
 
     // Faixa: desafio diário ou conquistas novas.
     let strip: HTMLElement | null = null;
@@ -121,6 +141,12 @@ export function resultsScreen(
 
     const foot = div('sc-foot');
     mount(foot, btn('Voltar ao Menu', 'ghost', goMenu));
+    const shareB = btn('Compartilhar', 'ghost', () => {
+      Haptics.tap();
+      void exportResultImage(result);
+    });
+    shareB.insertAdjacentHTML('afterbegin', icon('share', 16));
+    mount(foot, shareB);
     if (recorder && recorder.frames.length >= 2) {
       mount(foot, btn('Ver Replay', 'purple', () => {
         goReplay(recorder, () => resultsScreenAgain(result, ctx, recorder));
@@ -140,8 +166,33 @@ export function resultsScreen(
       mount(foot, btn('Correr de Novo', 'primary', () => goStrategy(ctx.setup.trackId)));
     }
 
-    mount(root, head, banner, strip, tableBox, foot);
+    mount(root, head, banner, podium, strip, tableBox, foot);
   });
+}
+
+/** Pódio 1-2-3: colunas que sobem com easing (ordem visual 2-1-3). */
+function buildPodium(top3: RaceResult['entries']): HTMLElement {
+  const wrap = div('res-podium');
+  const heights: Record<number, string> = { 1: '100%', 2: '64%', 3: '46%' };
+  const order = [top3[1], top3[0], top3[2]]; // 2º · 1º · 3º
+  for (const e of order) {
+    if (!e) { wrap.appendChild(div('')); continue; }
+    let color = '#888';
+    try { color = teamById(e.teamId).primaryColor; } catch { /* keep */ }
+    const col = div(`pod-col p${e.position}`);
+    const cap = div('pod-cap');
+    mount(cap, label(`P${e.position}`, 'pp'), label(trim(e.marbleName, 14), 'nm'), label(`${e.points} pts`, 'pt'));
+    const bar = div('pod-bar');
+    const dot = div('pod-dot');
+    dot.style.background = color;
+    bar.appendChild(dot);
+    mount(col, cap, bar);
+    // sobe com easing
+    bar.style.height = '0%';
+    onVisible(wrap, () => { bar.style.height = heights[e.position] ?? '40%'; });
+    wrap.appendChild(col);
+  }
+  return wrap;
 }
 
 /** Reexibe a tela de resultado sem re-registrar estatísticas (volta do replay). */
