@@ -101,14 +101,18 @@ export const GameNotifications = {
 
 /** Liga os hooks de ciclo de vida (pause/resume) — chame uma vez no boot. */
 export function bindNotificationLifecycle(): void {
-  void GameNotifications.setup();
+  // Agenda os lembretes JÁ no boot (após a permissão) e a cada foreground,
+  // com o app ativo e sem pressa — em vez de depender só do 'hidden', cuja
+  // janela de suspensão pode ser curta demais para a cadeia async concluir.
+  void GameNotifications.setup().then(() => GameNotifications.scheduleReminders());
   void GameNotifications.clearBadgeAndDelivered();
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      void GameNotifications.scheduleReminders();
+      void GameNotifications.scheduleReminders(); // best-effort ao sair
     } else {
       void GameNotifications.clearBadgeAndDelivered();
+      void GameNotifications.scheduleReminders(); // reagenda confiável no foreground
     }
   });
 }

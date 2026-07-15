@@ -133,7 +133,7 @@
 .opt-card .t { font-weight: 800; font-size: 12.5px; line-height: 1.1; }
 .opt-card .d { color: var(--dim); font-size: 10px; margin-top: 1px; }
 .opt-card.sel { border-color: var(--gold); box-shadow: 0 0 12px -4px var(--gold); background: #1d1a0c; }
-.opt-card.sel .d { color: var(--gold-2, #d8b878); }
+.opt-card.sel .d { color: var(--gold); }
 .opt-card .tyre-dot {
   width: 20px; height: 20px; border-radius: 50%; margin: 0 auto 3px; border: 2.5px solid currentColor;
   display: grid; place-items: center; font-size: 10px; font-weight: 900;
@@ -215,7 +215,7 @@
 }
 .res-table td { padding: 6px 8px; border-top: 1px solid rgba(120, 180, 255, 0.06); }
 .res-table tr.first td { background: rgba(255, 206, 70, 0.10); color: var(--gold); font-weight: 700; }
-.res-table tr.me td { background: rgba(26, 132, 255, 0.10); }
+.res-table tr.me td { background: rgba(34, 228, 212, 0.10); } /* ciano = jogador (consistente com o HUD) */
 .res-table .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* ---------- campeonato ---------- */
@@ -230,7 +230,7 @@
 .stand-row .pt { font-family: var(--mono); font-weight: 800; text-align: right; }
 .stand-row .wn { color: var(--dim); font-size: 11.5px; text-align: right; }
 .stand-row.first { background: rgba(255, 206, 70, 0.12); }
-.stand-row.me { background: rgba(26, 132, 255, 0.14); }
+.stand-row.me { background: rgba(34, 228, 212, 0.14); } /* ciano = jogador (consistente com o HUD) */
 
 /* ---------- upgrades ---------- */
 .upg-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; min-height: 0; }
@@ -255,7 +255,7 @@
 /* brilho especular que gira, dando a sensação de bolinha rolando */
 .marble-preview::after { content: ""; position: absolute; top: 14%; left: 16%; width: 34%; height: 34%;
   border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.85), transparent 70%);
-  animation: marble-roll 3.2s linear infinite; transform-origin: 90px 90px; }
+  animation: marble-roll 3.2s linear infinite; transform-origin: 14px 15px; }
 @keyframes marble-roll { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .marble-preview::after { animation: none; } }
 
