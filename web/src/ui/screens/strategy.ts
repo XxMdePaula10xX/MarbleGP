@@ -109,7 +109,9 @@ export function strategyScreen(trackId: string): void {
     right.appendChild(mapWrap);
     right.appendChild(mapMeta);
 
-    const stops = selectedLaps >= 18 ? 2 : 1;
+    // Paradas/combustível estimados pela distância: corridas curtas não
+    // exigem parada (antes o texto era fixo "não chega sem parar" mesmo em 5 voltas).
+    const stops = selectedLaps <= 6 ? 0 : selectedLaps <= 14 ? 1 : 2;
     const sumRow = (lb: string, vl: string, sb: string, color: string) => {
       const r = div('sum-row');
       const v = label(vl, 'vl');
@@ -117,8 +119,13 @@ export function strategyScreen(trackId: string): void {
       mount(r, label(lb, 'lb'), v, label(sb, 'sb'));
       right.appendChild(r);
     };
-    sumRow('PARADAS PREVISTAS', String(stops), 'no pit', 'var(--orange)');
-    sumRow('COMBUSTÍVEL', 'ATENÇÃO', 'não chega sem parar', 'var(--wear)');
+    sumRow('PARADAS PREVISTAS', String(stops), stops === 0 ? 'sem pit' : 'no pit',
+      stops === 0 ? 'var(--green)' : 'var(--orange)');
+    if (stops === 0) {
+      sumRow('COMBUSTÍVEL', 'OK', 'suficiente para a distância', 'var(--green)');
+    } else {
+      sumRow('COMBUSTÍVEL', 'ATENÇÃO', 'não chega ao fim sem parar', 'var(--wear)');
+    }
     sumRow('PNEU INICIAL', grip.toUpperCase(), tyreNote(grip), 'var(--cyan)');
     const tip = label('DICA: macio é mais rápido, mas desgasta antes.', 'tip');
     right.appendChild(tip);

@@ -1,7 +1,7 @@
 // Tela: Desafio do Dia — port de ShowDailyChallenge/StartDaily.
 
 import { buildQuickRace } from '../../sim/quickrace';
-import { seededRandom, todaysChallenge } from '../../game/daily';
+import { seededRandom, todaysChallenge, todayKey } from '../../game/daily';
 import { SaveManager } from '../../game/save';
 import { weatherLabel } from '../../sim/race';
 import { gripDisplayLetter } from '../../core/types';
@@ -50,11 +50,15 @@ export function dailyScreen(): void {
     status.style.fontWeight = '800';
     card.appendChild(status);
 
-    // Card lateral: streak + melhor de hoje.
+    // Card lateral: streak + melhor de hoje. A sequência só é válida se a
+    // última vitória foi hoje ou ontem; senão já quebrou e mostra 0.
+    const yKey = todayKey(new Date(Date.now() - 86400000));
+    const streakValid = daily.lastWinDateKey === def.dateKey || daily.lastWinDateKey === yKey;
+    const effStreak = streakValid ? daily.streak : 0;
     const side = div('panel daily-side');
     mount(side,
       label('SEQUÊNCIA', 'obj'),
-      label(String(daily.streak), 'big'),
+      label(String(effStreak), 'big'),
       label('dias seguidos', 'lb'),
       label('MELHOR HOJE', 'lb'),
       label(best > 0 ? `P${best}` : '—', 'best'),

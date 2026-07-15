@@ -9,6 +9,7 @@ import { gripDisplayColor, gripDisplayLetter } from '../../core/types';
 import { Game } from '../../game/state';
 import { Haptics } from '../../game/haptics';
 import { Sound } from '../../game/audio';
+import { seededRandom } from '../../game/daily';
 import { RaceManager, weatherLabel, NEUTRAL_UPGRADES } from '../../sim/race';
 import { RaceRecorder } from '../../sim/recorder';
 import type { MarbleActor } from '../../sim/controller';
@@ -32,7 +33,12 @@ export function raceScreen(ctx: RaceContext): void {
       playerTeamName: p.teamName,
       playerSecondaryColor: p.secondaryColorHex,
     };
-    const rand = ctx.seededRand ?? Math.random;
+    // Desafio do Dia: reconstrói o RNG A PARTIR DO SEED a cada entrada na
+    // tela. Assim "Reiniciar Corrida" reproduz o MESMO cenário oficial, em
+    // vez de reusar um seededRand já consumido na tentativa anterior.
+    const rand = ctx.isDaily && ctx.dailyDef
+      ? seededRandom(ctx.dailyDef.seed)
+      : (ctx.seededRand ?? Math.random);
     const race = new RaceManager(ctx.setup, opts, rand);
     const recorder = new RaceRecorder(race);
 
@@ -388,13 +394,22 @@ export function raceScreen(ctx: RaceContext): void {
     // todas de uma vez (lights out) com um toque háptico forte.
     let lightsStarted = false;
     const lightTimers: number[] = [];
+    // Todos os setTimeout da tela vão para 'timers' e são cancelados no
+    // teardown — senão, sair durante a largada deixa beeps/vibração/flash
+    // disparando no menu e closures retendo a árvore DOM da corrida.
+    const timers: number[] = [];
+    const later = (fn: () => void, ms: number): number => {
+      const id = window.setTimeout(fn, ms);
+      timers.push(id);
+      return id;
+    };
     race.onCountdown = v => {
       lights.classList.add('show');
       if (!lightsStarted && v > 0) {
         lightsStarted = true;
         const dots = slDots();
         for (let col = 0; col < 5; col++) {
-          lightTimers.push(window.setTimeout(() => {
+          lightTimers.push(later(() => {
             dots[col * 2]?.classList.add('on');
             dots[col * 2 + 1]?.classList.add('on');
             Haptics.tap();
@@ -410,8 +425,8 @@ export function raceScreen(ctx: RaceContext): void {
         Sound.go();
         // Clarão branco de largada.
         flash.classList.add('go');
-        window.setTimeout(() => flash.classList.remove('go'), 400);
-        window.setTimeout(() => { lights.style.display = 'none'; }, 320);
+        later(() => flash.classList.remove('go'), 400);
+        later(() => { lights.style.display = 'none'; }, 320);
         showBanner('GO!', 'var(--cyan)');
       }
     };
@@ -469,7 +484,7 @@ export function raceScreen(ctx: RaceContext): void {
       if (finished) return;
       finished = true;
       // Pequena pausa para o jogador ver a bandeirada antes do resultado.
-      setTimeout(() => {
+      later(() => {
         if (!alive) return;
         goResults(result, ctx, recorder);
       }, 1400);
@@ -514,15 +529,18 @@ export function raceScreen(ctx: RaceContext): void {
 
     // Posição anterior POR BOLINHA (não por linha da torre) para a seta ▲/▼.
     const prevPos = new Map<MarbleActor, number>();
-    // Flash one-shot de mudança de posição (reflow força o replay da animação).
+    // Flash one-shot de mudança de posição. Em vez de forçar um reflow por
+    // linha alterada (layout thrashing a 15 Hz na largada), acumulamos e
+    // fazemos UM único reflow por updateHud (ver flush abaixo).
+    const pendingFlash: Array<[HTMLElement, 'up' | 'down']> = [];
     const flashRow = (elm: HTMLElement, cls: 'up' | 'down'): void => {
       elm.classList.remove('up', 'down');
-      void elm.offsetWidth;
-      elm.classList.add(cls);
+      pendingFlash.push([elm, cls]);
     };
 
     let lastLapShown = false;
     function updateHud(): void {
+      pendingFlash.length = 0;
       const leader = race.leader;
       const lap = Math.min(race.totalLaps, (leader?.m.completedLaps ?? 0) + 1);
       lapEl.textContent = `VOLTA ${lap}/${race.totalLaps}`;
@@ -568,12 +586,20 @@ export function raceScreen(ctx: RaceContext): void {
         r.chip.style.color = m.teamSecondary;
         r.code.textContent = m.driver.shortCode;
         r.code.style.color = i === 0 ? 'var(--gold)' : '#e6eeff';
-        r.gap.textContent = i === 0 ? 'Líder' : `+${m.gapToLeader.toFixed(1)}`;
-        r.gap.style.color = actor === flActor ? 'var(--delta-best)' : 'var(--dim)';
+        // Volta mais rápida: marcador não-cromático (⚡) além da cor roxa.
+        const isFl = actor === flActor;
+        const gapTxt = i === 0 ? 'Líder' : `+${m.gapToLeader.toFixed(1)}`;
+        r.gap.textContent = isFl && i !== 0 ? `⚡${gapTxt}` : gapTxt;
+        r.gap.style.color = isFl ? 'var(--delta-best)' : 'var(--dim)';
         const inPit = m.state === 'InPit' || m.state === 'EnteringPit' || m.state === 'ExitingPit';
         r.ty.textContent = inPit ? 'P' : gripDisplayLetter(m.grip.gripId);
         r.ty.style.color = inPit ? 'var(--orange)' : gripDisplayColor(m.grip.gripId);
         r.ty.classList.toggle('pit', inPit);
+      }
+      // Um único reflow reinicia todas as animações de troca de posição.
+      if (pendingFlash.length) {
+        void rowsBox.offsetWidth;
+        for (const [e, c] of pendingFlash) e.classList.add(c);
       }
 
       // Cards.
@@ -666,6 +692,7 @@ export function raceScreen(ctx: RaceContext): void {
     // Teardown ao trocar de tela.
     function cleanup(): void {
       alive = false;
+      for (const t of timers) clearTimeout(t);   // luzes/flash/resultado
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKey);
     }

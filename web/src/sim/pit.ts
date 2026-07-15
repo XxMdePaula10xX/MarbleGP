@@ -168,9 +168,12 @@ export class PitStopManager {
       this.tires.fitNewGrip(m, GRIPS[m.pitTargetGrip]);
     }
 
-    // Serviço 2: reabastece combustível e restaura energia para 100.
-    const energyRefilled = 100 - m.energy;
-    this.energy.refill(m, 100);
+    // Serviço 2: reabastece combustível (sempre cheio) e restaura energia
+    // até o nível-alvo m.pitRefillAmount. Encher menos = pit mais curto
+    // (energyRefilled alimenta pitTime). Antes ignorava o alvo e enchia a 100.
+    const target = Math.min(100, Math.max(0, m.pitRefillAmount));
+    const energyRefilled = Math.max(0, target - m.energy);
+    this.energy.refill(m, energyRefilled);
     this.fuel.refill(m);
 
     // Tempo total do pit.

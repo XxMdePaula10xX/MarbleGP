@@ -134,7 +134,9 @@ export class RacePositionSystem {
     for (let i = 0; i < field.length; i++) {
       const newPos = i + 1;
       const m = field[i]!.m;
-      if (m.position !== 0 && newPos < m.position) m.overtakes++;
+      // NÃO conta ultrapassagem aqui: ganho de posição inclui rival em pit,
+      // batida ou flicker de empate. A estatística m.overtakes é alimentada
+      // pela detecção robusta em RaceManager.detectOvertakes().
       m.position = newPos;
 
       if (!leader || m === leader) m.gapToLeader = 0;

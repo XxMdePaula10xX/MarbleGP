@@ -384,6 +384,7 @@ export class RaceManager implements RaceConditions {
       if ((this.pairCooldown.get(key) ?? 0) > 0) continue;
 
       this.log(`🔼 ${ma.displayName} ultrapassou ${mb.displayName}.`);
+      ma.overtakes++;   // estatística real (objetivo diário depende disto)
       this.pairCooldown.set(key, 2);
     }
 
@@ -479,7 +480,11 @@ export class RaceManager implements RaceConditions {
     if (inPitFlow(ma.state) || inPitFlow(mb.state)) return;
 
     // Faíscas no ponto de contato (throttle leve para não spammar).
-    if (this.onContact && this.rand() < 0.35) {
+    // Sortear SEMPRE (não condicionar ao callback de UI) — senão o headless
+    // e o cliente consomem o RNG em passos diferentes e o Desafio do Dia
+    // deixa de ser reproduzível.
+    const sparkRoll = this.rand() < 0.35;
+    if (sparkRoll && this.onContact) {
       this.onContact((ma.x + mb.x) / 2, (ma.y + mb.y) / 2, Math.min(2, 0.5 + impact / 6));
     }
 
