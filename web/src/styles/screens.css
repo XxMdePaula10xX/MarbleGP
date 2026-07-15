@@ -24,7 +24,7 @@
 .menu-btn.ghost .bi { color: var(--dim); }
 .menu-version { position: absolute; right: calc(var(--safe-r) + 16px); bottom: calc(var(--safe-b) + 12px); color: var(--mut); font-size: 11px; font-family: var(--mono); letter-spacing: 0.05em; }
 .menu-gear { position: absolute; left: calc(var(--safe-l) + 16px); bottom: calc(var(--safe-b) + 12px);
-  width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--hair); background: var(--glass);
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--hair); background: var(--glass);
   color: var(--dim); display: grid; place-items: center; cursor: pointer; }
 .menu-gear:hover { color: var(--cyan); border-color: rgba(34,228,212,.3); }
 
@@ -35,6 +35,9 @@
 .set-row > *:first-child { flex: 1; }
 .switch { width: 48px; height: 27px; border-radius: 999px; border: 1px solid var(--hair); background: #0c1524;
   position: relative; cursor: pointer; transition: background 0.2s, border-color 0.2s; flex: 0 0 auto; }
+/* Área de toque de 44px sem mudar o visual do pill (pseudo-elemento invisível). */
+.switch::after { content: ""; position: absolute; left: -6px; right: -6px; top: 50%;
+  transform: translateY(-50%); height: 44px; }
 .switch > i { position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%;
   background: #6b7c96; transition: transform 0.2s var(--ease), background 0.2s; }
 .switch.on { background: rgba(34,228,212,.22); border-color: rgba(34,228,212,.5); }

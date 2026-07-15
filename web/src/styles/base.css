@@ -16,7 +16,7 @@
   /* tinta */
   --ink: #eaf1ff;
   --dim: #93a6c6;
-  --mut: #5b6e8c;
+  --mut: #8698ba; /* clareado p/ contraste >=4.5:1 em texto pequeno (era #5b6e8c) */
   /* dupla de assinatura */
   --cyan: #22e4d4;
   --cyan-deep: #0bb6ab;
@@ -118,7 +118,10 @@ body {
   touch-action: manipulation;
 }
 .btn:active { transform: scale(0.965); }
-.btn:hover { border-color: rgba(150, 180, 230, 0.26); }
+/* :hover só em ponteiros reais — evita o estado "grudado" após o toque. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { border-color: rgba(150, 180, 230, 0.26); }
+}
 .btn .bi { width: 17px; height: 17px; flex: 0 0 auto; opacity: 0.9; }
 .btn .bi path, .btn .bi circle, .btn .bi line { stroke: currentColor; }
 
@@ -128,7 +131,9 @@ body {
   border-color: rgba(34, 228, 212, 0.45); color: #c6fff8;
   box-shadow: inset 0 1px 0 rgba(120, 255, 240, 0.18), 0 0 26px -10px rgba(34, 228, 212, 0.7);
 }
-.btn.primary:hover { box-shadow: inset 0 1px 0 rgba(120, 255, 240, 0.22), 0 0 32px -8px rgba(34, 228, 212, 0.85); }
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover { box-shadow: inset 0 1px 0 rgba(120, 255, 240, 0.22), 0 0 32px -8px rgba(34, 228, 212, 0.85); }
+}
 
 /* Ouro — reservado a conquista/campeonato (uso raro). */
 .btn.gold {
@@ -182,7 +187,9 @@ body {
   position: fixed; inset: 0; z-index: 99; display: none;
   background: rgba(2, 6, 16, 0.96); place-items: center; text-align: center;
 }
-@media (orientation: portrait) and (max-width: 820px) { #rotate-hint { display: grid; } }
+/* Dica de girar: em qualquer aparelho em retrato "alto" (celulares E tablets
+   como o iPad Pro, cujo retrato tem >820px de largura e antes escapava). */
+@media (orientation: portrait) and (max-aspect-ratio: 3 / 4) { #rotate-hint { display: grid; } }
 .rh-icon { font-size: 44px; margin-bottom: 12px; }
 .rh-text { font-size: 17px; font-weight: 700; line-height: 1.5; }
 .rh-text small { color: var(--dim); font-weight: 400; }
@@ -204,6 +211,9 @@ body {
 @keyframes bootpulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation-duration: 0.001s !important; }
+  /* Zera duração E delay: sem zerar o delay, o conteúdo escalonado
+     (.screen > *) ficava invisível até 0.22s antes de aparecer. */
+  * { transition: none !important; animation-duration: 0.001s !important; animation-delay: 0s !important; }
+  .screen > * { animation: none !important; opacity: 1 !important; transform: none !important; }
   .monogram .spin, #boot .ring { animation: none !important; }
 }

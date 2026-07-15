@@ -46,7 +46,7 @@ export function raceScreen(ctx: RaceContext): void {
     const stage = div('stage');
     root.appendChild(stage);
 
-    const canvas = el('canvas');
+    const canvas = el('canvas', '', { role: 'img', 'aria-label': 'Pista de corrida' });
     stage.appendChild(canvas);
 
     // Top bar.
@@ -113,10 +113,10 @@ export function raceScreen(ctx: RaceContext): void {
     mount(mid, banner, lights, flash, fps);
 
     const zoomCtl = div('zoomctl');
-    const zIn = el('button', 'zbtn'); zIn.textContent = '+';
-    const zOut = el('button', 'zbtn'); zOut.textContent = '−';
-    const zHome = el('button', 'zbtn'); zHome.textContent = '⌂';
-    const zFollow = el('button', 'zbtn'); zFollow.textContent = '◎';
+    const zIn = el('button', 'zbtn', { 'aria-label': 'Aproximar' }); zIn.textContent = '+';
+    const zOut = el('button', 'zbtn', { 'aria-label': 'Afastar' }); zOut.textContent = '−';
+    const zHome = el('button', 'zbtn', { 'aria-label': 'Enquadrar a pista' }); zHome.textContent = '⌂';
+    const zFollow = el('button', 'zbtn', { 'aria-label': 'Seguir o líder' }); zFollow.textContent = '◎';
     mount(zoomCtl, zIn, zOut, zHome, zFollow);
     mid.appendChild(zoomCtl);
 
@@ -131,6 +131,35 @@ export function raceScreen(ctx: RaceContext): void {
     let radioTimer = 0;
     let radioDuration = 8;
 
+    // Acessibilidade de diálogo modal: role=dialog + aria-modal, foco no
+    // primeiro controle, focus trap com Tab e restauração do foco ao fechar.
+    // `escape=true` fecha com Esc (o overlay de pausa trata Esc à parte).
+    const dialogA11y = (
+      overlay: HTMLElement, box: HTMLElement, remove: () => void, escape = true,
+    ): (() => void) => {
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      const prev = document.activeElement as HTMLElement | null;
+      const foc = (): HTMLElement[] =>
+        Array.from(box.querySelectorAll<HTMLElement>('button:not([disabled]),input,[tabindex]:not([tabindex="-1"])'));
+      const close = (): void => {
+        document.removeEventListener('keydown', onKey, true);
+        remove();
+        prev?.focus?.();
+      };
+      const onKey = (e: KeyboardEvent): void => {
+        if (escape && e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key !== 'Tab') return;
+        const f = foc(); if (f.length === 0) return;
+        const first = f[0]!, lastF = f[f.length - 1]!;
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); lastF.focus(); }
+        else if (!e.shiftKey && document.activeElement === lastF) { e.preventDefault(); first.focus(); }
+      };
+      document.addEventListener('keydown', onKey, true);
+      requestAnimationFrame(() => foc()[0]?.focus());
+      return close;
+    };
+
     // Popup de escolha (pit/modo) sobre o palco — não pausa a corrida.
     const openChoice = (
       title: string, subtitle: string,
@@ -141,18 +170,19 @@ export function raceScreen(ctx: RaceContext): void {
       const h = div('rp-title'); h.textContent = title;
       const s = div('rp-sub'); s.textContent = subtitle;
       const grid = div('rp-grid');
+      const close = dialogA11y(pop, box, () => pop.remove());
       for (const o of opts) {
         const b = el('button', `rp-opt ${o.cls}`);
         b.type = 'button';
         b.innerHTML = `<span class="rp-lb">${o.label}</span>${o.sub ? `<span class="rp-sb">${o.sub}</span>` : ''}`;
-        b.addEventListener('click', () => { Haptics.medium(); o.onPick(); pop.remove(); });
+        b.addEventListener('click', () => { Haptics.medium(); o.onPick(); close(); });
         grid.appendChild(b);
       }
-      const cancel = btn('Cancelar', 'ghost', () => pop.remove());
+      const cancel = btn('Cancelar', 'ghost', close);
       cancel.classList.add('rp-cancel');
       mount(box, h, s, grid, cancel);
       pop.appendChild(box);
-      pop.addEventListener('click', e => { if (e.target === pop) pop.remove(); });
+      pop.addEventListener('click', e => { if (e.target === pop) close(); });
       stage.appendChild(pop);
     };
 
@@ -236,7 +266,7 @@ export function raceScreen(ctx: RaceContext): void {
     const log = div('rhud-panel rlog');
     const logHd = div('rhud-hd');
     logHd.innerHTML = '<span class="k"></span>EVENTOS';
-    const logLines = div('lines');
+    const logLines = div('lines', { role: 'log', 'aria-live': 'polite', 'aria-label': 'Eventos da corrida' });
     mount(log, logHd, logLines);
     stage.appendChild(log);
 
@@ -493,6 +523,7 @@ export function raceScreen(ctx: RaceContext): void {
     // ---- Pausa --------------------------------------------------------
     let paused = false;
     let pauseEl: HTMLElement | null = null;
+    let pauseClose: (() => void) | null = null;
     const openPause = () => {
       if (paused || race.state === 'Finished') return;
       paused = true;
@@ -508,12 +539,13 @@ export function raceScreen(ctx: RaceContext): void {
       );
       pauseEl.appendChild(box);
       stage.appendChild(pauseEl);
+      // role=dialog + foco + trap (Escape é tratado pelo onKey da janela).
+      pauseClose = dialogA11y(pauseEl, box, () => { pauseEl?.remove(); pauseEl = null; }, false);
     };
     const closePause = () => {
       paused = false;
       race.resume();
-      pauseEl?.remove();
-      pauseEl = null;
+      pauseClose?.(); pauseClose = null;
     };
     pauseBtn.addEventListener('click', openPause);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') paused ? closePause() : openPause(); };
