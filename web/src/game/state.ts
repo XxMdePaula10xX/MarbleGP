@@ -38,6 +38,21 @@ class GameStateSingleton {
   saveSettings(): void {
     SaveManager.saveSettings(this.settings);
   }
+
+  /**
+   * Reinicializa TODO o estado em memória para os padrões. Chamado após
+   * SaveManager.deleteAll() no fluxo "Apagar progresso" — sem isto os
+   * singletons cacheados regravam os dados antigos no próximo save.
+   * (AchievementManager tem cache estático próprio; reinicie-o à parte.)
+   */
+  resetToDefaults(): void {
+    this.profile = defaultProfile();
+    this.championship.data = null;
+    this.settings = defaultSettings();
+    this.currentRace = null;
+    this.raceIsChampionship = false;
+    this.raceIsDaily = false;
+  }
 }
 
 export const Game = new GameStateSingleton();

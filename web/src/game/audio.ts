@@ -1,23 +1,63 @@
 // =====================================================================
 // Efeitos sonoros mínimos via WebAudio (sem assets). Gated por
 // Game.settings.sound. Bips da largada, tom do GO e "whoosh" leve.
+//
+// iOS exige que o AudioContext seja criado/resumido DENTRO de um gesto do
+// usuário — senão fica "suspended" para sempre e o jogo sai mudo. Por isso
+// unlockAudio() é chamado no primeiro toque (ver main.ts). Também suspende
+// o contexto em segundo plano para poupar bateria.
 // =====================================================================
 
 import { Game } from './state';
 
 let ctx: AudioContext | null = null;
 
+function ensureCtx(): AudioContext | null {
+  if (ctx) return ctx;
+  try {
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    ctx = new Ctor();
+  } catch {
+    return null;
+  }
+  return ctx;
+}
+
+/**
+ * Desbloqueia o áudio. DEVE ser chamado dentro de um gesto do usuário
+ * (pointerdown/touchend/keydown) — ver o listener único em main.ts. Cria o
+ * contexto, resume e toca um buffer silencioso para "acordar" o iOS.
+ */
+export function unlockAudio(): void {
+  const a = ensureCtx();
+  if (!a) return;
+  if (a.state === 'suspended') void a.resume();
+  try {
+    const buf = a.createBuffer(1, 1, 22050);
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    src.connect(a.destination);
+    src.start(0);
+  } catch { /* ok */ }
+}
+
 function ac(): AudioContext | null {
   if (!Game.settings.sound) return null;
-  try {
-    if (!ctx) {
-      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) return null;
-      ctx = new Ctor();
-    }
-    if (ctx.state === 'suspended') void ctx.resume();
-    return ctx;
-  } catch { return null; }
+  const a = ensureCtx();
+  if (!a) return null;
+  if (a.state === 'suspended') void a.resume();
+  return a;
+}
+
+// Suspende/retoma o contexto conforme o app vai a segundo plano — evita
+// manter o hardware de áudio ligado à toa e um teardown implícito.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!ctx) return;
+    if (document.visibilityState === 'hidden') void ctx.suspend();
+    else if (Game.settings.sound) void ctx.resume();
+  });
 }
 
 function tone(freq: number, dur: number, type: OscillatorType = 'sine', gain = 0.12): void {

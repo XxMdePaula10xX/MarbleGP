@@ -8,6 +8,7 @@ import './styles/race.css';
 
 import { Game } from './game/state';
 import { Storage } from './game/save';
+import { unlockAudio } from './game/audio';
 import { bindNotificationLifecycle } from './game/notifications';
 import { monogram, wordmark } from './ui/brand';
 import { initRouter } from './ui/router';
@@ -119,11 +120,27 @@ async function main(): Promise<void> {
   } catch (e) {
     showFatal('notifications', e);
   }
+  // Desbloqueia o áudio no PRIMEIRO gesto do usuário (iOS exige criar/resumir
+  // o AudioContext dentro de um gesto; senão o jogo fica mudo). Uma vez só.
+  {
+    const unlock = (): void => {
+      unlockAudio();
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('touchend', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('touchend', unlock);
+    window.addEventListener('keydown', unlock);
+  }
+  // Aguarda a hidratação nativa POR COMPLETO antes de carregar o estado.
+  // NÃO use timeout curto aqui: se o boot prosseguir com o localStorage
+  // ainda vazio, Game.init() trata um usuário existente como novo e, se ele
+  // criar um perfil, sobrescreve o save durável (perda permanente de dados).
+  // Storage.hydrate() é robusta (try/catch interno) e sempre resolve — na
+  // web resolve de imediato (isNativePlatform === false).
   try {
-    await Promise.race([
-      Storage.hydrate(),
-      new Promise<void>((res) => window.setTimeout(res, 2500)),
-    ]);
+    await Storage.hydrate();
   } catch (e) {
     showFatal('hydrate', e);
   }

@@ -16,8 +16,8 @@ export function profileScreen(): void {
     const box = div('panel profile-box');
     const sub = label('Crie seu perfil e assuma a estratégia da equipe.', 'sub');
 
-    const nameField = el('input', 'tfield', { placeholder: 'Nome do jogador', maxlength: 18 });
-    const teamField = el('input', 'tfield', { placeholder: 'Nome da equipe', maxlength: 22 });
+    const nameField = el('input', 'tfield', { placeholder: 'Nome do jogador', 'aria-label': 'Nome do jogador', maxlength: 18 });
+    const teamField = el('input', 'tfield', { placeholder: 'Nome da equipe', 'aria-label': 'Nome da equipe', maxlength: 22 });
 
     mount(box, sub, nameField, teamField,
       btn('Continuar', 'primary', () => {

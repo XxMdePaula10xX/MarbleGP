@@ -94,6 +94,13 @@ export class AchievementManager {
 
   static save(): void { SaveManager.saveAchievements(this.data); }
 
+  /**
+   * Invalida o cache em memória (usado ao apagar o progresso). Sem isto, o
+   * `_data` cacheado sobrevive ao deleteAll e é regravado no próximo save,
+   * "ressuscitando" conquistas apagadas.
+   */
+  static reset(): void { this._data = null; }
+
   static unlockedCount(): number {
     return ACHIEVEMENTS.filter(x => achievementUnlocked(x, this.data)).length;
   }

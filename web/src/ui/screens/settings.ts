@@ -3,9 +3,12 @@
 import { Game } from '../../game/state';
 import { Haptics } from '../../game/haptics';
 import { SaveManager } from '../../game/save';
+import { AchievementManager } from '../../game/achievements';
 import { btn, div, el, label, mount } from '../dom';
 import { show } from '../router';
 import { goMenu, goProfile } from '../flow';
+
+let switchSeq = 0;
 
 export function settingsScreen(): void {
   show('settings', root => {
@@ -20,9 +23,16 @@ export function settingsScreen(): void {
     const toggle = (title: string, desc: string, get: () => boolean, set: (v: boolean) => void): HTMLElement => {
       const row = div('panel set-row');
       const info = div('');
-      mount(info, label(title, 'set-ti'), label(desc, 'set-de'));
-      const sw = el('button', 'switch');
-      const sync = () => sw.classList.toggle('on', get());
+      const tiId = `set-ti-${switchSeq++}`;
+      const ti = label(title, 'set-ti'); ti.id = tiId;
+      mount(info, ti, label(desc, 'set-de'));
+      // Toggle acessível: role=switch + aria-checked + nome via aria-labelledby.
+      const sw = el('button', 'switch', { role: 'switch', 'aria-labelledby': tiId });
+      const sync = () => {
+        const on = get();
+        sw.classList.toggle('on', on);
+        sw.setAttribute('aria-checked', String(on));
+      };
       sw.innerHTML = '<i></i>';
       sw.addEventListener('click', () => { set(!get()); Game.saveSettings(); Haptics.tap(); sync(); });
       sync();
@@ -48,6 +58,10 @@ export function settingsScreen(): void {
     const delB = btn('Apagar', 'red', () => {
       if (!armed) { armed = true; delB.textContent = 'Confirmar?'; setTimeout(() => { armed = false; delB.textContent = 'Apagar'; }, 3000); return; }
       SaveManager.deleteAll();
+      // Zera o estado em memória — senão os singletons cacheados regravam
+      // os dados antigos no próximo save e o progresso "ressuscita".
+      Game.resetToDefaults();
+      AchievementManager.reset();
       goProfile();
     });
     danger.appendChild(delB);
