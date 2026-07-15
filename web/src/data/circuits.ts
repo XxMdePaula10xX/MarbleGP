@@ -52,7 +52,7 @@ function track(
   return {
     trackId, trackName, difficulty,
     recommendedLaps: laps, abrasionLevel: abrasion, overtakeLevel: overtake,
-    rainChance, pitLaneTimeLoss: 4, description, controlPoints,
+    rainChance, description, controlPoints,
     trackWidth: width, checkpointEvery: 4,
     trackLength: perimeter(controlPoints),
   };

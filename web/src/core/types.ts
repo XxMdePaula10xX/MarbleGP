@@ -3,13 +3,10 @@
 // (Assets/Scripts/Core/Enums.cs + Data/*.cs)
 // =====================================================================
 
-export type TeamStyle =
-  | 'Aggressive' | 'Balanced' | 'Technical' | 'Strategic' | 'Fast'
-  | 'Precise' | 'Resistant' | 'Unpredictable' | 'Premium' | 'AllOut' | 'Fluid';
-
-export type TeamBonusType =
-  | 'None' | 'TopSpeed' | 'Consistency' | 'Cornering' | 'PitStops' | 'Acceleration'
-  | 'WetWeather' | 'LowDamage' | 'Overtaking' | 'Development' | 'EarlyPace';
+// Nota: TeamStyle/TeamBonusType (identidade competitiva por equipe) foram
+// removidos na auditoria por serem dados mortos — nunca aplicados na sim.
+// Reintroduzir como feature deliberada (efeitos + balanceamento + playtest)
+// se quisermos equipes distintas.
 
 export type Personality =
   | 'Balanced' | 'Aggressive' | 'Conservative' | 'RiskTaker'
@@ -51,10 +48,7 @@ export interface TeamData {
   /** Cor da bolinha na pista: vibrante e distinta entre equipes (legibilidade). */
   raceColor: string;
   secondaryColor: string;
-  teamStyle: TeamStyle;
-  baseBonusType: TeamBonusType;
-  pitCrewRating: number;      // 1-100
-  developmentRating: number;  // 1-100
+  pitCrewRating: number;      // 1-100 (único diferenciador de equipe ativo)
   description: string;
 }
 
@@ -83,9 +77,6 @@ export interface GripRing {
   compoundName: string;
   speedMultiplier: number;
   gripMultiplier: number;
-  wearRate: number;          // desgaste por volta em condicoes normais
-  wetPerformance: number;
-  dryPerformance: number;
   energyMultiplier: number;
   fuelMultiplier: number;
   wearMultiplier: number;
@@ -112,7 +103,6 @@ export interface TrackData {
   abrasionLevel: number;     // 0.5-2 desgaste relativo
   overtakeLevel: number;     // 0-1 facilidade de ultrapassagem
   rainChance: number;        // 0-1
-  pitLaneTimeLoss: number;
   description: string;
   controlPoints: Vec2[];     // plano XZ (sentido horario)
   trackWidth: number;
@@ -163,12 +153,6 @@ export function gripDisplayColor(g: GripType): string {
 
 export function weatherIsWet(w: Weather): boolean {
   return w === 'Damp' || w === 'LightRain' || w === 'HeavyRain';
-}
-
-/** Desgaste efetivo por volta dado o clima (Rain desgasta 2.2x no seco). */
-export function gripWearForWeather(grip: GripRing, weather: Weather): number {
-  if (grip.gripId === 'Rain' && !weatherIsWet(weather)) return grip.wearRate * 2.2;
-  return grip.wearRate;
 }
 
 /** Fator de performance por clima, graduado por tipo de pneu (GripRingSO.PerformanceForWeather). */
