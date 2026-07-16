@@ -1,7 +1,7 @@
 {
   "name": "marblegp",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Marble GP Manager — corrida de bolinhas com estratégia (web + iOS via Capacitor)",
   "type": "module",
   "scripts": {
