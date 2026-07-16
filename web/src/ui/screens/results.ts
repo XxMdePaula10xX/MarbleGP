@@ -171,7 +171,12 @@ export function resultsScreen(
       mount(foot, btn('Correr de Novo', 'primary', () => goStrategy(ctx.setup.trackId)));
     }
 
-    mount(root, head, banner, podium, strip, tableBox, foot);
+    // Layout de paisagem: vencedor + faixa no topo (largura cheia); abaixo,
+    // duas colunas — pódio à esquerda e a TABELA COMPLETA à direita, com
+    // rolagem própria (antes tudo empilhava e a tabela ficava sem espaço).
+    const body = div('res-body');
+    mount(body, podium, tableBox);
+    mount(root, head, banner, strip, body, foot);
   });
 }
 

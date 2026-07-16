@@ -164,15 +164,18 @@
 .start-race-btn { font-size: 18px; padding: 13px 18px; box-shadow: 0 0 24px -6px var(--orange); white-space: nowrap; }
 
 /* ---------- resultado ---------- */
-.res-winner { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border: 1px solid rgba(233, 190, 92, 0.5); }
+/* Corpo em 2 colunas p/ caber na paisagem curta: pódio | tabela rolável. */
+.res-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 0.72fr 1.4fr; gap: 12px; }
+.res-podium { min-height: 0; }
+.res-winner { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border: 1px solid rgba(233, 190, 92, 0.5); }
 .res-winner .fl-chip { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; font-family: var(--mono);
   font-size: 10px; letter-spacing: 0.1em; color: var(--purple); border: 1px solid rgba(178, 123, 255, 0.4);
   padding: 3px 8px; border-radius: 999px; width: max-content; }
 .res-winner .fl-chip .bi { width: 12px; height: 12px; }
 
 /* pódio 1-2-3 real */
-.res-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 14px; align-items: end; margin: 4px 0; }
-.pod-col { display: flex; flex-direction: column; justify-content: flex-end; }
+.res-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 10px; align-items: end; height: 100%; }
+.pod-col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
 .pod-info { text-align: center; padding-bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .pod-head { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
 .pod-marble { width: 22px; height: 22px; border-radius: 50%;
@@ -207,13 +210,18 @@
 .res-winner .stats .lb { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
 .res-winner .stats .vl { font-weight: 800; font-size: 15px; font-family: var(--mono); }
 .res-banner { text-align: center; font-weight: 800; padding: 9px; border-radius: 10px; border: 1px solid; }
-.res-table { flex: 1; min-height: 0; overflow-y: auto; border-radius: 12px; border: 1px solid var(--stroke); }
-.res-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.res-table { min-height: 0; overflow: auto; border-radius: 12px; border: 1px solid var(--stroke); }
+.res-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .res-table th {
-  position: sticky; top: 0; background: #0c1c30; color: var(--cyan); font-size: 11px;
-  letter-spacing: 0.1em; padding: 7px 8px; text-align: left; z-index: 1;
+  position: sticky; top: 0; background: #0c1c30; color: var(--cyan); font-size: 10.5px;
+  letter-spacing: 0.08em; padding: 6px 7px; text-align: left; z-index: 1; white-space: nowrap;
 }
-.res-table td { padding: 6px 8px; border-top: 1px solid rgba(120, 180, 255, 0.06); }
+/* linhas em uma só linha (sem quebrar o nome/equipe em várias) — compacto e
+   com muito mais linhas visíveis; nome/equipe truncam com reticências. */
+.res-table td { padding: 5px 7px; border-top: 1px solid rgba(120, 180, 255, 0.06); white-space: nowrap; }
+.res-table td:nth-child(2), .res-table td:nth-child(3) {
+  max-width: 8.5em; overflow: hidden; text-overflow: ellipsis;
+}
 .res-table tr.first td { background: rgba(255, 206, 70, 0.10); color: var(--gold); font-weight: 700; }
 .res-table tr.me td { background: rgba(34, 228, 212, 0.10); } /* ciano = jogador (consistente com o HUD) */
 .res-table .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
